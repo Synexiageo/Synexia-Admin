@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synexia CRM — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f3fa;
+    --white: #ffffff;
+    --blue: #1a56ff;
+    --blue-dark: #1040d4;
+    --blue-light: #eff3ff;
+    --navy: #060d2b;
+    --text: #0d1117;
+    --muted: #6b7280;
+    --border: #e2e6f0;
+    --row-hover: #f7f9ff;
+    --error: #ef4444;
+  }
+
+  .s-new         { --sc:#1a56ff; --sb:#eff3ff; }
+  .s-contacted   { --sc:#0891b2; --sb:#ecfeff; }
+  .s-followup    { --sc:#d97706; --sb:#fffbeb; }
+  .s-negotiation { --sc:#7c3aed; --sb:#f5f3ff; }
+  .s-onboarded   { --sc:#059669; --sb:#ecfdf5; }
+  .s-declined    { --sc:#dc2626; --sb:#fef2f2; }
+  .s-active      { --sc:#16a34a; --sb:#f0fdf4; }
+  .s-inactive    { --sc:#6b7280; --sb:#f9fafb; }
+  .s-callback    { --sc:#ea580c; --sb:#fff7ed; }
+  .s-training    { --sc:#7c3aed; --sb:#faf5ff; }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* LOGIN */
+  #loginScreen {
+    position:fixed; inset:0; background:var(--navy);
+    display:flex; align-items:center; justify-content:center; z-index:1000;
+  }
+  #loginScreen::before {
+    content:''; position:fixed; inset:0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(26,86,255,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(26,86,255,0.08) 0%, transparent 50%);
+    pointer-events:none;
+  }
+  .login-box {
+    width:360px; padding:40px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px; backdrop-filter:blur(10px);
+    position:relative; z-index:1; animation:fadeUp .4s ease both;
+  }
+  .login-logo { font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700; color:#fff; margin-bottom:4px; }
+  .login-logo span { color:var(--blue); }
+  .login-sub  { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,255,255,0.3); margin-bottom:32px; }
+  .login-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:rgba(255,255,255,0.4); margin-bottom:8px; display:block; }
+  .login-input {
+    width:100%; background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.1);
+    color:#fff; font-family:'Inter',sans-serif; font-size:15px;
+    padding:12px 16px; border-radius:8px; outline:none; letter-spacing:2px; transition:border-color .15s;
+  }
+  .login-input:focus { border-color:var(--blue); }
+  .login-input::placeholder { color:rgba(255,255,255,0.2); letter-spacing:.5px; }
+  .login-btn {
+    width:100%; margin-top:16px; background:var(--blue); color:#fff; border:none;
+    font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:600;
+    padding:13px; border-radius:8px; cursor:pointer; transition:background .15s,transform .1s;
+  }
+  .login-btn:hover { background:var(--blue-dark); transform:translateY(-1px); }
+  .login-err { color:#fca5a5; font-size:12px; margin-top:10px; min-height:16px; }
+
+  /* APP */
+  #app { display:none; }
+
+  .header {
+    background:var(--navy); height:54px;
+    display:flex; align-items:center; padding:0 24px;
+    border-bottom:1px solid rgba(26,86,255,0.2);
+    position:sticky; top:0; z-index:100;
+  }
+  .h-logo { font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:700; color:#fff; }
+  .h-logo span { color:var(--blue); }
+  .h-badge {
+    margin-left:10px; background:rgba(26,86,255,0.2); border:1px solid rgba(26,86,255,0.35);
+    color:#7fa8ff; font-size:9px; font-weight:600; letter-spacing:1.5px;
+    text-transform:uppercase; padding:3px 8px; border-radius:2px;
+  }
+  .h-right { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .h-refresh { color:rgba(255,255,255,0.25); font-size:11px; }
+  .h-logout {
+    background:none; border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.4);
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:500;
+    padding:5px 12px; border-radius:5px; cursor:pointer; transition:all .15s;
+  }
+  .h-logout:hover { border-color:rgba(239,68,68,.5); color:#fca5a5; }
+
+  /* Stats */
+  .stats { padding:18px 24px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  .stat { background:var(--white); border:1px solid var(--border); border-radius:10px; padding:14px 18px; flex:1; min-width:100px; }
+  .stat-n { font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700; color:var(--navy); line-height:1; }
+  .stat-l { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-top:4px; }
+  .stat:first-child .stat-n { color:var(--blue); }
+
+  /* Controls */
+  .controls { padding:14px 24px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .search-box { flex:1; min-width:180px; position:relative; }
+  .search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:13px; pointer-events:none; }
+  .search-box input {
+    padding-left:32px; background:var(--white); border:1.5px solid var(--border);
+    border-radius:8px; font-size:13px; color:var(--text); outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .search-box input:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(26,86,255,.09); }
+  .search-box input::placeholder { color:#c0c8d8; }
+
+  .ctrl-sel {
+    background:var(--white); border:1.5px solid var(--border);
+    color:var(--text); font-family:'Inter',sans-serif; font-size:12px;
+    padding:9px 30px 9px 11px; border-radius:8px; outline:none; cursor:pointer; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 9px center; transition:border-color .15s;
+  }
+  .ctrl-sel:focus { border-color:var(--blue); }
+  .ctrl-sel option { background:#fff; }
+
+  .icon-btn {
+    background:var(--white); border:1.5px solid var(--border);
+    font-family:'Inter',sans-serif; font-size:12px; font-weight:600;
+    padding:9px 14px; border-radius:8px; cursor:pointer;
+    transition:all .15s; white-space:nowrap; display:flex; align-items:center; gap:6px;
+  }
+  .icon-btn.blue { color:var(--blue); }
+  .icon-btn.blue:hover { border-color:var(--blue); background:var(--blue-light); }
+  .icon-btn.green { color:#16a34a; }
+  .icon-btn.green:hover { border-color:#16a34a; background:#f0fdf4; }
+
+  /* Table */
+  .table-wrap { padding:0 24px 40px; overflow-x:auto; }
+  table { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
+
+  thead th {
+    background:var(--navy); color:rgba(255,255,255,0.45);
+    font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    padding:10px 12px; text-align:left; white-space:nowrap;
+    border-bottom:1px solid rgba(26,86,255,0.2);
+  }
+  thead th:first-child { border-radius:8px 0 0 0; }
+  thead th:last-child  { border-radius:0 8px 0 0; }
+
+  tbody tr { background:var(--white); transition:background .1s; }
+  tbody tr:hover { background:var(--row-hover); }
+  tbody td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+
+  .td-id    { font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:600; color:var(--blue); white-space:nowrap; }
+  .td-name  { font-weight:600; white-space:nowrap; }
+  .td-phone { font-family:'Inter',monospace; font-size:12px; font-weight:500; color:var(--navy); white-space:nowrap; letter-spacing:.5px; }
+  .td-phone a { color:var(--blue); text-decoration:none; }
+  .td-phone a:hover { text-decoration:underline; }
+  .td-sm    { font-size:11px; color:var(--muted); }
+
+  /* Legal dropdown */
+  .legal-sel {
+    background: #f0f3fa; border: 1.5px solid var(--border);
+    color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 26px 4px 9px; border-radius: 6px;
+    cursor: pointer; outline: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%239ca3af' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center;
+    transition: border-color .15s, box-shadow .15s; min-width: 130px;
+  }
+  .legal-sel:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,255,.09); }
+  .legal-sel option { background: #fff; color: #0d1117; }
+
+  /* Legal badge */
+  .legal-badge {
+    display:inline-block; font-size:10px; font-weight:700;
+    padding:3px 8px; border-radius:4px;
+    background:#f0f3fa; color:#374151;
+    border:1px solid #d1d5db; white-space:nowrap;
+  }
+
+  /* Status pill */
+  .status-sel {
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:600;
+    padding:4px 24px 4px 10px; border-radius:20px; cursor:pointer; outline:none; appearance:none;
+    background-color:var(--sb,#f3f4f6); color:var(--sc,#374151);
+    border:1.5px solid color-mix(in srgb,var(--sc,#9ca3af) 25%,transparent);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%239ca3af' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 7px center;
+    min-width:148px; transition:box-shadow .15s;
+  }
+  .status-sel:focus { box-shadow:0 0 0 3px rgba(26,86,255,.12); }
+  .status-sel option { background:#fff; color:#0d1117; font-weight:400; }
+
+  /* Note */
+  .note-cell { display:flex; gap:6px; align-items:center; }
+  .note-inp {
+    background:#f7f9fc; border:1.5px solid var(--border); color:var(--text);
+    font-family:'Inter',sans-serif; font-size:12px;
+    padding:5px 9px; border-radius:6px; width:130px; outline:none; transition:border-color .15s;
+  }
+  .note-inp:focus { border-color:var(--blue); }
+  .save-btn {
+    background:var(--blue-light); border:1.5px solid rgba(26,86,255,.3);
+    color:var(--blue); font-family:'Inter',sans-serif; font-size:11px; font-weight:600;
+    padding:5px 9px; border-radius:6px; cursor:pointer; white-space:nowrap; transition:all .15s;
+  }
+  .save-btn:hover { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .del-btn {
+    background:none; border:1.5px solid var(--border); color:var(--muted);
+    font-family:'Inter',sans-serif; font-size:12px; padding:5px 9px; border-radius:6px;
+    cursor:pointer; transition:all .15s;
+  }
+  .del-btn:hover { border-color:rgba(239,68,68,.4); color:var(--error); background:#fef2f2; }
+
+  .empty-row td { text-align:center; padding:56px; color:var(--muted); font-size:13px; }
+  .spinner { display:inline-block; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:10px; }
+
+  .toast {
+    position:fixed; bottom:20px; right:20px;
+    background:var(--navy); color:#fff;
+    border:1px solid rgba(26,86,255,.4);
+    font-family:'Inter',sans-serif; font-size:12px; font-weight:500;
+    padding:11px 18px; border-radius:8px;
+    box-shadow:0 8px 24px rgba(6,13,43,.25);
+    transform:translateY(60px); opacity:0;
+    transition:transform .25s,opacity .25s; pointer-events:none; z-index:9999;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.err  { border-color:rgba(239,68,68,.4); }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin   { to{transform:rotate(360deg)} }
+
+  @media(max-width:600px){
+    .stats,.controls,.table-wrap { padding-left:12px; padding-right:12px; }
+    .header { padding:0 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Syn<span>exia</span></div>
+    <div class="login-sub">CRM Dashboard · Staff Only</div>
+    <label class="login-label">პაროლი</label>
+    <input type="password" class="login-input" id="pwInput" placeholder="••••••••••••"
+      onkeydown="if(event.key==='Enter')login()">
+    <button class="login-btn" onclick="login()">შესვლა →</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="h-logo">Syn<span>exia</span></div>
+    <div class="h-badge">CRM</div>
+    <div class="h-right">
+      <span class="h-refresh" id="lastRef"></span>
+      <button class="h-logout" onclick="logout()">გასვლა</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s-total">—</div><div class="stat-l">სულ ლიდი</div></div>
+    <div class="stat"><div class="stat-n" id="s-new">—</div><div class="stat-l">New Lead</div></div>
+    <div class="stat"><div class="stat-n" id="s-active">—</div><div class="stat-l">Active</div></div>
+    <div class="stat"><div class="stat-n" id="s-onboarded">—</div><div class="stat-l">Onboarded</div></div>
+    <div class="stat"><div class="stat-n" id="s-declined">—</div><div class="stat-l">Declined</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="searchInput" placeholder="ძებნა სახელით, ტელეფონით, ID-ით..." oninput="render()">
+    </div>
+    <select class="ctrl-sel" id="statusF" onchange="render()">
+      <option value="">ყველა სტატუსი</option>
+      <option>New Lead</option><option>Contacted</option>
+      <option>Follow-up Needed</option><option>In Negotiation</option>
+      <option>Onboarded</option><option>Declined</option>
+      <option>Active Operator</option><option>Non/In-active Operator</option>
+      <option>Needs to Call Back</option><option>Needs Training</option>
+    </select>
+    <select class="ctrl-sel" id="legalF" onchange="render()">
+      <option value="">ყველა სტატუსი (იურ.)</option>
+      <option>ფიზ. პირი</option>
+      <option>ი.მ.</option>
+      <option>მცირე მეწ.</option>
+      <option>შპს</option>
+    </select>
+    <select class="ctrl-sel" id="sourceF" onchange="render()">
+      <option value="">ყველა წყარო</option>
+      <option>Facebook</option><option>Instagram</option><option>TikTok</option>
+      <option>YouTube</option><option>მეგობრის რეკომენდაცია</option>
+      <option>Google</option><option>SMS / Viber</option><option>სხვა</option>
+    </select>
+    <button class="icon-btn blue" onclick="load()">↻ განახლება</button>
+    <button class="icon-btn green" onclick="exportCSV()">⬇ CSV</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>სახელი</th>
+          <th>ტელეფონი</th>
+          <th>ელ-ფოსტა</th>
+          <th>ასაკი</th>
+          <th>პროფესია</th>
+          <th>იურ. სტატუსი</th>
+          <th>წყარო</th>
+          <th>სტატუსი</th>
+          <th>თარიღი</th>
+          <th>შენიშვნა</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr class="empty-row"><td colspan="12"><span class="spinner"></span>იტვირთება...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SURL = "https://script.google.com/macros/s/AKfycbzuP5O9fNZMYzClsCnS29R6deo6GDLJ7p5GoQtCAWlJNKgp__xrHjmIOngSRH0RMNMG/exec";
+
+const STATUSES = ["New Lead","Contacted","Follow-up Needed","In Negotiation",
+  "Onboarded","Declined","Active Operator","Non/In-active Operator",
+  "Needs to Call Back","Needs Training"];
+
+const SC = {
+  "New Lead":"s-new","Contacted":"s-contacted","Follow-up Needed":"s-followup",
+  "In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined",
+  "Active Operator":"s-active","Non/In-active Operator":"s-inactive",
+  "Needs to Call Back":"s-callback","Needs Training":"s-training"
+};
+
+let pw = "", leads = [];
+
+// ── Format phone: +995XXXXXXXXX → 995 XXX XX XX XX
+function fmtPhone(p) {
+  if (!p) return "—";
+  const d = String(p).replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("995")) {
+    return `995 ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)} ${d.slice(10,12)}`;
+  }
+  return p;
+}
+
+function login() {
+  const p = document.getElementById("pwInput").value;
+  if (p === "Synexia2026") {
+    pw = p;
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    load();
+  } else {
+    document.getElementById("loginErr").textContent = "⚠ პაროლი არასწორია.";
+    document.getElementById("pwInput").value = "";
+  }
+}
+
+function logout() {
+  pw = ""; leads = [];
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+  document.getElementById("pwInput").value = "";
+  document.getElementById("loginErr").textContent = "";
+}
+
+async function load() {
+  document.getElementById("tbody").innerHTML =
+    `<tr class="empty-row"><td colspan="12"><span class="spinner"></span>იტვირთება...</td></tr>`;
+  try {
+    const r = await fetch(SURL, { method:"POST", body: JSON.stringify({action:"getLeads", password:pw}) });
+    const d = await r.json();
+    if (d.success) {
+      leads = d.leads.reverse();
+      console.log("LEADS:", JSON.stringify(leads[0]));
+      render(); stats();
+      document.getElementById("lastRef").textContent = "განახლდა " + new Date().toLocaleTimeString("ka-GE");
+    } else { toast("შეცდომა: " + d.message, 1); }
+  } catch(err) {
+    console.error("LOAD ERROR:", err);
+    document.getElementById("tbody").innerHTML =
+      `<tr class="empty-row"><td colspan="12" style="color:var(--error)">⚠ სერვერთან კავშირი ვერ დამყარდა</td></tr>`;
+  }
+}
+
+function render() {
+  const q  = document.getElementById("searchInput").value.toLowerCase();
+  const sf = document.getElementById("statusF").value;
+  const lf = document.getElementById("legalF").value;
+  const rf = document.getElementById("sourceF").value;
+
+  const f = leads.filter(l =>
+    (!q || [l.name,l.phone,l.email,l.id,l.profession].some(v => (v||"").toLowerCase().includes(q))) &&
+    (!sf || l.status === sf) &&
+    (!lf || l.legal === lf) &&
+    (!rf || l.source === rf)
+  );
+
+  if (!f.length) {
+    document.getElementById("tbody").innerHTML =
+      `<tr class="empty-row"><td colspan="12">ჩანაწერი ვერ მოიძებნა</td></tr>`;
+    return;
+  }
+
+  document.getElementById("tbody").innerHTML = f.map(l => {
+    const sc   = SC[l.status] || "";
+    const opts = STATUSES.map(s => `<option${s===l.status?" selected":""}>${s}</option>`).join("");
+    const rawPhone = (l.phone||"").replace(/\D/g,"");
+    return `<tr>
+      <td class="td-id">${e(l.id)||"—"}</td>
+      <td class="td-name">${e(l.name)}</td>
+      <td class="td-phone"><a href="tel:${e(l.phone)}">${fmtPhone(l.phone)}</a></td>
+      <td class="td-sm">${e(l.email)||"—"}</td>
+      <td class="td-sm" style="text-align:center">${e(l.age)||"—"}</td>
+      <td class="td-sm">${e(l.profession)||"—"}</td>
+      <td>
+        <select class="legal-sel" onchange="updLegal('${l.id}',this.value)">
+          <option value="">—</option>
+          <option value="ფიზიკური პირი"${l.legal==="ფიზიკური პირი"?" selected":""}>ფიზიკური პირი</option>
+          <option value="მცირე მეწარმე"${l.legal==="მცირე მეწარმე"?" selected":""}>მცირე მეწარმე</option>
+          <option value="ინდ. მეწარმე"${l.legal==="ინდ. მეწარმე"?" selected":""}>ინდ. მეწარმე</option>
+          <option value="შპს"${l.legal==="შპს"?" selected":""}>შპს</option>
+        </select>
+      </td>
+      <td class="td-sm">${e(l.source)||"—"}</td>
+      <td>
+        <select class="status-sel ${sc}" onchange="updStatus('${l.id}',this.value,this)">
+          ${opts}
+        </select>
+      </td>
+      <td class="td-sm" style="white-space:nowrap">${fmtDate(l.date)}</td>
+      <td>
+        <div class="note-cell">
+          <input class="note-inp" id="n-${l.id}" value="${e(l.note||"")}" placeholder="შენიშვნა...">
+          <button class="save-btn" onclick="saveNote('${l.id}')">შენახვა</button>
+        </div>
+      </td>
+      <td><button class="del-btn" onclick="del('${l.id}')">✕</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function stats() {
+  document.getElementById("s-total").textContent    = leads.length;
+  document.getElementById("s-new").textContent      = leads.filter(l=>l.status==="New Lead").length;
+  document.getElementById("s-active").textContent   = leads.filter(l=>l.status==="Active Operator").length;
+  document.getElementById("s-onboarded").textContent= leads.filter(l=>l.status==="Onboarded").length;
+  document.getElementById("s-declined").textContent = leads.filter(l=>l.status==="Declined").length;
+}
+
+async function updStatus(id, status, sel) {
+  sel.className = `status-sel ${SC[status]||""}`;
+  try {
+    const r = await fetch(SURL, {method:"POST", body:JSON.stringify({action:"updateStatus",password:pw,id,status})});
+    const d = await r.json();
+    if (d.success) { const l=leads.find(x=>x.id===id); if(l) l.status=status; stats(); toast("სტატუსი განახლდა ✓"); }
+    else toast("შეცდომა",1);
+  } catch { toast("ვერ შეინახა",1); }
+}
+
+async function saveNote(id) {
+  const note = document.getElementById("n-"+id).value;
+  try {
+    const r = await fetch(SURL, {method:"POST", body:JSON.stringify({action:"updateNote",password:pw,id,note})});
+    const d = await r.json();
+    if (d.success) { const l=leads.find(x=>x.id===id); if(l) l.note=note; toast("შენიშვნა შენახულია ✓"); }
+    else toast("შეცდომა",1);
+  } catch { toast("ვერ შეინახა",1); }
+}
+
+async function del(id) {
+  if (!confirm("წაშალოთ ჩანაწერი?")) return;
+  try {
+    const r = await fetch(SURL, {method:"POST", body:JSON.stringify({action:"deleteLead",password:pw,id})});
+    const d = await r.json();
+    if (d.success) { leads=leads.filter(x=>x.id!==id); render(); stats(); toast("წაიშალა"); }
+    else toast("შეცდომა",1);
+  } catch { toast("ვერ წაიშალა",1); }
+}
+
+// ── Update legal status ──
+async function updLegal(id, legal) {
+  try {
+    const r = await fetch(SURL, {method:"POST", body:JSON.stringify({action:"updateLegal",password:pw,id,legal})});
+    const d = await r.json();
+    if (d.success) { const l=leads.find(x=>x.id===id); if(l) l.legal=legal; toast("იურ. სტატუსი განახლდა ✓"); }
+    else toast("შეცდომა",1);
+  } catch { toast("ვერ შეინახა",1); }
+}
+
+// ── CSV Export ──
+function exportCSV() {
+  if (!leads.length) { toast("ჩანაწერი არ არის",1); return; }
+
+  const cols = ["ID","სახელი","ტელეფონი","ელ-ფოსტა","ასაკი","პროფესია","იურ. სტატუსი","წყარო","სტატუსი","თარიღი","შენიშვნა"];
+  const rows = leads.map(l => [
+    l.id, l.name, l.phone, l.email, l.age,
+    l.profession, l.legal, l.source, l.status, l.date, l.note
+  ].map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(","));
+
+  const csv = "\uFEFF" + [cols.join(","), ...rows].join("\r\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url;
+  a.download = `synexia_crm_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("CSV გადმოწერილია ✓");
+}
+
+function e(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function fmtDate(d) { return d ? String(d).substring(0,16) : "—"; }
+
+let tt;
+function toast(msg, err=0) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = "toast show"+(err?" err":"");
+  clearTimeout(tt); tt = setTimeout(()=>{ t.className="toast"; }, 2500);
+}
+</script>
+</body>
+</html>
