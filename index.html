@@ -862,7 +862,7 @@ async function loadLeads(page) {
   const refCode  = document.getElementById("refSearchInput")?.value.trim()||"";
   const assigned = document.getElementById("filterAssigned")?.value||"";
 
-  let filters = "select=*&order=reg_date.desc";
+  let filters = "select=*&order=created_at.desc";
   if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
   if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
   if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
