@@ -1252,12 +1252,31 @@ async function loadActivityLog(){
   try{
     const {data}=await sbGet("activity_log","select=*&order=created_at.desc&limit=200");
     if(!data||!data.length){wrap.innerHTML='<div class="log-empty">ჩანაწერი ჯერ არ არის</div>';return;}
-    wrap.innerHTML=data.map(l=>`<div class="log-item">
-      <div class="log-avatar">${(l.display_name||l.username||"?").charAt(0).toUpperCase()}</div>
-      <div class="log-body"><div class="log-who">${esc(l.display_name||l.username)}</div>
-      <div class="log-detail">${esc(l.action)}${l.lead_id?' <span style="color:var(--text-dim);font-size:11px">('+esc(l.lead_id)+')</span>':''} — ${esc(l.detail)}</div></div>
-      <div class="log-time">${esc(String(l.timestamp||"").substring(0,16))}</div>
-    </div>`).join("");
+    // Fetch lead names for all unique lead_ids
+    const ids=[...new Set(data.filter(l=>l.lead_id).map(l=>l.lead_id))];
+    let leadMap={};
+    if(ids.length){
+      const qs='id=in.('+ids.map(id=>'"'+id+'"').join(',')+')'+'&select=id,name,phone';
+      const {data:leads}=await sbGet("leads",qs);
+      if(leads) leads.forEach(l=>{leadMap[l.id]=l;});
+    }
+    wrap.innerHTML=data.map(l=>{
+      const lead=l.lead_id?leadMap[l.lead_id]:null;
+      const leadLabel=lead
+        ?`<span style="color:var(--blue);font-weight:600;cursor:pointer" onclick="openLead('${esc(l.lead_id)}')">👤 ${esc(lead.name)}</span>`
+        :(l.lead_id?`<span style="color:var(--text-dim);font-size:11px">${esc(l.lead_id)}</span>`:'');
+      return `<div class="log-item">
+        <div class="log-avatar">${(l.display_name||l.username||"?").charAt(0).toUpperCase()}</div>
+        <div class="log-body" style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+            <span class="log-who">${esc(l.display_name||l.username)}</span>
+            ${leadLabel?'<span style="color:var(--text-dim);font-size:12px">→</span>'+leadLabel:''}
+          </div>
+          <div class="log-detail" style="white-space:pre-wrap;word-break:break-word">${esc(l.action)}${l.detail?' — '+esc(l.detail):''}</div>
+        </div>
+        <div class="log-time" style="white-space:nowrap;flex-shrink:0">${fmtTime(l.timestamp)}</div>
+      </div>`;
+    }).join("");
   }catch(e){wrap.innerHTML='<div class="log-empty" style="color:var(--danger)">შეცდომა: '+e.message+'</div>';}
 }
 
