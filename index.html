@@ -851,7 +851,18 @@ async function loadStats() {
 }
 
 // ── LEADS ────────────────────────────────
-async function loadLeads(page) {
+async 
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  // Georgia is UTC+4
+  const ge = new Date(d.getTime() + 4 * 60 * 60 * 1000);
+  const pad = n => String(n).padStart(2,'0');
+  return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
+         ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
+}
+
+function loadLeads(page) {
   page = page || 1;
   document.getElementById("leadsBody").innerHTML='<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   document.getElementById("leadsPagination").style.display="none";
@@ -1007,7 +1018,7 @@ async function openModal(id) {
     const { data: hist } = await sbGet("activity_log", `lead_id=eq.${id}&order=created_at.desc&limit=20&select=*`);
     const hEl = document.getElementById("leadHistory");
     if (!hist || !hist.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">ჯერ ცვლილება არ არის</div>'; }
-    else { hEl.innerHTML = hist.map(e=>`<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name)}</div><div class="history-detail">${esc(e.action)}${e.detail?' — '+esc(e.detail):''}</div></div><div class="history-time">${esc(String(e.timestamp||"").substring(0,16))}</div></div>`).join(""); }
+    else { hEl.innerHTML = hist.map(e=>`<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name)}</div><div class="history-detail">${esc(e.action)}${e.detail?' — '+esc(e.detail):''}</div></div><div class="history-time">${esc(fmtTime(e.timestamp))}</div></div>`).join(""); }
   } catch(e) { alert("შეცდომა: "+e.message); }
 }
 function closeModal(){ currentId=null; currentLead=null; document.getElementById("modalOverlay").classList.remove("open"); }
@@ -1038,13 +1049,15 @@ async function saveAll() {
   closeModal();
 
   try {
-    await sbPatch("leads", `id=eq.${savedId}`, { status, legal, email, onboarded_date: onboarded || null, environment: environment || null, city: city || null, note, next_contact: nextContact || null, next_contact_note: nextContactNote || null });
+    const terminal = ['Onboarded','Declined','No Reply','არ უპასუხა'];
+    const clearReminder = terminal.includes(status);
+    await sbPatch("leads", `id=eq.${savedId}`, { status, legal, email, onboarded_date: onboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_note: clearReminder ? null : (nextContactNote || null) });
     const changes = [];
     if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
     if (email && savedLead?.email !== email) changes.push("ელ-ფოსტა: "+email);
     if (note !== (savedLead?.note||"")) {
-      const oldNote = (savedLead?.note||"").substring(0,50);
-      const newNote = note.substring(0,50);
+      const oldNote = (savedLead?.note||"");
+      const newNote = note;
       changes.push("კომენტარი: \""+oldNote+"\" → \""+newNote+"\"");
     }
     if (changes.length > 0) {
@@ -1513,6 +1526,47 @@ function renderCalendar() {
 function calPrev()  { calMonth--; if(calMonth<0){calMonth=11;calYear--;} loadCalendar(); }
 function calNext()  { calMonth++; if(calMonth>11){calMonth=0;calYear++;} loadCalendar(); }
 function calToday() { calYear=new Date().getFullYear(); calMonth=new Date().getMonth(); loadCalendar(); }
+
+async function showRefStats() {
+  const sec = document.getElementById('refStatsSection');
+  sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+  if (sec.style.display === 'none') return;
+  const { data } = await sbGet('leads', 'select=ref_code,status&ref_code=neq.null&ref_code=neq.');
+  if (!data || !data.length) {
+    document.getElementById('refStatsTable').innerHTML = '<p style="color:var(--text-dim);font-size:13px">მონაცემი არ არის</p>';
+    return;
+  }
+  const map = {};
+  data.forEach(l => {
+    const k = l.ref_code || '—';
+    if (!map[k]) map[k] = { total:0, onboarded:0, declined:0, new:0 };
+    map[k].total++;
+    if (l.status === 'Onboarded') map[k].onboarded++;
+    else if (l.status === 'Declined' || l.status === 'No Reply' || l.status === 'არ უპასუხა') map[k].declined++;
+    else map[k].new++;
+  });
+  const rows = Object.entries(map)
+    .sort((a,b) => b[1].total - a[1].total)
+    .map(([code, s]) => `<tr>
+      <td style="padding:8px 12px;font-weight:600;color:var(--text-main)">${esc(code)}</td>
+      <td style="padding:8px 12px;text-align:center">${s.total}</td>
+      <td style="padding:8px 12px;text-align:center;color:#16A34A">${s.onboarded}</td>
+      <td style="padding:8px 12px;text-align:center;color:#6B7280">${s.new}</td>
+      <td style="padding:8px 12px;text-align:center;color:#DC2626">${s.declined}</td>
+    </tr>`).join('');
+  document.getElementById('refStatsTable').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:6px 12px;text-align:left;color:var(--text-dim);font-weight:500">კოდი</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">სულ</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">Onboarded</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">აქტიური</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">დასრულებული</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 </script>
 </body>
 </html>
