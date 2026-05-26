@@ -851,7 +851,6 @@ async function loadStats() {
 }
 
 // ── LEADS ────────────────────────────────
-async 
 function fmtTime(ts) {
   if (!ts) return '—';
   const d = new Date(ts);
@@ -862,7 +861,7 @@ function fmtTime(ts) {
          ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
 }
 
-function loadLeads(page) {
+async function loadLeads(page) {
   page = page || 1;
   document.getElementById("leadsBody").innerHTML='<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   document.getElementById("leadsPagination").style.display="none";
