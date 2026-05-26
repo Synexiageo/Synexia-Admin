@@ -390,7 +390,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
           <select class="tb-select" id="filterStatus" onchange="applyFilters()">
             <option value="">ყველა</option>
             <option>New Lead</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option><option>Retired</option>
           </select>
         </div>
         <div class="tb-group">
@@ -621,7 +621,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="dStatus">
             <option>New Lead</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option><option>Retired</option>
           </select>
         </div>
         <div class="d-field"><label class="d-label">იურიდიული სტატუსი</label>
@@ -828,7 +828,7 @@ function refreshCurrent() {
 function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function statusClass(s){
-  const m={"New Lead":"s-new","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply",
+  const m={"New Lead":"s-new","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply","Retired":"s-retired",
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
@@ -1049,7 +1049,7 @@ async function saveAll() {
   closeModal();
 
   try {
-    const terminal = ['Onboarded','Declined','No Reply','არ უპასუხა'];
+    const terminal = ['Onboarded','Declined','No Reply','არ უპასუხა','Retired'];
     const clearReminder = terminal.includes(status);
     await sbPatch("leads", `id=eq.${savedId}`, { status, legal, email, onboarded_date: onboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_note: clearReminder ? null : (nextContactNote || null) });
     const changes = [];
@@ -1427,16 +1427,16 @@ async function loadTeamStats() {
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     // count by user and status
-    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა"];
+    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა","Retired"];
     const stats = {};
     (users||[]).forEach(u => {
       if (!u.display_name) return;
-      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0 };
+      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0, Retired:0 };
     });
 
     (logs||[]).forEach(l => {
       if (!l.display_name || !l.detail) return;
-      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0 };
+      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0, Retired:0 };
       stats[l.display_name].total++;
       STATUSES.forEach(s => {
         if (l.detail.includes("→ "+s)) stats[l.display_name][s]++;
@@ -1561,6 +1561,7 @@ async function showRefStats() {
     if (!map[k]) map[k] = { total:0, onboarded:0, declined:0, new:0 };
     map[k].total++;
     if (l.status === 'Onboarded') map[k].onboarded++;
+    else if (l.status === 'Retired') map[k].declined++;
     else if (l.status === 'Declined' || l.status === 'No Reply' || l.status === 'არ უპასუხა') map[k].declined++;
     else map[k].new++;
   });
