@@ -344,6 +344,9 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       <button class="nav-tab" id="onboardedTabBtn" onclick="switchTab('onboarded',this)">
         <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Onboarded <span id="obNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px"></span>
       </button>
+      <button class="nav-tab" onclick="switchTab('retired',this)">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Retired
+      </button>
       <button class="nav-tab" onclick="switchTab('teamStats',this)">
         <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>გუნდის სტატისტიკა
       </button>
@@ -618,6 +621,35 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       </div>
     </div>
 
+    <!-- Retired კლიენტები -->
+    <div class="tab-panel" id="tabRetired">
+      <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);max-width:300px;margin-bottom:16px">
+        <div class="stat-card purple"><div class="stat-label">სულ Retired</div><div class="stat-value" id="retTotal">—</div></div>
+        <div class="stat-card red">   <div class="stat-label">ამ თვეში</div>   <div class="stat-value" id="retMonth">—</div></div>
+      </div>
+      <div class="toolbar" style="margin-bottom:14px">
+        <div class="tb-group" style="flex:1;min-width:220px">
+          <span class="tb-label">ძიება</span>
+          <input type="text" class="tb-input" id="retSearch" placeholder="სახელი, ტელეფონი..." style="width:100%;height:34px" oninput="filterRetired()">
+        </div>
+        <button class="btn-reset-sm" onclick="document.getElementById('retSearch').value='';filterRetired()">გასუფთავება</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count">Retired კლიენტები: <span id="retCount">0</span></div>
+          <button class="btn btn-outline" onclick="loadRetiredTab()" style="height:32px;padding:0 12px;font-size:12px">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>Onboarded თარიღი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
+            <tbody id="retBody"><tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- აქტივობა -->
     <div class="tab-panel" id="tabLog">
       <div class="section-head">
@@ -849,6 +881,7 @@ function switchTab(name, btn) {
   if (name==="calendar")   loadCalendar();
   if (name==="teamStats")  loadTeamStats();
   if (name==="onboarded")  loadOnboardedTab();
+  if (name==="retired")    loadRetiredTab();
 }
 function refreshCurrent() {
   if (currentTab==="leads")      loadLeads(currentPage);
@@ -856,6 +889,7 @@ function refreshCurrent() {
   else if (currentTab==="users")     loadUsers();
   else if (currentTab==="log")       loadActivityLog();
   else if (currentTab==="onboarded") loadOnboardedTab();
+  else if (currentTab==="retired")   loadRetiredTab();
 }
 
 // ── HELPERS ──────────────────────────────
@@ -1231,6 +1265,52 @@ async function loadOnboardedTab() {
   } catch(e) {
     document.getElementById("obBody").innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`;
   }
+}
+
+// ── RETIRED TAB ──────────────────────────
+let allRetired = [];
+async function loadRetiredTab() {
+  document.getElementById("retBody").innerHTML = '<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  try {
+    const { data } = await sbGet("leads", "status=eq.Retired&select=id,name,phone,ref_code,onboarded_date,reg_date&order=onboarded_date.desc.nullslast&limit=1000");
+    allRetired = data || [];
+    const thisMonth = new Date().toISOString().substring(0,7);
+    document.getElementById("retTotal").textContent = allRetired.length;
+    document.getElementById("retMonth").textContent = allRetired.filter(l => (l.onboarded_date||"").startsWith(thisMonth) || (l.reg_date||"").startsWith(thisMonth)).length;
+    filterRetired();
+  } catch(e) {
+    document.getElementById("retBody").innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`;
+  }
+}
+function filterRetired() {
+  const q = (document.getElementById("retSearch")?.value||"").toLowerCase();
+  const list = q ? allRetired.filter(l =>
+    (l.name||"").toLowerCase().includes(q) ||
+    (l.phone||"").includes(q) ||
+    (l.ref_code||"").toLowerCase().includes(q)
+  ) : allRetired;
+  document.getElementById("retCount").textContent = list.length;
+  if (!list.length) {
+    document.getElementById("retBody").innerHTML = '<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Retired კლიენტი ვერ მოიძებნა</p></div></td></tr>';
+    return;
+  }
+  const isAdmin = SESSION && SESSION.role === "admin";
+  document.getElementById("retBody").innerHTML = list.map((l, i) => {
+    const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
+    const obDate = l.onboarded_date ? String(l.onboarded_date).substring(0,10) : '<span style="color:var(--text-dim)">—</span>';
+    const regDate = l.reg_date ? String(l.reg_date).substring(0,16) : '<span style="color:var(--text-dim)">—</span>';
+    return `<tr onclick="openModal('${l.id}')">
+      <td class="td-date">${i+1}</td>
+      <td class="td-name">${esc(l.name)}</td>
+      <td class="td-phone">${formatPhone(l.phone)}</td>
+      <td class="td-ref">${l.ref_code ? esc(l.ref_code) : '<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
+      <td class="td-date">${obDate}</td>
+      <td class="td-date">${regDate}</td>
+      <td onclick="event.stopPropagation()"><div class="td-actions">
+        <button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>${delBtn}
+      </div></td>
+    </tr>`;
+  }).join("");
 }
 
 // ── BUSINESSES ────────────────────────────
