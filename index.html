@@ -643,7 +643,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>Onboarded თარიღი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
+            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>📅 Onboarded</th><th>🔚 Retired გახდა</th><th>⏱ პერიოდი</th><th>მოქმედება</th></tr></thead>
             <tbody id="retBody"><tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
@@ -1269,17 +1269,33 @@ async function loadOnboardedTab() {
 
 // ── RETIRED TAB ──────────────────────────
 let allRetired = [];
+let retiredDateMap = {};
 async function loadRetiredTab() {
-  document.getElementById("retBody").innerHTML = '<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  document.getElementById("retBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   try {
+    // Load retired leads
     const { data } = await sbGet("leads", "status=eq.Retired&select=id,name,phone,ref_code,onboarded_date,reg_date&order=onboarded_date.desc.nullslast&limit=1000");
     allRetired = data || [];
+
+    // Load retired dates from activity_log (auto-retire or manual → Retired)
+    const { data: logs } = await sbGet("activity_log",
+      "or=(action.eq.ავტო-Retired,detail.ilike.*→ Retired*)&select=lead_id,timestamp&order=timestamp.desc&limit=5000");
+    retiredDateMap = {};
+    (logs||[]).forEach(r => {
+      if (r.lead_id && !retiredDateMap[r.lead_id]) {
+        retiredDateMap[r.lead_id] = r.timestamp;
+      }
+    });
+
     const thisMonth = new Date().toISOString().substring(0,7);
     document.getElementById("retTotal").textContent = allRetired.length;
-    document.getElementById("retMonth").textContent = allRetired.filter(l => (l.onboarded_date||"").startsWith(thisMonth) || (l.reg_date||"").startsWith(thisMonth)).length;
+    document.getElementById("retMonth").textContent = allRetired.filter(l => {
+      const rd = retiredDateMap[l.id]||"";
+      return rd.startsWith(thisMonth);
+    }).length;
     filterRetired();
   } catch(e) {
-    document.getElementById("retBody").innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`;
+    document.getElementById("retBody").innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`;
   }
 }
 function filterRetired() {
@@ -1291,21 +1307,35 @@ function filterRetired() {
   ) : allRetired;
   document.getElementById("retCount").textContent = list.length;
   if (!list.length) {
-    document.getElementById("retBody").innerHTML = '<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Retired კლიენტი ვერ მოიძებნა</p></div></td></tr>';
+    document.getElementById("retBody").innerHTML = '<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Retired კლიენტი ვერ მოიძებნა</p></div></td></tr>';
     return;
   }
   const isAdmin = SESSION && SESSION.role === "admin";
   document.getElementById("retBody").innerHTML = list.map((l, i) => {
     const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
-    const obDate = l.onboarded_date ? String(l.onboarded_date).substring(0,10) : '<span style="color:var(--text-dim)">—</span>';
-    const regDate = l.reg_date ? String(l.reg_date).substring(0,16) : '<span style="color:var(--text-dim)">—</span>';
+
+    const obStr = l.onboarded_date ? String(l.onboarded_date).substring(0,10) : null;
+    const rawRet = retiredDateMap[l.id];
+    const retStr = rawRet ? fmtTime(rawRet).substring(0,10) : null;
+
+    // Period in days
+    let periodCell = '<span style="color:var(--text-dim)">—</span>';
+    if (obStr && retStr) {
+      const days = Math.round((new Date(retStr) - new Date(obStr)) / (1000*60*60*24));
+      periodCell = `<span style="font-weight:700;color:var(--text-mid)">${days} დღე</span>`;
+    }
+
+    const obCell  = obStr  ? `<span style="color:var(--success);font-weight:600">${obStr}</span>`  : '<span style="color:var(--text-dim)">—</span>';
+    const retCell = retStr ? `<span style="color:var(--danger);font-weight:600">${retStr}</span>` : '<span style="color:var(--text-dim)">—</span>';
+
     return `<tr onclick="openModal('${l.id}')">
       <td class="td-date">${i+1}</td>
       <td class="td-name">${esc(l.name)}</td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code ? esc(l.ref_code) : '<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
-      <td class="td-date">${obDate}</td>
-      <td class="td-date">${regDate}</td>
+      <td class="td-date">${obCell}</td>
+      <td class="td-date">${retCell}</td>
+      <td class="td-date">${periodCell}</td>
       <td onclick="event.stopPropagation()"><div class="td-actions">
         <button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>${delBtn}
       </div></td>
