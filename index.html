@@ -873,6 +873,7 @@ function showDashboard() {
   loadStats();
   loadWorkers();
   loadReminders();
+  initNotifications();
 }
 
 function doLogout() {
@@ -1169,6 +1170,86 @@ async function confirmDelete(id) {
     if (currentId===id) closeModal();
     loadLeads(currentPage); loadStats();
   } catch(e) { alert("შეცდომა: "+e.message); }
+}
+
+// ── PUSH NOTIFICATIONS ───────────────────
+async function initNotifications() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+  // Wait for workerLeadMap to load, then check
+  setTimeout(checkCalendarNotifications, 2000);
+}
+
+async function checkCalendarNotifications() {
+  if (Notification.permission !== "granted") return;
+  try {
+    const today    = new Date().toISOString().substring(0,10);
+    const tomorrowD = new Date(Date.now() + 86400000);
+    const tomorrow = tomorrowD.toISOString().substring(0,10);
+
+    // Notify once per day per user
+    const notifKey = `sx_notif_${SESSION.username}_${today}`;
+    if (localStorage.getItem(notifKey)) return;
+
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_note&next_contact=lte.${tomorrow}&next_contact=neq.null&order=next_contact.asc&limit=200`);
+    const all = data || [];
+
+    // Filter to current user's leads (non-admin sees only their own)
+    const mine = SESSION.role === "admin"
+      ? all
+      : all.filter(l => workerLeadMap[SESSION.display_name]?.has(l.id));
+
+    const overdue   = mine.filter(l => l.next_contact < today);
+    const dueToday  = mine.filter(l => l.next_contact === today);
+    const dueTomorrow = mine.filter(l => l.next_contact === tomorrow);
+
+    if (overdue.length + dueToday.length + dueTomorrow.length === 0) return;
+
+    // Overdue: one notification per lead
+    overdue.forEach(l => {
+      pushNotif(
+        `⚠️ გამოტოვებული: ${l.name}`,
+        `📞 ${formatPhone(l.phone)}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}\nდათქმული: ${l.next_contact}`,
+        `overdue_${l.id}`
+      );
+    });
+
+    // Today
+    dueToday.forEach(l => {
+      pushNotif(
+        `📞 დღეს დასარეკი: ${l.name}`,
+        `${formatPhone(l.phone)}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}`,
+        `today_${l.id}`
+      );
+    });
+
+    // Tomorrow
+    dueTomorrow.forEach(l => {
+      pushNotif(
+        `📅 ხვალ დასარეკი: ${l.name}`,
+        `${formatPhone(l.phone)}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}`,
+        `tmrw_${l.id}`
+      );
+    });
+
+    localStorage.setItem(notifKey, '1');
+  } catch(e) { console.error("notif error:", e); }
+}
+
+function pushNotif(title, body, tag) {
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, {
+      body,
+      tag,
+      icon: "https://synexia.ge/favicon.ico",
+      badge: "https://synexia.ge/favicon.ico",
+      requireInteraction: false,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch(e){}
 }
 
 // ── BULK SELECT ───────────────────────────
