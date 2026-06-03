@@ -366,6 +366,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="nav-user-icon" id="navUserIcon">?</div>
         <div><div class="nav-user-name" id="navUserName">—</div><div class="nav-user-role" id="navUserRole">—</div></div>
       </div>
+      <button id="notifBtn" onclick="enableNotifications()" style="display:none;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:8px;padding:7px 13px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;gap:6px;align-items:center;transition:.18s" title="შეტყობინებების ჩართვა">
+        🔔 შეტყობინებები
+      </button>
       <button class="btn btn-outline" onclick="refreshCurrent()">
         <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
       </button>
@@ -1175,11 +1178,26 @@ async function confirmDelete(id) {
 // ── PUSH NOTIFICATIONS ───────────────────
 async function initNotifications() {
   if (!("Notification" in window)) return;
+  const btn = document.getElementById("notifBtn");
   if (Notification.permission === "default") {
-    await Notification.requestPermission();
+    // Show button — Chrome requires direct user click for permission
+    if (btn) btn.style.display = "inline-flex";
+  } else if (Notification.permission === "granted") {
+    if (btn) btn.style.display = "none";
+    setTimeout(checkCalendarNotifications, 2000);
   }
-  // Wait for workerLeadMap to load, then check
-  setTimeout(checkCalendarNotifications, 2000);
+  // denied → do nothing
+}
+
+async function enableNotifications() {
+  const btn = document.getElementById("notifBtn");
+  const result = await Notification.requestPermission();
+  if (result === "granted") {
+    if (btn) btn.style.display = "none";
+    checkCalendarNotifications();
+  } else {
+    if (btn) { btn.textContent = "🔕 დაბლოკილია"; btn.style.opacity = "0.5"; btn.onclick = null; }
+  }
 }
 
 async function checkCalendarNotifications() {
