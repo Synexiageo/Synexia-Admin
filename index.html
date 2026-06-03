@@ -114,6 +114,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .status-badge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;border:1px solid;white-space:nowrap;}
 .s-new        {color:#1d6ef5;background:#eff6ff;border-color:#bfdbfe;}
 .s-interested {color:#0891b2;background:#ecfeff;border-color:#a5f3fc;}
+.s-potential  {color:#4f46e5;background:#eef2ff;border-color:#c7d2fe;}
 .s-contacted  {color:#d97706;background:#fffbeb;border-color:#fde68a;}
 .s-negotiation{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
 .s-onboarded  {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
@@ -409,7 +410,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <span class="tb-label">სტატუსი</span>
           <select class="tb-select" id="filterStatus" onchange="applyFilters()">
             <option value="">ყველა</option>
-            <option>New Lead</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
+            <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
             <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option><option>Retired</option>
           </select>
         </div>
@@ -698,7 +699,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <div class="d-grid">
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="dStatus">
-            <option>New Lead</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
+            <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
             <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option><option>Retired</option>
           </select>
         </div>
@@ -911,7 +912,7 @@ function refreshCurrent() {
 function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function statusClass(s){
-  const m={"New Lead":"s-new","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply","Retired":"s-retired",
+  const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply","Retired":"s-retired",
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
