@@ -253,6 +253,15 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .days-warn  {color:#d97706;background:#fffbeb;border-color:#fde68a;}
 .days-urgent{color:#dc2626;background:#fef2f2;border-color:#fecaca;}
 .ob-alert{background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#92400e;}
+.bulk-bar{display:none;position:sticky;bottom:16px;z-index:60;background:#0f1e35;color:white;padding:12px 20px;border-radius:12px;margin:10px 18px;box-shadow:0 8px 30px rgba(15,30,53,0.35);align-items:center;gap:12px;animation:fadeUp .2s ease;}
+.bulk-bar.show{display:flex;}
+.bulk-count{font-size:13px;font-weight:700;flex:1;}
+.btn-bulk-del{background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
+.btn-bulk-del:hover{background:#b91c1c;}
+.btn-bulk-cancel{background:rgba(255,255,255,0.1);color:white;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
+.btn-bulk-cancel:hover{background:rgba(255,255,255,0.2);}
+.row-check{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);}
+tr.selected-row td{background:var(--blue-dim2)!important;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .cal-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;}
@@ -443,9 +452,14 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
         <div class="pagination" id="leadsPaginationTop" style="display:none;border-bottom:1px solid var(--border);border-top:none"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
-            <tbody id="leadsBody"><tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+            <thead><tr><th id="thSelectAll" style="display:none;width:36px;text-align:center"><input type="checkbox" id="selectAllCb" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)" onchange="toggleSelectAll(this.checked)" onclick="event.stopPropagation()"></th><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
+            <tbody id="leadsBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
+        </div>
+        <div id="bulkBar" class="bulk-bar">
+          <span class="bulk-count" id="bulkCount">0 მონიშნული</span>
+          <button class="btn-bulk-del" onclick="bulkDelete()">🗑 წაშლა</button>
+          <button class="btn-bulk-cancel" onclick="clearSelection()">✕ გაუქმება</button>
         </div>
         <div class="pagination" id="leadsPagination" style="display:none"></div>
       </div>
@@ -847,6 +861,7 @@ function showDashboard() {
     document.getElementById("logTabBtn").style.display="";
     document.getElementById("csvBtn").style.display="";
     document.getElementById("addBizBtn").style.display="";
+    document.getElementById("thSelectAll").style.display="";
   }
   if (SESSION.role !== "admin") {
     // auto-filter by this user's leads
@@ -931,7 +946,8 @@ function fmtTime(ts) {
 
 async function loadLeads(page) {
   page = page || 1;
-  document.getElementById("leadsBody").innerHTML='<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  clearSelection();
+  document.getElementById("leadsBody").innerHTML='<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   document.getElementById("leadsPagination").style.display="none";
 
   const search   = document.getElementById("filterSearch")?.value.trim()||"";
@@ -1008,13 +1024,19 @@ async function loadWorkers() {
 
 function renderLeads(leads, offset) {
   const tbody = document.getElementById("leadsBody");
-  if (!leads.length) { tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
+  if (!leads.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
   const isAdmin = SESSION&&SESSION.role==="admin";
+  // reset select-all checkbox state
+  const saCb = document.getElementById("selectAllCb");
+  if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
   tbody.innerHTML = leads.map((l,i) => {
     const sc = statusClass(l.status);
     const dot = !l.viewed ? '<span class="new-dot"></span>' : '';
     const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
-    return `<tr onclick="openModal('${l.id}')">
+    const chk = isAdmin ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : `<td></td>`;
+    const isSelected = selectedLeads.has(l.id);
+    return `<tr onclick="openModal('${l.id}')" ${isSelected?'class="selected-row"':''}>
+      ${chk}
       <td class="td-date">${(offset||0)+i+1}</td>
       <td><span style="display:flex;align-items:center">${dot}<span class="td-name">${esc(l.name)}</span></span></td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
@@ -1145,6 +1167,67 @@ async function confirmDelete(id) {
     await sbDelete("leads", `id=eq.${id}`);
     if (currentId===id) closeModal();
     loadLeads(currentPage); loadStats();
+  } catch(e) { alert("შეცდომა: "+e.message); }
+}
+
+// ── BULK SELECT ───────────────────────────
+let selectedLeads = new Set();
+
+function toggleSelectAll(checked) {
+  document.querySelectorAll(".row-check").forEach(cb => {
+    cb.checked = checked;
+    const id = cb.dataset.id;
+    if (checked) selectedLeads.add(id);
+    else selectedLeads.delete(id);
+    cb.closest("tr").classList.toggle("selected-row", checked);
+  });
+  updateBulkBar();
+}
+
+function toggleSelectLead(cb, id) {
+  if (cb.checked) selectedLeads.add(id);
+  else selectedLeads.delete(id);
+  cb.closest("tr").classList.toggle("selected-row", cb.checked);
+  const allCbs = document.querySelectorAll(".row-check");
+  const saCb = document.getElementById("selectAllCb");
+  if (saCb) {
+    saCb.indeterminate = selectedLeads.size > 0 && selectedLeads.size < allCbs.length;
+    saCb.checked = allCbs.length > 0 && selectedLeads.size === allCbs.length;
+  }
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById("bulkBar");
+  if (!bar) return;
+  if (selectedLeads.size === 0) { bar.classList.remove("show"); return; }
+  bar.classList.add("show");
+  document.getElementById("bulkCount").textContent = selectedLeads.size + " ჩანაწერი მონიშნული";
+}
+
+function clearSelection() {
+  selectedLeads.clear();
+  document.querySelectorAll(".row-check").forEach(cb => cb.checked=false);
+  document.querySelectorAll("tr.selected-row").forEach(tr => tr.classList.remove("selected-row"));
+  const saCb = document.getElementById("selectAllCb");
+  if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
+  updateBulkBar();
+}
+
+async function bulkDelete() {
+  if (!selectedLeads.size) return;
+  if (!confirm(`ნამდვილად გსურთ ${selectedLeads.size} ჩანაწერის წაშლა?\nეს მოქმედება შეუქცევადია!`)) return;
+  const ids = [...selectedLeads];
+  const bar = document.getElementById("bulkBar");
+  if (bar) bar.querySelector(".btn-bulk-del").textContent = "⏳ იშლება...";
+  try {
+    for (const id of ids) {
+      await sbDelete("leads", `id=eq.${id}`);
+    }
+    selectedLeads.clear();
+    updateBulkBar();
+    loadLeads(currentPage);
+    loadStats();
   } catch(e) { alert("შეცდომა: "+e.message); }
 }
 
