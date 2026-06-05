@@ -449,7 +449,15 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option>თბილისი</option><option>ქუთაისი</option><option>ბათუმი</option><option>გორი</option>
           </select>
         </div>
+        <div class="tb-group">
+          <span class="tb-label">📅 რეგ. თარიღი</span>
+          <input type="date" class="tb-input" id="filterDate" style="height:34px;width:150px" onchange="applyFilters()">
+        </div>
         <button class="btn-reset-sm" onclick="resetFilters()">გასუფთავება</button>
+        <div class="tb-group">
+          <span class="tb-label">დალაგება</span>
+          <button id="sortToggleBtn" onclick="toggleSort()" style="height:34px;padding:0 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-mid);transition:.18s;white-space:nowrap">↓ ახლებიდან</button>
+        </div>
       </div>
       <div class="table-wrap">
         <div class="table-header"><div class="table-count">ნაჩვენებია <span id="displayCount">0</span> ჩანაწერი</div></div>
@@ -949,6 +957,15 @@ function fmtTime(ts) {
          ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
 }
 
+let leadsSort = "desc"; // "desc" = ახლებიდან, "asc" = ძველებიდან
+
+function toggleSort() {
+  leadsSort = leadsSort === "desc" ? "asc" : "desc";
+  const btn = document.getElementById("sortToggleBtn");
+  if (btn) btn.textContent = leadsSort === "desc" ? "↓ ახლებიდან" : "↑ ძველებიდან";
+  loadLeads(1);
+}
+
 async function loadLeads(page) {
   page = page || 1;
   clearSelection();
@@ -961,7 +978,7 @@ async function loadLeads(page) {
   const refCode  = document.getElementById("refSearchInput")?.value.trim()||"";
   const assigned = document.getElementById("filterAssigned")?.value||"";
 
-  let filters = "select=*&order=created_at.desc";
+  let filters = `select=*&order=created_at.${leadsSort}`;
   if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
   if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
   if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
@@ -969,8 +986,16 @@ async function loadLeads(page) {
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
   const city        = document.getElementById("filterCity")?.value||"";
+  const dateFilter  = document.getElementById("filterDate")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+  if (dateFilter) {
+    // reg_date stored as "YYYY-MM-DD HH:MM" string — filter full day
+    const nextDay = new Date(dateFilter);
+    nextDay.setDate(nextDay.getDate()+1);
+    const nextDayStr = nextDay.toISOString().substring(0,10);
+    filters += `&reg_date=gte.${dateFilter}&reg_date=lt.${nextDayStr}`;
+  }
   // pagination
   const from = (page-1)*PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
@@ -998,7 +1023,7 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDate"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   loadLeads(1);
 }
 
