@@ -450,6 +450,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           </select>
         </div>
         <button class="btn-reset-sm" onclick="resetFilters()">გასუფთავება</button>
+        <div class="tb-group">
+          <span class="tb-label">დალაგება</span>
+          <button id="sortToggleBtn" onclick="toggleSort()" style="height:34px;padding:0 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-mid);transition:.18s;white-space:nowrap">↓ ახლებიდან</button>
+        </div>
       </div>
       <div class="table-wrap">
         <div class="table-header"><div class="table-count">ნაჩვენებია <span id="displayCount">0</span> ჩანაწერი</div></div>
@@ -949,6 +953,15 @@ function fmtTime(ts) {
          ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
 }
 
+let leadsSort = "desc"; // "desc" = ახლებიდან, "asc" = ძველებიდან
+
+function toggleSort() {
+  leadsSort = leadsSort === "desc" ? "asc" : "desc";
+  const btn = document.getElementById("sortToggleBtn");
+  if (btn) btn.textContent = leadsSort === "desc" ? "↓ ახლებიდან" : "↑ ძველებიდან";
+  loadLeads(1);
+}
+
 async function loadLeads(page) {
   page = page || 1;
   clearSelection();
@@ -961,7 +974,7 @@ async function loadLeads(page) {
   const refCode  = document.getElementById("refSearchInput")?.value.trim()||"";
   const assigned = document.getElementById("filterAssigned")?.value||"";
 
-  let filters = "select=*&order=created_at.desc";
+  let filters = `select=*&order=created_at.${leadsSort}`;
   if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
   if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
   if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
