@@ -449,6 +449,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option>თბილისი</option><option>ქუთაისი</option><option>ბათუმი</option><option>გორი</option>
           </select>
         </div>
+        <div class="tb-group">
+          <span class="tb-label">📅 რეგ. თარიღი</span>
+          <input type="date" class="tb-input" id="filterDate" style="height:34px;width:150px" onchange="applyFilters()">
+        </div>
         <button class="btn-reset-sm" onclick="resetFilters()">გასუფთავება</button>
         <div class="tb-group">
           <span class="tb-label">დალაგება</span>
@@ -982,8 +986,16 @@ async function loadLeads(page) {
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
   const city        = document.getElementById("filterCity")?.value||"";
+  const dateFilter  = document.getElementById("filterDate")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+  if (dateFilter) {
+    // reg_date stored as "YYYY-MM-DD HH:MM" string — filter full day
+    const nextDay = new Date(dateFilter);
+    nextDay.setDate(nextDay.getDate()+1);
+    const nextDayStr = nextDay.toISOString().substring(0,10);
+    filters += `&reg_date=gte.${dateFilter}&reg_date=lt.${nextDayStr}`;
+  }
   // pagination
   const from = (page-1)*PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
@@ -1011,7 +1023,7 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDate"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   loadLeads(1);
 }
 
