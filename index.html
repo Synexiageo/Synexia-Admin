@@ -929,7 +929,11 @@ function statusClass(s){
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
-function nowStr() { return new Date().toISOString().replace("T"," ").substring(0,16); }
+function nowStr() {
+  // Store in Georgia time (UTC+4) directly
+  const ge = new Date(Date.now() + 4*60*60*1000);
+  return ge.toISOString().replace("T"," ").substring(0,16);
+}
 function genId(prefix){ return (prefix||"SX")+"-"+Date.now(); }
 
 // ── STATS ─────────────────────────────────
@@ -950,12 +954,17 @@ async function loadStats() {
 // ── LEADS ────────────────────────────────
 function fmtTime(ts) {
   if (!ts) return '—';
-  const d = new Date(ts);
-  // Georgia is UTC+4
-  const ge = new Date(d.getTime() + 4 * 60 * 60 * 1000);
-  const pad = n => String(n).padStart(2,'0');
-  return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
-         ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
+  const s = String(ts);
+  // Proper ISO UTC timestamp (has 'Z' or '+') → convert to Georgia time (UTC+4)
+  if (s.includes('Z') || s.includes('+')) {
+    const d = new Date(s);
+    const ge = new Date(d.getTime() + 4*60*60*1000);
+    const pad = n => String(n).padStart(2,'0');
+    return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
+           ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
+  }
+  // Plain string (already Georgia time) → display as-is
+  return s.substring(0,16).replace('T',' ');
 }
 
 let leadsSort = "desc"; // "desc" = ახლებიდან, "asc" = ძველებიდან
