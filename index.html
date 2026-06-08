@@ -567,7 +567,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       </div>
       <div id="usersStatsView" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-          <select class="tb-select" id="statsDateFilter" onchange="loadTeamStats()" style="height:34px;width:160px">
+          <select class="tb-select" id="statsDateFilter" onchange="loadTeamStatsCards()" style="height:34px;width:160px">
             <option value="7">ბოლო 7 დღე</option>
             <option value="30" selected>ბოლო 30 დღე</option>
             <option value="90">ბოლო 3 თვე</option>
@@ -1767,7 +1767,7 @@ function showUsersView(view) {
   }
 }
 
-async function loadTeamStats() {
+async function loadTeamStatsCards() {
   const grid   = document.getElementById("teamStatsGrid");
   const filter = document.getElementById("statsDateFilter").value;
   const label  = document.getElementById("statsDateLabel");
@@ -1787,7 +1787,7 @@ async function loadTeamStats() {
     // get all users
     const { data: users } = await sbGet("users", "select=username,display_name,role&order=display_name");
     // get activity logs
-    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
+    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000&_t=${Date.now()}`);
 
     const statsMap = {};
     (users||[]).forEach(u => {
@@ -1873,7 +1873,7 @@ async function loadTeamStats() {
       dateFilter = `&timestamp=gte.${d}`;
     }
 
-    const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
+    const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000&_t=${Date.now()}`);
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     // count by user and status
