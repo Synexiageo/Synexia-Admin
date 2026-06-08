@@ -120,6 +120,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .s-onboarded  {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
 .s-declined   {color:#dc2626;background:#fef2f2;border-color:#fecaca;}
 .s-noreply    {color:#6b7280;background:#f9fafb;border-color:#e5e7eb;}
+.s-noreply2   {color:#374151;background:#f3f4f6;border-color:#d1d5db;}
 .s-tocall     {color:#0284c7;background:#f0f9ff;border-color:#bae6fd;}
 .s-called     {color:#d97706;background:#fffbeb;border-color:#fde68a;}
 .s-meeting    {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
@@ -390,7 +391,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="stat-card yellow"> <div class="stat-label">მოლაპარაკება</div><div class="stat-value" id="stNeg">—</div></div>
         <div class="stat-card green">  <div class="stat-label">Onboarded</div>   <div class="stat-value" id="stOnboarded">—</div></div>
         <div class="stat-card red">    <div class="stat-label">უარი</div>         <div class="stat-value" id="stDeclined">—</div></div>
-        <div class="stat-card purple"> <div class="stat-label">არ უპასუხა</div>  <div class="stat-value" id="stNoReply">—</div></div>
+        <div class="stat-card purple"> <div class="stat-label">არ უპასუხა 1</div>  <div class="stat-value" id="stNoReply">—</div></div>
       </div>
       <!-- რემაინდერები -->
       <div id="remindersBox" style="display:none;background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(234,179,8,0.1)">
@@ -414,7 +415,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <select class="tb-select" id="filterStatus" onchange="applyFilters()">
             <option value="">ყველა</option>
             <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option><option>Retired</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option>
           </select>
         </div>
         <div class="tb-group">
@@ -525,7 +526,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <select class="tb-select" id="bizFilterStatus" onchange="applyBizFilters()">
             <option value="">ყველა</option>
             <option>დასარეკი</option><option>დაკავშირებული</option><option>შეხვედრა დანიშნული</option>
-            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა</option>
+            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა 1</option>
           </select>
         </div>
         <div class="tb-group">
@@ -711,7 +712,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="dStatus">
             <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option><option>Retired</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option>
           </select>
         </div>
         <div class="d-field"><label class="d-label">იურიდიული სტატუსი</label>
@@ -779,7 +780,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="bmStatus">
             <option>დასარეკი</option><option>დაკავშირებული</option><option>შეხვედრა დანიშნული</option>
-            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა</option>
+            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა 1</option>
           </select>
         </div>
         <div class="d-field"><label class="d-label">ვინ ურეკავს</label><input type="text" class="d-input" id="bmAssigned" placeholder="კადრის სახელი"></div>
@@ -924,7 +925,7 @@ function refreshCurrent() {
 function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function statusClass(s){
-  const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply","Retired":"s-retired",
+  const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply","არ უპასუხა 2":"s-noreply2","Retired":"s-retired",
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
@@ -1168,7 +1169,7 @@ async function saveAll() {
   closeModal();
 
   try {
-    const terminal = ['Onboarded','Declined','No Reply','არ უპასუხა','Retired'];
+    const terminal = ['Onboarded','Declined','No Reply','არ უპასუხა 1','არ უპასუხა 2','Retired'];
     const clearReminder = terminal.includes(status);
     // Auto-set onboarded_date when status first becomes Onboarded
     let finalOnboarded = onboarded;
@@ -1568,7 +1569,7 @@ function updateBizStats() {
   document.getElementById("bzCalled").textContent  = allBiz.filter(b=>b.status==="დაკავშირებული").length;
   document.getElementById("bzMeeting").textContent = allBiz.filter(b=>b.status==="შეხვედრა დანიშნული").length;
   document.getElementById("bzClosed").textContent  = allBiz.filter(b=>b.status==="დახურული გარიგება").length;
-  document.getElementById("bzNo").textContent      = allBiz.filter(b=>b.status==="უარი"||b.status==="არ უპასუხა").length;
+  document.getElementById("bzNo").textContent      = allBiz.filter(b=>b.status==="უარი"||b.status==="არ უპასუხა 1").length;
 }
 function applyBizFilters() {
   const search = document.getElementById("bizSearch").value.toLowerCase();
@@ -1795,7 +1796,7 @@ async function loadTeamStats() {
         role: u.role,
         total: 0,
         Contacted: 0, Interested: 0, "In Negotiation": 0,
-        Onboarded: 0, Declined: 0, "არ უპასუხა": 0
+        Onboarded: 0, Declined: 0, "არ უპასუხა 1": 0, "არ უპასუხა 2": 0
       };
     });
 
@@ -1821,7 +1822,8 @@ async function loadTeamStats() {
       {key:"In Negotiation",  label:"In Negotiation",  color:"#7c3aed"},
       {key:"Onboarded",       label:"Onboarded",       color:"#059669"},
       {key:"Declined",        label:"Declined",        color:"#dc2626"},
-      {key:"არ უპასუხა",     label:"არ უპასუხა",     color:"#6b7280"},
+      {key:"არ უპასუხა 1",     label:"არ უპასუხა 1",     color:"#6b7280"},
+      {key:"არ უპასუხა 2",     label:"არ უპასუხა 2",     color:"#374151"},
     ];
 
     if (!sorted.length) { grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">მონაცემი არ არის</div>'; return; }
@@ -1875,16 +1877,16 @@ async function loadTeamStats() {
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     // count by user and status
-    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა","Retired"];
+    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired"];
     const stats = {};
     (users||[]).forEach(u => {
       if (!u.display_name) return;
-      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0, Retired:0 };
+      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
     });
 
     (logs||[]).forEach(l => {
       if (!l.display_name || !l.detail) return;
-      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0, Retired:0 };
+      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
       stats[l.display_name].total++;
       STATUSES.forEach(s => {
         if (l.detail.includes("→ "+s)) stats[l.display_name][s]++;
@@ -1896,7 +1898,7 @@ async function loadTeamStats() {
 
     const statusColors = {
       "Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation",
-      "Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply"
+      "Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply"
     };
 
     wrap.innerHTML = `<div style="overflow-x:auto">
@@ -2010,7 +2012,7 @@ async function showRefStats() {
     map[k].total++;
     if (l.status === 'Onboarded') map[k].onboarded++;
     else if (l.status === 'Retired') map[k].declined++;
-    else if (l.status === 'Declined' || l.status === 'No Reply' || l.status === 'არ უპასუხა') map[k].declined++;
+    else if (l.status === 'Declined' || l.status === 'No Reply' || l.status === 'არ უპასუხა 1') map[k].declined++;
     else map[k].new++;
   });
   const rows = Object.entries(map)
