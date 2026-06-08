@@ -567,7 +567,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       </div>
       <div id="usersStatsView" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-          <select class="tb-select" id="statsDateFilter" onchange="loadTeamStats()" style="height:34px;width:160px">
+          <select class="tb-select" id="statsDateFilter" onchange="loadTeamStatsCards()" style="height:34px;width:160px">
             <option value="7">ბოლო 7 დღე</option>
             <option value="30" selected>ბოლო 30 დღე</option>
             <option value="90">ბოლო 3 თვე</option>
@@ -929,7 +929,11 @@ function statusClass(s){
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
-function nowStr() { return new Date().toISOString().replace("T"," ").substring(0,16); }
+function nowStr() {
+  // Store in Georgia time (UTC+4) directly
+  const ge = new Date(Date.now() + 4*60*60*1000);
+  return ge.toISOString().replace("T"," ").substring(0,16);
+}
 function genId(prefix){ return (prefix||"SX")+"-"+Date.now(); }
 
 // ── STATS ─────────────────────────────────
@@ -950,12 +954,17 @@ async function loadStats() {
 // ── LEADS ────────────────────────────────
 function fmtTime(ts) {
   if (!ts) return '—';
-  const d = new Date(ts);
-  // Georgia is UTC+4
-  const ge = new Date(d.getTime() + 4 * 60 * 60 * 1000);
-  const pad = n => String(n).padStart(2,'0');
-  return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
-         ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
+  const s = String(ts);
+  // Proper ISO UTC timestamp (has 'Z' or '+') → convert to Georgia time (UTC+4)
+  if (s.includes('Z') || s.includes('+')) {
+    const d = new Date(s);
+    const ge = new Date(d.getTime() + 4*60*60*1000);
+    const pad = n => String(n).padStart(2,'0');
+    return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
+           ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
+  }
+  // Plain string (already Georgia time) → display as-is
+  return s.substring(0,16).replace('T',' ');
 }
 
 let leadsSort = "desc"; // "desc" = ახლებიდან, "asc" = ძველებიდან
@@ -1767,7 +1776,7 @@ function showUsersView(view) {
   }
 }
 
-async function loadTeamStats() {
+async function loadTeamStatsCards() {
   const grid   = document.getElementById("teamStatsGrid");
   const filter = document.getElementById("statsDateFilter").value;
   const label  = document.getElementById("statsDateLabel");
@@ -1787,7 +1796,7 @@ async function loadTeamStats() {
     // get all users
     const { data: users } = await sbGet("users", "select=username,display_name,role&order=display_name");
     // get activity logs
-    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
+    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000&_t=${Date.now()}`);
 
     const statsMap = {};
     (users||[]).forEach(u => {
@@ -1873,7 +1882,7 @@ async function loadTeamStats() {
       dateFilter = `&timestamp=gte.${d}`;
     }
 
-    const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
+    const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000&_t=${Date.now()}`);
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     // count by user and status
