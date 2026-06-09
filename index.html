@@ -1786,7 +1786,7 @@ async function loadTeamStatsCards() {
   if (filter !== "all") {
     const from = new Date();
     from.setDate(from.getDate() - parseInt(filter));
-    dateFilter = `&timestamp=gte.${from.toISOString().substring(0,10)}`;
+    dateFilter = `&created_at=gte.${from.toISOString().substring(0,10)}`;
     label.textContent = `${from.toISOString().substring(0,10)}-დან დღემდე`;
   } else {
     label.textContent = "ყველა დრო";
@@ -1868,18 +1868,18 @@ async function loadTeamStats() {
   wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div>';
 
   try {
-    // build date filter
+    // build date filter using created_at (reliable timestamptz column)
     let dateFilter = "";
     const now = new Date();
     if (period === "today") {
       const d = now.toISOString().substring(0,10);
-      dateFilter = `&timestamp=gte.${d}`;
+      dateFilter = `&created_at=gte.${d}`;
     } else if (period === "week") {
       const d = new Date(now - 7*24*60*60*1000).toISOString().substring(0,10);
-      dateFilter = `&timestamp=gte.${d}`;
+      dateFilter = `&created_at=gte.${d}`;
     } else if (period === "month") {
       const d = new Date(now - 30*24*60*60*1000).toISOString().substring(0,10);
-      dateFilter = `&timestamp=gte.${d}`;
+      dateFilter = `&created_at=gte.${d}`;
     }
 
     const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
