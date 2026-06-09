@@ -392,6 +392,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="stat-card green">  <div class="stat-label">Onboarded</div>   <div class="stat-value" id="stOnboarded">—</div></div>
         <div class="stat-card red">    <div class="stat-label">უარი</div>         <div class="stat-value" id="stDeclined">—</div></div>
         <div class="stat-card purple"> <div class="stat-label">არ უპასუხა 1</div>  <div class="stat-value" id="stNoReply">—</div></div>
+        <div class="stat-card" style="border-color:#d1d5db"> <div class="stat-label">არ უპასუხა 2</div>  <div class="stat-value" id="stNoReply2" style="color:#374151">—</div></div>
       </div>
       <!-- რემაინდერები -->
       <div id="remindersBox" style="display:none;background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(234,179,8,0.1)">
@@ -939,15 +940,17 @@ function genId(prefix){ return (prefix||"SX")+"-"+Date.now(); }
 // ── STATS ─────────────────────────────────
 async function loadStats() {
   try {
-    const h = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Accept": "application/json" };
-    const res = await fetch(`${SB_URL}/rest/v1/rpc/get_lead_stats`, { method:"POST", headers:h, body:JSON.stringify({}) });
-    const d = await res.json();
-    document.getElementById("stTotal").textContent     = d.total||0;
-    document.getElementById("stNew").textContent       = d.new_lead||0;
-    document.getElementById("stNeg").textContent       = d.negotiation||0;
-    document.getElementById("stOnboarded").textContent = d.onboarded||0;
-    document.getElementById("stDeclined").textContent  = d.declined||0;
-    document.getElementById("stNoReply").textContent   = d.no_reply||0;
+    const { data } = await sbGet("leads", "select=status&limit=10000");
+    const counts = {};
+    (data||[]).forEach(l => { counts[l.status] = (counts[l.status]||0) + 1; });
+    const total = (data||[]).length;
+    document.getElementById("stTotal").textContent     = total;
+    document.getElementById("stNew").textContent       = (counts["New Lead"]||0) + (counts["Potential Op."]||0);
+    document.getElementById("stNeg").textContent       = (counts["Interested"]||0) + (counts["Contacted"]||0) + (counts["In Negotiation"]||0);
+    document.getElementById("stOnboarded").textContent = counts["Onboarded"]||0;
+    document.getElementById("stDeclined").textContent  = counts["Declined"]||0;
+    document.getElementById("stNoReply").textContent   = counts["არ უპასუხა 1"]||0;
+    document.getElementById("stNoReply2").textContent  = counts["არ უპასუხა 2"]||0;
   } catch(e){ console.error("stats error:",e); }
 }
 
