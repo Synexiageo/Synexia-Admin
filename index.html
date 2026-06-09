@@ -955,16 +955,16 @@ async function loadStats() {
 function fmtTime(ts) {
   if (!ts) return '—';
   const s = String(ts);
-  // Proper ISO UTC timestamp (has 'Z' or '+') → convert to Georgia time (UTC+4)
-  if (s.includes('Z') || s.includes('+')) {
-    const d = new Date(s);
+  // ISO UTC timestamp (has 'Z', '+', or 'T' without space) → treat as UTC, convert to Georgia (+4)
+  if (s.includes('Z') || s.includes('+') || (s.includes('T') && !s.includes(' '))) {
+    const d = new Date(s.includes('Z') || s.includes('+') ? s : s + 'Z');
     const ge = new Date(d.getTime() + 4*60*60*1000);
     const pad = n => String(n).padStart(2,'0');
     return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
            ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
   }
-  // Plain string (already Georgia time) → display as-is
-  return s.substring(0,16).replace('T',' ');
+  // Plain string "YYYY-MM-DD HH:MM" (already Georgia time from nowStr()) → display as-is
+  return s.substring(0,16);
 }
 
 let leadsSort = "desc"; // "desc" = ახლებიდან, "asc" = ძველებიდან
@@ -1082,7 +1082,7 @@ function renderLeads(leads, offset) {
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
-      <td class="td-date">${esc(String(l.reg_date||"").substring(0,16))}</td>
+      <td class="td-date">${fmtTime(l.reg_date)}</td>
       <td onclick="event.stopPropagation()"><div class="td-actions">
         <button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>${delBtn}
       </div></td>
@@ -1117,7 +1117,7 @@ async function openModal(id) {
     document.getElementById("dMeta").textContent    = "ID: "+l.id;
     document.getElementById("dPhone").textContent   = formatPhone(l.phone)||"—";
     document.getElementById("dRefCode").textContent = l.ref_code||"—";
-    document.getElementById("dRegDate").textContent = String(l.reg_date||"").substring(0,16)||"—";
+    document.getElementById("dRegDate").textContent = fmtTime(l.reg_date);
     document.getElementById("dStatus").value      = l.status||"New Lead";
     document.getElementById("dLegal").value       = l.legal||"";
     document.getElementById("dEmail").value       = l.email||"";
