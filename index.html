@@ -945,7 +945,7 @@ async function loadStats() {
     (data||[]).forEach(l => { counts[l.status] = (counts[l.status]||0) + 1; });
     const total = (data||[]).length;
     document.getElementById("stTotal").textContent     = total;
-    document.getElementById("stNew").textContent       = (counts["New Lead"]||0) + (counts["Potential Op."]||0);
+    document.getElementById("stNew").textContent       = counts["New Lead"]||0;
     document.getElementById("stNeg").textContent       = (counts["Interested"]||0) + (counts["Contacted"]||0) + (counts["In Negotiation"]||0);
     document.getElementById("stOnboarded").textContent = counts["Onboarded"]||0;
     document.getElementById("stDeclined").textContent  = counts["Declined"]||0;
