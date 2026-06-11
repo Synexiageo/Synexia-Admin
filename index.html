@@ -176,6 +176,15 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .cu-select option{background:white;}
 
 /* LOG */
+.task-card{background:white;border:1.5px solid #fde68a;border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;transition:.15s;}
+.task-card:hover{border-color:#f59e0b;box-shadow:0 2px 8px rgba(245,158,11,.12);}
+.task-lead-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;cursor:pointer;}
+.task-lead-name:hover{color:var(--blue);}
+.task-note{font-size:13px;color:var(--text-dim);background:#fffbeb;padding:8px 10px;border-radius:6px;margin:6px 0;line-height:1.5;}
+.task-meta{font-size:11px;color:var(--text-dim);}
+.task-resolve-btn{background:#dcfce7;color:#166534;border:1.5px solid #bbf7d0;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.15s;}
+.task-resolve-btn:hover{background:#bbf7d0;}
+.task-form-wrap{margin-top:16px;padding:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;}
 .log-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm);}
 .log-item{display:flex;gap:14px;padding:11px 18px;border-bottom:1px solid var(--bg2);align-items:flex-start;}
 .log-item:last-child{border-bottom:none;}
@@ -360,6 +369,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       </button>
       <button class="nav-tab" onclick="switchTab('teamStats',this)">
         <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>გუნდის სტატისტიკა
+      </button>
+      <button class="nav-tab" id="tasksTabBtn" onclick="switchTab('tasks',this)">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>ამოცანები <span id="tasksNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
       </button>
     </div>
     <div class="nav-right">
@@ -688,6 +700,16 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       </div>
       <div class="log-wrap" id="logWrap"><div class="log-empty">იტვირთება...</div></div>
     </div>
+
+    <div class="tab-panel" id="tabTasks">
+      <div class="section-head">
+        <span class="section-title">🚩 ამოცანები</span>
+        <button class="btn btn-outline" onclick="loadTasks()">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
+        </button>
+      </div>
+      <div id="tasksWrap" style="padding:4px 0"><div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div></div>
+    </div>
   </div>
 </div>
 
@@ -748,9 +770,18 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <div class="history-section">
         <div class="d-section-title" style="margin-top:8px">ცვლილებების ისტორია</div>
         <div id="leadHistory"><div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">იტვირთება...</div></div>
+        <div id="taskFormWrap" class="task-form-wrap" style="display:none">
+          <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px">🚩 ამოცანა ადმინისთვის</div>
+          <textarea id="taskNoteInput" placeholder="აღწერე — რა საჭიროებს ყურადღებას..." style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-family:inherit;font-size:13px;resize:none;height:72px;box-sizing:border-box;outline:none"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="document.getElementById('taskFormWrap').style.display='none'" style="height:32px;font-size:12px">გაუქმება</button>
+            <button class="btn btn-primary" onclick="submitTask()" style="height:32px;font-size:12px">🚩 შექმნა</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
+      <button class="btn btn-outline" onclick="document.getElementById('taskFormWrap').style.display='block';document.getElementById('taskNoteInput').focus()" style="margin-right:auto">🚩 ამოცანა</button>
       <button class="btn-cancel" onclick="closeModal()">გაუქმება</button>
       <button class="btn-save-all" id="saveAllBtn" onclick="saveAll()">
         <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>შენახვა
@@ -887,6 +918,7 @@ function showDashboard() {
   loadWorkers();
   loadReminders();
   initNotifications();
+  setTimeout(loadTasksBadge, 1500);
 }
 
 function doLogout() {
@@ -912,14 +944,16 @@ function switchTab(name, btn) {
   if (name==="teamStats")  loadTeamStats();
   if (name==="onboarded")  loadOnboardedTab();
   if (name==="retired")    loadRetiredTab();
+  if (name==="tasks")      loadTasks();
 }
 function refreshCurrent() {
-  if (currentTab==="leads")      loadLeads(currentPage);
-  else if (currentTab==="biz")       loadBusinesses();
-  else if (currentTab==="users")     loadUsers();
-  else if (currentTab==="log")       loadActivityLog();
-  else if (currentTab==="onboarded") loadOnboardedTab();
-  else if (currentTab==="retired")   loadRetiredTab();
+  if (currentTab==="leads")           loadLeads(currentPage);
+  else if (currentTab==="biz")        loadBusinesses();
+  else if (currentTab==="users")      loadUsers();
+  else if (currentTab==="log")        loadActivityLog();
+  else if (currentTab==="onboarded")  loadOnboardedTab();
+  else if (currentTab==="retired")    loadRetiredTab();
+  else if (currentTab==="tasks")      loadTasks();
 }
 
 // ── HELPERS ──────────────────────────────
@@ -940,17 +974,25 @@ function genId(prefix){ return (prefix||"SX")+"-"+Date.now(); }
 // ── STATS ─────────────────────────────────
 async function loadStats() {
   try {
-    const { data } = await sbGet("leads", "select=status&limit=10000");
-    const counts = {};
-    (data||[]).forEach(l => { counts[l.status] = (counts[l.status]||0) + 1; });
-    const total = (data||[]).length;
-    document.getElementById("stTotal").textContent     = total;
-    document.getElementById("stNew").textContent       = counts["New Lead"]||0;
-    document.getElementById("stNeg").textContent       = (counts["Interested"]||0) + (counts["Contacted"]||0) + (counts["In Negotiation"]||0);
-    document.getElementById("stOnboarded").textContent = counts["Onboarded"]||0;
-    document.getElementById("stDeclined").textContent  = counts["Declined"]||0;
-    document.getElementById("stNoReply").textContent   = counts["არ უპასუხა 1"]||0;
-    document.getElementById("stNoReply2").textContent  = counts["არ უპასუხა 2"]||0;
+    const enc = encodeURIComponent;
+    const [tot,nw,inte,co,neg,ob,de,nr1,nr2] = await Promise.all([
+      sbGet("leads","select=id&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("New Lead")+"&limit=1"),
+      sbGet("leads","select=id&status=eq.Interested&limit=1"),
+      sbGet("leads","select=id&status=eq.Contacted&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("In Negotiation")+"&limit=1"),
+      sbGet("leads","select=id&status=eq.Onboarded&limit=1"),
+      sbGet("leads","select=id&status=eq.Declined&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 1")+"&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 2")+"&limit=1"),
+    ]);
+    document.getElementById("stTotal").textContent     = tot.count||0;
+    document.getElementById("stNew").textContent       = nw.count||0;
+    document.getElementById("stNeg").textContent       = (inte.count||0)+(co.count||0)+(neg.count||0);
+    document.getElementById("stOnboarded").textContent = ob.count||0;
+    document.getElementById("stDeclined").textContent  = de.count||0;
+    document.getElementById("stNoReply").textContent   = nr1.count||0;
+    document.getElementById("stNoReply2").textContent  = nr2.count||0;
   } catch(e){ console.error("stats error:",e); }
 }
 
@@ -1775,6 +1817,78 @@ async function submitLeadFromForm(data) {
 
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();}});
 
+// ── TASKS ────────────────────────────────
+async function submitTask() {
+  const note = (document.getElementById("taskNoteInput")?.value||"").trim();
+  if (!note) { document.getElementById("taskNoteInput").focus(); return; }
+  if (!currentId) return;
+  try {
+    const ok = await sbPost("tasks", {
+      id: genId("TK"),
+      lead_id: currentId,
+      created_by: SESSION.display_name || SESSION.username,
+      note: note,
+      status: "open"
+    });
+    if (!ok) { alert("შეცდომა — სცადეთ თავიდან"); return; }
+    document.getElementById("taskFormWrap").style.display = "none";
+    document.getElementById("taskNoteInput").value = "";
+    const saveOk = document.getElementById("saveOk");
+    if (saveOk) { const prev=saveOk.textContent; saveOk.textContent="🚩 ამოცანა შეიქმნა!"; saveOk.style.opacity="1"; setTimeout(()=>{saveOk.style.opacity="0"; saveOk.textContent=prev;},2500); }
+    loadTasksBadge();
+  } catch(e) { console.error("task error:",e); }
+}
+
+async function loadTasks() {
+  const wrap = document.getElementById("tasksWrap");
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div>';
+  try {
+    const enc = encodeURIComponent;
+    const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
+    const { data } = await sbGet("tasks", `status=eq.open${byFilter}&order=created_at.desc&limit=200`);
+    const tasks = data || [];
+    if (!tasks.length) {
+      wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:40px 20px;text-align:center">ამოცანები არ არის ✓</div>';
+      return;
+    }
+    const leadIds = [...new Set(tasks.map(t=>t.lead_id))];
+    const { data: leads } = await sbGet("leads", `select=id,name,phone&id=in.(${leadIds.map(encodeURIComponent).join(",")})&limit=200`);
+    const lmap = {}; (leads||[]).forEach(l=>lmap[l.id]=l);
+    wrap.innerHTML = tasks.map(t => {
+      const lead = lmap[t.lead_id]||{};
+      return `<div class="task-card">
+        <div style="flex:1">
+          <div class="task-lead-name" onclick="openModal('${t.lead_id}')">${esc(lead.name||t.lead_id)}</div>
+          <div style="font-size:12px;color:var(--blue);margin-bottom:4px">${formatPhone(lead.phone||"")}</div>
+          <div class="task-note">${esc(t.note)}</div>
+          <div class="task-meta">👤 ${esc(t.created_by||"—")} &nbsp;•&nbsp; ${fmtTime(t.created_at)}</div>
+        </div>
+        ${SESSION.role==="admin"?`<button class="task-resolve-btn" onclick="resolveTask('${t.id}')">✓ მოგვარდა</button>`:""}
+      </div>`;
+    }).join("");
+  } catch(e) { console.error("tasks err:",e); wrap.innerHTML='<div style="color:red;font-size:13px;padding:20px">შეცდომა</div>'; }
+}
+
+async function resolveTask(taskId) {
+  try {
+    await sbPatch("tasks", `id=eq.${taskId}`, { status: "resolved" });
+    loadTasks(); loadTasksBadge();
+  } catch(e) { console.error("resolve err:",e); }
+}
+
+async function loadTasksBadge() {
+  try {
+    const enc = encodeURIComponent;
+    const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
+    const { count } = await sbGet("tasks", `status=eq.open${byFilter}&limit=1`);
+    const badge = document.getElementById("tasksNavBadge");
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.style.display = "inline"; }
+    else { badge.style.display = "none"; }
+  } catch(e) {}
+}
+
 // ── TEAM STATS ───────────────────────────
 function showUsersView(view) {
   const cards = document.getElementById("usersCardsView");
@@ -1953,7 +2067,7 @@ let calMonth = new Date().getMonth();
 let calLeads = [];
 
 const GEO_MONTHS = ["იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი","ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
-const GEO_DAYS   = ["კვი","ორშ","სამ","ოთხ","ხუთ","პარ","შაბ"];
+const GEO_DAYS   = ["ორშ","სამ","ოთხ","ხუთ","პარ","შაბ","კვი"];
 
 async function loadCalendar() {
   // fetch leads with next_contact in this month
@@ -1971,7 +2085,7 @@ function renderCalendar() {
   const title = document.getElementById("calTitle");
   title.textContent = GEO_MONTHS[calMonth] + " " + calYear;
 
-  const today = new Date().toISOString().substring(0,10);
+  const today = new Date(Date.now()+4*60*60*1000).toISOString().substring(0,10);
   const firstWeekDay = new Date(calYear, calMonth, 1).getDay();
   const startOffset  = firstWeekDay === 0 ? 6 : firstWeekDay - 1;
   const daysInMonth  = new Date(calYear, calMonth+1, 0).getDate();
