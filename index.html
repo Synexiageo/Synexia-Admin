@@ -708,9 +708,13 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
     <div class="tab-panel" id="tabTasks">
       <div class="section-head">
         <span class="section-title">🚩 ამოცანები</span>
-        <button class="btn btn-outline" onclick="loadTasks()">
-          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
-        </button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="taskFilterOpen" onclick="setTaskFilter('open')" style="padding:5px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--blue);background:var(--blue);color:white;transition:.15s">ღია</button>
+          <button id="taskFilterResolved" onclick="setTaskFilter('resolved')" style="padding:5px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);transition:.15s">შესრულებული</button>
+          <button class="btn btn-outline" onclick="loadTasks()" style="height:34px">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
       </div>
       <div id="tasksWrap" style="padding:4px 0"><div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div></div>
     </div>
@@ -1844,6 +1848,16 @@ async function submitTask() {
   } catch(e) { console.error("task error:",e); }
 }
 
+let currentTaskFilter = "open";
+function setTaskFilter(f) {
+  currentTaskFilter = f;
+  const btnO = document.getElementById("taskFilterOpen");
+  const btnR = document.getElementById("taskFilterResolved");
+  if (btnO) { btnO.style.background = f==="open"?"var(--blue)":"var(--surface2)"; btnO.style.color = f==="open"?"white":"var(--text-dim)"; btnO.style.borderColor = f==="open"?"var(--blue)":"var(--border)"; }
+  if (btnR) { btnR.style.background = f==="resolved"?"#166534":"var(--surface2)"; btnR.style.color = f==="resolved"?"white":"var(--text-dim)"; btnR.style.borderColor = f==="resolved"?"#166534":"var(--border)"; }
+  loadTasks();
+}
+
 async function loadTasks() {
   const wrap = document.getElementById("tasksWrap");
   if (!wrap) return;
@@ -1851,25 +1865,32 @@ async function loadTasks() {
   try {
     const enc = encodeURIComponent;
     const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
-    const { data } = await sbGet("tasks", `status=eq.open${byFilter}&order=created_at.desc&limit=200`);
+    const sf = currentTaskFilter || "open";
+    const { data } = await sbGet("tasks", `status=eq.${sf}${byFilter}&order=created_at.desc&limit=200`);
     const tasks = data || [];
     if (!tasks.length) {
-      wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:40px 20px;text-align:center">ამოცანები არ არის ✓</div>';
+      wrap.innerHTML = `<div style="color:var(--text-dim);font-size:13px;padding:40px 20px;text-align:center">${sf==="open"?"ამოცანები არ არის ✓":"შესრულებული ამოცანები არ არის"}</div>`;
       return;
     }
     const leadIds = [...new Set(tasks.map(t=>t.lead_id))];
     const { data: leads } = await sbGet("leads", `select=id,name,phone&id=in.(${leadIds.map(encodeURIComponent).join(",")})&limit=200`);
     const lmap = {}; (leads||[]).forEach(l=>lmap[l.id]=l);
+    const isResolved = sf === "resolved";
     wrap.innerHTML = tasks.map(t => {
       const lead = lmap[t.lead_id]||{};
-      return `<div class="task-card">
+      const cardBorder = isResolved ? "#bbf7d0" : "#fde68a";
+      const notesBg    = isResolved ? "#f0fdf4" : "#fffbeb";
+      return `<div class="task-card" style="border-color:${cardBorder};cursor:pointer" onclick="openModal('${t.lead_id}')">
         <div style="flex:1">
-          <div class="task-lead-name" onclick="openModal('${t.lead_id}')">${esc(lead.name||t.lead_id)}</div>
-          <div style="font-size:12px;color:var(--blue);margin-bottom:4px">${formatPhone(lead.phone||"")}</div>
-          <div class="task-note">${esc(t.note)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            ${isResolved ? '<span style="background:#dcfce7;color:#166534;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">✓ შესრულდა</span>' : '<span style="background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">🚩 ღია</span>'}
+            <span class="task-lead-name" style="cursor:pointer">${esc(lead.name||t.lead_id)}</span>
+          </div>
+          <div style="font-size:12px;color:var(--blue);margin-bottom:6px">${formatPhone(lead.phone||"")}</div>
+          <div class="task-note" style="background:${notesBg}">${esc(t.note)}</div>
           <div class="task-meta">👤 ${esc(t.created_by||"—")} &nbsp;•&nbsp; ${fmtTime(t.created_at)}</div>
         </div>
-        ${SESSION.role==="admin"?`<button class="task-resolve-btn" onclick="resolveTask('${t.id}')">✓ მოგვარდა</button>`:""}
+        ${(!isResolved && SESSION.role==="admin") ? `<button class="task-resolve-btn" onclick="event.stopPropagation();resolveTask('${t.id}')">✓ მოგვარდა</button>` : ""}
       </div>`;
     }).join("");
   } catch(e) { console.error("tasks err:",e); wrap.innerHTML='<div style="color:red;font-size:13px;padding:20px">შეცდომა</div>'; }
