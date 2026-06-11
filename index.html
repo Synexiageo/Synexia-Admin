@@ -464,8 +464,12 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           </select>
         </div>
         <div class="tb-group">
-          <span class="tb-label">📅 რეგ. თარიღი</span>
-          <input type="date" class="tb-input" id="filterDate" style="height:34px;width:150px" onchange="applyFilters()">
+          <span class="tb-label">📅 შემოსვლის თარიღი</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="date" class="tb-input" id="filterDateFrom" style="height:34px;width:138px" onchange="applyFilters()" title="დასაწყისი">
+            <span style="color:var(--text-dim);font-size:12px">—</span>
+            <input type="date" class="tb-input" id="filterDateTo" style="height:34px;width:138px" onchange="applyFilters()" title="დასასრული">
+          </div>
         </div>
         <button class="btn-reset-sm" onclick="resetFilters()">გასუფთავება</button>
         <div class="tb-group">
@@ -1041,15 +1045,16 @@ async function loadLeads(page) {
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
   const city        = document.getElementById("filterCity")?.value||"";
-  const dateFilter  = document.getElementById("filterDate")?.value||"";
+  const dateFrom = document.getElementById("filterDateFrom")?.value||"";
+  const dateTo   = document.getElementById("filterDateTo")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
-  if (dateFilter) {
-    // reg_date stored as "YYYY-MM-DD HH:MM" string — filter full day
-    const nextDay = new Date(dateFilter);
-    nextDay.setDate(nextDay.getDate()+1);
-    const nextDayStr = nextDay.toISOString().substring(0,10);
-    filters += `&reg_date=gte.${dateFilter}&reg_date=lt.${nextDayStr}`;
+  // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
+  if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
+  if (dateTo) {
+    // include full last day: "2026-06-07 23:59" < "2026-06-08"
+    const next = new Date(dateTo); next.setDate(next.getDate()+1);
+    filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
   }
   // pagination
   const from = (page-1)*PAGE_SIZE;
@@ -1078,7 +1083,7 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDate"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   loadLeads(1);
 }
 
