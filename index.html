@@ -726,7 +726,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
   <div class="modal" id="modal">
     <div class="modal-head">
       <div>
-        <div class="modal-name" id="dName">—</div>
+        <input class="modal-name" id="dName" style="background:transparent;border:none;outline:none;border-bottom:1.5px dashed transparent;border-radius:0;width:100%;padding:0;cursor:text;transition:.15s;" onfocus="this.style.borderBottomColor='var(--primary)'" onblur="this.style.borderBottomColor='transparent'" placeholder="სახელი">
         <div class="modal-meta" id="dMeta">—</div>
         <div class="modal-info-row">
           <div class="modal-info-item"><span class="modal-info-label">ტელეფონი</span><span class="modal-info-val phone" id="dPhone">—</span></div>
@@ -1132,7 +1132,7 @@ function renderLeads(leads, offset) {
     return `<tr onclick="openModal('${l.id}')" ${isSelected?'class="selected-row"':''}>
       ${chk}
       <td class="td-date">${(offset||0)+i+1}</td>
-      <td><span style="display:flex;align-items:center">${dot}<span class="td-name">${esc(l.name)}</span></span></td>
+      <td><span style="display:flex;align-items:center;gap:5px">${dot}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
@@ -1167,8 +1167,8 @@ async function openModal(id) {
     if (!data || !data.length) return;
     const l = data[0]; currentLead = l; currentId = id;
 
-    document.getElementById("dName").textContent    = l.name||"—";
-    document.getElementById("dMeta").textContent    = "ID: "+l.id;
+    document.getElementById("dName").value    = l.name||"";
+    document.getElementById("dMeta").innerHTML = `ID: ${esc(l.id)}`+(l.submission_count>1?` &nbsp;<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">⚠️ ${l.submission_count}-ჯერ შემოვიდა</span>`:"");
     document.getElementById("dPhone").textContent   = formatPhone(l.phone)||"—";
     document.getElementById("dRefCode").textContent = l.ref_code||"—";
     document.getElementById("dRegDate").textContent = fmtTime(l.reg_date);
@@ -1212,6 +1212,7 @@ async function saveAll() {
   if (!currentId) return;
   const savedId   = currentId;
   const savedLead = currentLead;
+  const name        = document.getElementById("dName").value.trim();
   const status      = document.getElementById("dStatus").value;
   const legal       = document.getElementById("dLegal").value;
   const email       = document.getElementById("dEmail").value.trim();
@@ -1241,8 +1242,9 @@ async function saveAll() {
     if (status === "Onboarded" && !onboarded && savedLead?.status !== "Onboarded") {
       finalOnboarded = new Date().toISOString().substring(0, 10);
     }
-    await sbPatch("leads", `id=eq.${savedId}`, { status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null) });
+    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null) });
     const changes = [];
+    if (name && name !== (savedLead?.name||"")) changes.push("სახელი: "+savedLead?.name+" → "+name);
     if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
     if (email && savedLead?.email !== email) changes.push("ელ-ფოსტა: "+email);
     if (note !== (savedLead?.note||"")) {
