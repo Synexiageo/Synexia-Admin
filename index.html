@@ -1810,10 +1810,32 @@ async function loadActivityLog(){
 // ── CSV ───────────────────────────────────
 async function exportCSV(){
   try{
-    const {data}=await sbGet("leads","select=*&order=added_date.desc&limit=10000");
+    const search      = document.getElementById("filterSearch")?.value.trim()||"";
+    const status      = document.getElementById("filterStatus")?.value||"";
+    const legal       = document.getElementById("filterLegal")?.value||"";
+    const refCode     = document.getElementById("refSearchInput")?.value.trim()||"";
+    const environment = document.getElementById("filterEnvironment")?.value||"";
+    const city        = document.getElementById("filterCity")?.value||"";
+    const dateFrom    = document.getElementById("filterDateFrom")?.value||"";
+    const dateTo      = document.getElementById("filterDateTo")?.value||"";
+
+    let filters = `select=*&order=created_at.desc&limit=10000`;
+    if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
+    if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
+    if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
+    if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
+    if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
+    if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+    if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
+    if (dateTo) {
+      const next = new Date(dateTo); next.setDate(next.getDate()+1);
+      filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
+    }
+
+    const {data}=await sbGet("leads", filters);
     if(!data||!data.length){alert("ჩანაწერი არ არის");return;}
-    const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","რეგ.თარიღი","Onboarded","შენიშვნა"];
-    const rows=data.map(l=>[l.id,l.name,l.phone,l.ref_code,l.email,l.legal,l.status,l.reg_date,l.onboarded_date,l.note].map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(","));
+    const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","ქალაქი","გარემო","რეგ.თარიღი","Onboarded","შენიშვნა"];
+    const rows=data.map(l=>[l.id,l.name,l.phone,l.ref_code,l.email,l.legal,l.status,l.city,l.environment,l.reg_date,l.onboarded_date,l.note].map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(","));
     const csv="\uFEFF"+[h.join(","),...rows].join("\n");
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
