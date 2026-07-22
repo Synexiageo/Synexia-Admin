@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- v5 -->
 <html lang="ka">
 <head>
 <meta charset="UTF-8">
@@ -114,11 +114,13 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .status-badge{display:inline-block;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;border:1px solid;white-space:nowrap;}
 .s-new        {color:#1d6ef5;background:#eff6ff;border-color:#bfdbfe;}
 .s-interested {color:#0891b2;background:#ecfeff;border-color:#a5f3fc;}
+.s-potential  {color:#4f46e5;background:#eef2ff;border-color:#c7d2fe;}
 .s-contacted  {color:#d97706;background:#fffbeb;border-color:#fde68a;}
 .s-negotiation{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
 .s-onboarded  {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
 .s-declined   {color:#dc2626;background:#fef2f2;border-color:#fecaca;}
 .s-noreply    {color:#6b7280;background:#f9fafb;border-color:#e5e7eb;}
+.s-noreply2   {color:#374151;background:#f3f4f6;border-color:#d1d5db;}
 .s-tocall     {color:#0284c7;background:#f0f9ff;border-color:#bae6fd;}
 .s-called     {color:#d97706;background:#fffbeb;border-color:#fde68a;}
 .s-meeting    {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
@@ -175,6 +177,15 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .cu-select option{background:white;}
 
 /* LOG */
+.task-card{background:white;border:1.5px solid #fde68a;border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;transition:.15s;}
+.task-card:hover{border-color:#f59e0b;box-shadow:0 2px 8px rgba(245,158,11,.12);}
+.task-lead-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;cursor:pointer;}
+.task-lead-name:hover{color:var(--blue);}
+.task-note{font-size:13px;color:var(--text-dim);background:#fffbeb;padding:8px 10px;border-radius:6px;margin:6px 0;line-height:1.5;}
+.task-meta{font-size:11px;color:var(--text-dim);}
+.task-resolve-btn{background:#dcfce7;color:#166534;border:1.5px solid #bbf7d0;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.15s;}
+.task-resolve-btn:hover{background:#bbf7d0;}
+.task-form-wrap{margin-top:16px;padding:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;}
 .log-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm);}
 .log-item{display:flex;gap:14px;padding:11px 18px;border-bottom:1px solid var(--bg2);align-items:flex-start;}
 .log-item:last-child{border-bottom:none;}
@@ -249,6 +260,20 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .history-detail{font-size:12px;color:var(--text-mid);margin-top:1px;}
 .history-time{font-size:11px;color:var(--text-dim);white-space:nowrap;}
 
+.days-badge{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;border:1px solid;white-space:nowrap;}
+.days-ok    {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
+.days-warn  {color:#d97706;background:#fffbeb;border-color:#fde68a;}
+.days-urgent{color:#dc2626;background:#fef2f2;border-color:#fecaca;}
+.ob-alert{background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#92400e;}
+.bulk-bar{display:none;position:sticky;bottom:16px;z-index:60;background:#0f1e35;color:white;padding:12px 20px;border-radius:12px;margin:10px 18px;box-shadow:0 8px 30px rgba(15,30,53,0.35);align-items:center;gap:12px;animation:fadeUp .2s ease;}
+.bulk-bar.show{display:flex;}
+.bulk-count{font-size:13px;font-weight:700;flex:1;}
+.btn-bulk-del{background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
+.btn-bulk-del:hover{background:#b91c1c;}
+.btn-bulk-cancel{background:rgba(255,255,255,0.1);color:white;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
+.btn-bulk-cancel:hover{background:rgba(255,255,255,0.2);}
+.row-check{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);}
+tr.selected-row td{background:var(--blue-dim2)!important;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .cal-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;}
@@ -337,8 +362,17 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       <button class="nav-tab" onclick="switchTab('calendar',this)">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>კალენდარი
       </button>
+      <button class="nav-tab" id="onboardedTabBtn" onclick="switchTab('onboarded',this)">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Onboarded <span id="obNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px"></span>
+      </button>
+      <button class="nav-tab" onclick="switchTab('retired',this)">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Retired
+      </button>
       <button class="nav-tab" onclick="switchTab('teamStats',this)">
         <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>გუნდის სტატისტიკა
+      </button>
+      <button class="nav-tab" id="tasksTabBtn" onclick="switchTab('tasks',this)">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>ამოცანები <span id="tasksNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
       </button>
     </div>
     <div class="nav-right">
@@ -346,6 +380,9 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
         <div class="nav-user-icon" id="navUserIcon">?</div>
         <div><div class="nav-user-name" id="navUserName">—</div><div class="nav-user-role" id="navUserRole">—</div></div>
       </div>
+      <button id="notifBtn" onclick="enableNotifications()" style="display:none;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:8px;padding:7px 13px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;gap:6px;align-items:center;transition:.18s" title="შეტყობინებების ჩართვა">
+        🔔 შეტყობინებები
+      </button>
       <button class="btn btn-outline" onclick="refreshCurrent()">
         <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
       </button>
@@ -367,7 +404,8 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
         <div class="stat-card yellow"> <div class="stat-label">მოლაპარაკება</div><div class="stat-value" id="stNeg">—</div></div>
         <div class="stat-card green">  <div class="stat-label">Onboarded</div>   <div class="stat-value" id="stOnboarded">—</div></div>
         <div class="stat-card red">    <div class="stat-label">უარი</div>         <div class="stat-value" id="stDeclined">—</div></div>
-        <div class="stat-card purple"> <div class="stat-label">არ უპასუხა</div>  <div class="stat-value" id="stNoReply">—</div></div>
+        <div class="stat-card purple"> <div class="stat-label">არ უპასუხა 1</div>  <div class="stat-value" id="stNoReply">—</div></div>
+        <div class="stat-card" style="border-color:#d1d5db"> <div class="stat-label">არ უპასუხა 2</div>  <div class="stat-value" id="stNoReply2" style="color:#374151">—</div></div>
       </div>
       <!-- რემაინდერები -->
       <div id="remindersBox" style="display:none;background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(234,179,8,0.1)">
@@ -390,8 +428,8 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
           <span class="tb-label">სტატუსი</span>
           <select class="tb-select" id="filterStatus" onchange="applyFilters()">
             <option value="">ყველა</option>
-            <option>New Lead</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option>
+            <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option>
           </select>
         </div>
         <div class="tb-group">
@@ -426,16 +464,33 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
             <option>თბილისი</option><option>ქუთაისი</option><option>ბათუმი</option><option>გორი</option>
           </select>
         </div>
+        <div class="tb-group">
+          <span class="tb-label">📅 შემოსვლის თარიღი</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="date" class="tb-input" id="filterDateFrom" style="height:34px;width:138px" onchange="applyFilters()" title="დასაწყისი">
+            <span style="color:var(--text-dim);font-size:12px">—</span>
+            <input type="date" class="tb-input" id="filterDateTo" style="height:34px;width:138px" onchange="applyFilters()" title="დასასრული">
+          </div>
+        </div>
         <button class="btn-reset-sm" onclick="resetFilters()">გასუფთავება</button>
+        <div class="tb-group">
+          <span class="tb-label">დალაგება</span>
+          <button id="sortToggleBtn" onclick="toggleSort()" style="height:34px;padding:0 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-mid);transition:.18s;white-space:nowrap">↓ ახლებიდან</button>
+        </div>
       </div>
       <div class="table-wrap">
         <div class="table-header"><div class="table-count">ნაჩვენებია <span id="displayCount">0</span> ჩანაწერი</div></div>
         <div class="pagination" id="leadsPaginationTop" style="display:none;border-bottom:1px solid var(--border);border-top:none"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
-            <tbody id="leadsBody"><tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+            <thead><tr><th id="thSelectAll" style="display:none;width:36px;text-align:center"><input type="checkbox" id="selectAllCb" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)" onchange="toggleSelectAll(this.checked)" onclick="event.stopPropagation()"></th><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
+            <tbody id="leadsBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
+        </div>
+        <div id="bulkBar" class="bulk-bar">
+          <span class="bulk-count" id="bulkCount">0 მონიშნული</span>
+          <button class="btn-bulk-del" onclick="bulkDelete()">🗑 წაშლა</button>
+          <button class="btn-bulk-cancel" onclick="clearSelection()">✕ გაუქმება</button>
         </div>
         <div class="pagination" id="leadsPagination" style="display:none"></div>
       </div>
@@ -489,7 +544,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
           <select class="tb-select" id="bizFilterStatus" onchange="applyBizFilters()">
             <option value="">ყველა</option>
             <option>დასარეკი</option><option>დაკავშირებული</option><option>შეხვედრა დანიშნული</option>
-            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა</option>
+            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა 1</option>
           </select>
         </div>
         <div class="tb-group">
@@ -530,7 +585,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       </div>
       <div id="usersStatsView" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-          <select class="tb-select" id="statsDateFilter" onchange="loadTeamStats()" style="height:34px;width:160px">
+          <select class="tb-select" id="statsDateFilter" onchange="loadTeamStatsCards()" style="height:34px;width:160px">
             <option value="7">ბოლო 7 დღე</option>
             <option value="30" selected>ბოლო 30 დღე</option>
             <option value="90">ბოლო 3 თვე</option>
@@ -590,6 +645,59 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       <div class="cal-grid" id="calGrid"></div>
     </div>
 
+    <!-- Onboarded კლიენტები -->
+    <div class="tab-panel" id="tabOnboarded">
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);max-width:600px;margin-bottom:16px">
+        <div class="stat-card green">  <div class="stat-label">სულ Onboarded</div><div class="stat-value" id="obTotal">—</div></div>
+        <div class="stat-card yellow"> <div class="stat-label">⏰ 7 დღეში სრულდება</div><div class="stat-value" id="obSoon">—</div></div>
+        <div class="stat-card red">    <div class="stat-label">✅ Retired გახდა</div><div class="stat-value" id="obRetiredCount">0</div></div>
+      </div>
+      <div id="obAlertBox" style="display:none" class="ob-alert">⚠️ <span id="obAlertMsg"></span></div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count">Onboarded კლიენტები: <span id="obCount">0</span></div>
+          <button class="btn btn-outline" onclick="loadOnboardedTab()" style="height:32px;padding:0 12px;font-size:12px">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>Onboarded თარიღი</th><th>კონტ. დასასრული</th><th>დარჩენილი დღეები</th><th>მოქმედება</th></tr></thead>
+            <tbody id="obBody"><tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Retired კლიენტები -->
+    <div class="tab-panel" id="tabRetired">
+      <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);max-width:300px;margin-bottom:16px">
+        <div class="stat-card purple"><div class="stat-label">სულ Retired</div><div class="stat-value" id="retTotal">—</div></div>
+        <div class="stat-card red">   <div class="stat-label">ამ თვეში</div>   <div class="stat-value" id="retMonth">—</div></div>
+      </div>
+      <div class="toolbar" style="margin-bottom:14px">
+        <div class="tb-group" style="flex:1;min-width:220px">
+          <span class="tb-label">ძიება</span>
+          <input type="text" class="tb-input" id="retSearch" placeholder="სახელი, ტელეფონი..." style="width:100%;height:34px" oninput="filterRetired()">
+        </div>
+        <button class="btn-reset-sm" onclick="document.getElementById('retSearch').value='';filterRetired()">გასუფთავება</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count">Retired კლიენტები: <span id="retCount">0</span></div>
+          <button class="btn btn-outline" onclick="loadRetiredTab()" style="height:32px;padding:0 12px;font-size:12px">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>📅 Onboarded</th><th>🔚 Retired გახდა</th><th>⏱ პერიოდი</th><th>მოქმედება</th></tr></thead>
+            <tbody id="retBody"><tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- აქტივობა -->
     <div class="tab-panel" id="tabLog">
       <div class="section-head">
@@ -600,6 +708,20 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       </div>
       <div class="log-wrap" id="logWrap"><div class="log-empty">იტვირთება...</div></div>
     </div>
+
+    <div class="tab-panel" id="tabTasks">
+      <div class="section-head">
+        <span class="section-title">🚩 ამოცანები</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="taskFilterOpen" onclick="setTaskFilter('open')" style="padding:5px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--blue);background:var(--blue);color:white;transition:.15s">ღია</button>
+          <button id="taskFilterResolved" onclick="setTaskFilter('resolved')" style="padding:5px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);transition:.15s">შესრულებული</button>
+          <button class="btn btn-outline" onclick="loadTasks()" style="height:34px">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="tasksWrap" style="padding:4px 0"><div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div></div>
+    </div>
   </div>
 </div>
 
@@ -608,7 +730,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
   <div class="modal" id="modal">
     <div class="modal-head">
       <div>
-        <div class="modal-name" id="dName">—</div>
+        <input class="modal-name" id="dName" style="background:transparent;border:none;outline:none;border-bottom:1.5px dashed transparent;border-radius:0;width:100%;padding:0;cursor:text;transition:.15s;" onfocus="this.style.borderBottomColor='var(--primary)'" onblur="this.style.borderBottomColor='transparent'" placeholder="სახელი">
         <div class="modal-meta" id="dMeta">—</div>
         <div class="modal-info-row">
           <div class="modal-info-item"><span class="modal-info-label">ტელეფონი</span><span class="modal-info-val phone" id="dPhone">—</span></div>
@@ -624,8 +746,8 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       <div class="d-grid">
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="dStatus">
-            <option>New Lead</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა</option>
+            <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option>
           </select>
         </div>
         <div class="d-field"><label class="d-label">იურიდიული სტატუსი</label>
@@ -654,15 +776,24 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
       <div class="d-grid full"><div class="d-field"><label class="d-label">შენიშვნა</label><textarea class="d-textarea" id="dNote" placeholder="შენიშვნა..."></textarea></div></div>
       <div class="d-section-title" style="margin-top:14px">📅 შემდეგი კონტაქტი</div>
       <div class="d-grid">
-        <div class="d-field"><label class="d-label">თარიღი</label><input type="date" class="d-input" id="dNextContact"></div>
+        <div class="d-field"><label class="d-label">თარიღი და დრო</label><div style="display:flex;gap:6px"><input type="date" class="d-input" id="dNextContact" style="flex:1"><input type="time" class="d-input" id="dNextContactTime" style="width:110px"></div></div>
         <div class="d-field"><label class="d-label">შენიშვნა</label><input type="text" class="d-input" id="dNextContactNote" placeholder="მაგ. დარეკვა შეთანხმებაზე"></div>
       </div>
       <div class="history-section">
         <div class="d-section-title" style="margin-top:8px">ცვლილებების ისტორია</div>
         <div id="leadHistory"><div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">იტვირთება...</div></div>
+        <div id="taskFormWrap" class="task-form-wrap" style="display:none">
+          <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px">🚩 ამოცანა ადმინისთვის</div>
+          <textarea id="taskNoteInput" placeholder="აღწერე — რა საჭიროებს ყურადღებას..." style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-family:inherit;font-size:13px;resize:none;height:72px;box-sizing:border-box;outline:none"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="document.getElementById('taskFormWrap').style.display='none'" style="height:32px;font-size:12px">გაუქმება</button>
+            <button class="btn btn-primary" onclick="submitTask()" style="height:32px;font-size:12px">🚩 შექმნა</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
+      <button class="btn btn-outline" onclick="document.getElementById('taskFormWrap').style.display='block';document.getElementById('taskNoteInput').focus()" style="margin-right:auto">🚩 ამოცანა</button>
       <button class="btn-cancel" onclick="closeModal()">გაუქმება</button>
       <button class="btn-save-all" id="saveAllBtn" onclick="saveAll()">
         <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>შენახვა
@@ -693,7 +824,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="bmStatus">
             <option>დასარეკი</option><option>დაკავშირებული</option><option>შეხვედრა დანიშნული</option>
-            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა</option>
+            <option>დახურული გარიგება</option><option>უარი</option><option>არ უპასუხა 1</option>
           </select>
         </div>
         <div class="d-field"><label class="d-label">ვინ ურეკავს</label><input type="text" class="d-input" id="bmAssigned" placeholder="კადრის სახელი"></div>
@@ -723,11 +854,11 @@ let currentPage = 1, totalPages = 1, totalLeads = 0;
 // ── Supabase API ──────────────────────────
 async function sbGet(table, params = "") {
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
-    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Prefer": "count=exact" }
+    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Prefer": "count=exact", "Cache-Control": "no-cache" }
   });
   const count = res.headers.get("content-range")?.split("/")?.[1];
   const data  = await res.json();
-  return { data, count: parseInt(count) || 0 };
+  return { data: Array.isArray(data) ? data : [], count: parseInt(count) || 0 };
 }
 async function sbPost(table, body) {
   const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
@@ -787,6 +918,7 @@ function showDashboard() {
     document.getElementById("logTabBtn").style.display="";
     document.getElementById("csvBtn").style.display="";
     document.getElementById("addBizBtn").style.display="";
+    document.getElementById("thSelectAll").style.display="";
   }
   if (SESSION.role === "user") {
     // auto-filter by this user's leads via activity log
@@ -797,6 +929,8 @@ function showDashboard() {
   loadStats();
   loadWorkers();
   loadReminders();
+  initNotifications();
+  setTimeout(loadTasksBadge, 1500);
 }
 
 function doLogout() {
@@ -816,48 +950,93 @@ function switchTab(name, btn) {
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active"));
   document.getElementById("tab"+name.charAt(0).toUpperCase()+name.slice(1)).classList.add("active");
   btn.classList.add("active"); currentTab=name;
-  if (name==="users")    { loadUsers(); }
-  if (name==="log")      loadActivityLog();
-  if (name==="calendar")  loadCalendar();
-  if (name==="teamStats") loadTeamStats();
+  if (name==="users")      { loadUsers(); }
+  if (name==="log")        loadActivityLog();
+  if (name==="calendar")   loadCalendar();
+  if (name==="teamStats")  loadTeamStats();
+  if (name==="onboarded")  loadOnboardedTab();
+  if (name==="retired")    loadRetiredTab();
+  if (name==="tasks")      loadTasks();
 }
 function refreshCurrent() {
-  if (currentTab==="leads") loadLeads(currentPage);
-  else if (currentTab==="biz") loadBusinesses();
-  else if (currentTab==="users") loadUsers();
-  else if (currentTab==="log") loadActivityLog();
+  if (currentTab==="leads")           loadLeads(currentPage);
+  else if (currentTab==="biz")        loadBusinesses();
+  else if (currentTab==="users")      loadUsers();
+  else if (currentTab==="log")        loadActivityLog();
+  else if (currentTab==="onboarded")  loadOnboardedTab();
+  else if (currentTab==="retired")    loadRetiredTab();
+  else if (currentTab==="tasks")      loadTasks();
 }
 
 // ── HELPERS ──────────────────────────────
 function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function statusClass(s){
-  const m={"New Lead":"s-new","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply",
+  const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply","არ უპასუხა 2":"s-noreply2","Retired":"s-retired",
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
-function nowStr() { return new Date().toISOString().replace("T"," ").substring(0,16); }
+function nowStr() {
+  // Store in Georgia time (UTC+4) directly
+  const ge = new Date(Date.now() + 4*60*60*1000);
+  return ge.toISOString().replace("T"," ").substring(0,16);
+}
 function genId(prefix){ return (prefix||"SX")+"-"+Date.now(); }
 
 // ── STATS ─────────────────────────────────
 async function loadStats() {
   try {
-    const h = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Accept": "application/json" };
-    const res = await fetch(`${SB_URL}/rest/v1/rpc/get_lead_stats`, { method:"POST", headers:h, body:JSON.stringify({}) });
-    const d = await res.json();
-    document.getElementById("stTotal").textContent     = d.total||0;
-    document.getElementById("stNew").textContent       = d.new_lead||0;
-    document.getElementById("stNeg").textContent       = d.negotiation||0;
-    document.getElementById("stOnboarded").textContent = d.onboarded||0;
-    document.getElementById("stDeclined").textContent  = d.declined||0;
-    document.getElementById("stNoReply").textContent   = d.no_reply||0;
+    const enc = encodeURIComponent;
+    const [tot,nw,inte,co,neg,ob,de,nr1,nr2] = await Promise.all([
+      sbGet("leads","select=id&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("New Lead")+"&limit=1"),
+      sbGet("leads","select=id&status=eq.Interested&limit=1"),
+      sbGet("leads","select=id&status=eq.Contacted&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("In Negotiation")+"&limit=1"),
+      sbGet("leads","select=id&status=eq.Onboarded&limit=1"),
+      sbGet("leads","select=id&status=eq.Declined&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 1")+"&limit=1"),
+      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 2")+"&limit=1"),
+    ]);
+    document.getElementById("stTotal").textContent     = tot.count||0;
+    document.getElementById("stNew").textContent       = nw.count||0;
+    document.getElementById("stNeg").textContent       = (inte.count||0)+(co.count||0)+(neg.count||0);
+    document.getElementById("stOnboarded").textContent = ob.count||0;
+    document.getElementById("stDeclined").textContent  = de.count||0;
+    document.getElementById("stNoReply").textContent   = nr1.count||0;
+    document.getElementById("stNoReply2").textContent  = nr2.count||0;
   } catch(e){ console.error("stats error:",e); }
 }
 
 // ── LEADS ────────────────────────────────
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const s = String(ts);
+  // ISO UTC timestamp (has 'Z', '+', or 'T' without space) → treat as UTC, convert to Georgia (+4)
+  if (s.includes('Z') || s.includes('+') || (s.includes('T') && !s.includes(' '))) {
+    const d = new Date(s.includes('Z') || s.includes('+') ? s : s + 'Z');
+    const ge = new Date(d.getTime() + 4*60*60*1000);
+    const pad = n => String(n).padStart(2,'0');
+    return ge.getUTCFullYear()+'-'+pad(ge.getUTCMonth()+1)+'-'+pad(ge.getUTCDate())+
+           ' '+pad(ge.getUTCHours())+':'+pad(ge.getUTCMinutes());
+  }
+  // Plain string "YYYY-MM-DD HH:MM" (already Georgia time from nowStr()) → display as-is
+  return s.substring(0,16);
+}
+
+let leadsSort = "desc"; // "desc" = ახლებიდან, "asc" = ძველებიდან
+
+function toggleSort() {
+  leadsSort = leadsSort === "desc" ? "asc" : "desc";
+  const btn = document.getElementById("sortToggleBtn");
+  if (btn) btn.textContent = leadsSort === "desc" ? "↓ ახლებიდან" : "↑ ძველებიდან";
+  loadLeads(1);
+}
+
 async function loadLeads(page) {
   page = page || 1;
-  document.getElementById("leadsBody").innerHTML='<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  clearSelection();
+  document.getElementById("leadsBody").innerHTML='<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   document.getElementById("leadsPagination").style.display="none";
 
   const search   = document.getElementById("filterSearch")?.value.trim()||"";
@@ -866,7 +1045,7 @@ async function loadLeads(page) {
   const refCode  = document.getElementById("refSearchInput")?.value.trim()||"";
   const assigned = document.getElementById("filterAssigned")?.value||"";
 
-  let filters = "select=*&order=reg_date.desc";
+  let filters = `select=*&order=created_at.${leadsSort}`;
   if (SESSION.role === "influencer" && SESSION.ref_code) {
     filters += `&ref_code=eq.${encodeURIComponent(SESSION.ref_code)}`;
   } else {
@@ -878,8 +1057,17 @@ async function loadLeads(page) {
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
   const city        = document.getElementById("filterCity")?.value||"";
+  const dateFrom = document.getElementById("filterDateFrom")?.value||"";
+  const dateTo   = document.getElementById("filterDateTo")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+  // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
+  if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
+  if (dateTo) {
+    // include full last day: "2026-06-07 23:59" < "2026-06-08"
+    const next = new Date(dateTo); next.setDate(next.getDate()+1);
+    filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
+  }
   // pagination
   const from = (page-1)*PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
@@ -907,7 +1095,7 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   loadLeads(1);
 }
 
@@ -938,19 +1126,25 @@ async function loadWorkers() {
 
 function renderLeads(leads, offset) {
   const tbody = document.getElementById("leadsBody");
-  if (!leads.length) { tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
+  if (!leads.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
   const isAdmin = SESSION&&SESSION.role==="admin";
+  // reset select-all checkbox state
+  const saCb = document.getElementById("selectAllCb");
+  if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
   tbody.innerHTML = leads.map((l,i) => {
     const sc = statusClass(l.status);
     const dot = !l.viewed ? '<span class="new-dot"></span>' : '';
     const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
-    return `<tr onclick="openModal('${l.id}')">
+    const chk = isAdmin ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : `<td></td>`;
+    const isSelected = selectedLeads.has(l.id);
+    return `<tr onclick="openModal('${l.id}')" ${isSelected?'class="selected-row"':''}>
+      ${chk}
       <td class="td-date">${(offset||0)+i+1}</td>
-      <td><span style="display:flex;align-items:center">${dot}<span class="td-name">${esc(l.name)}</span></span></td>
+      <td><span style="display:flex;align-items:center;gap:5px">${dot}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
-      <td class="td-date">${esc(String(l.reg_date||"").substring(0,16))}</td>
+      <td class="td-date">${fmtTime(l.reg_date)}</td>
       <td onclick="event.stopPropagation()"><div class="td-actions">
         <button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>${delBtn}
       </div></td>
@@ -981,11 +1175,11 @@ async function openModal(id) {
     if (!data || !data.length) return;
     const l = data[0]; currentLead = l; currentId = id;
 
-    document.getElementById("dName").textContent    = l.name||"—";
-    document.getElementById("dMeta").textContent    = "ID: "+l.id;
+    document.getElementById("dName").value    = l.name||"";
+    document.getElementById("dMeta").innerHTML = `ID: ${esc(l.id)}`+(l.submission_count>1?` &nbsp;<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">⚠️ ${l.submission_count}-ჯერ შემოვიდა</span>`:"");
     document.getElementById("dPhone").textContent   = formatPhone(l.phone)||"—";
     document.getElementById("dRefCode").textContent = l.ref_code||"—";
-    document.getElementById("dRegDate").textContent = String(l.reg_date||"").substring(0,16)||"—";
+    document.getElementById("dRegDate").textContent = fmtTime(l.reg_date);
     document.getElementById("dStatus").value      = l.status||"New Lead";
     document.getElementById("dLegal").value       = l.legal||"";
     document.getElementById("dEmail").value       = l.email||"";
@@ -993,6 +1187,7 @@ async function openModal(id) {
     document.getElementById("dEnvironment").value    = l.environment||"";
     document.getElementById("dCity").value            = l.city||"";
     document.getElementById("dNextContact").value     = l.next_contact?String(l.next_contact).substring(0,10):"";
+    document.getElementById("dNextContactTime").value = l.next_contact_time||"";
     document.getElementById("dNextContactNote").value = l.next_contact_note||"";
     document.getElementById("dNote").value        = l.note||"";
 
@@ -1015,7 +1210,7 @@ async function openModal(id) {
     const { data: hist } = await sbGet("activity_log", `lead_id=eq.${id}&order=created_at.desc&limit=20&select=*`);
     const hEl = document.getElementById("leadHistory");
     if (!hist || !hist.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">ჯერ ცვლილება არ არის</div>'; }
-    else { hEl.innerHTML = hist.map(e=>`<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name)}</div><div class="history-detail">${esc(e.action)}${e.detail?' — '+esc(e.detail):''}</div></div><div class="history-time">${esc(String(e.timestamp||"").substring(0,16))}</div></div>`).join(""); }
+    else { hEl.innerHTML = hist.map(e=>`<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name)}</div><div class="history-detail">${esc(e.action)}${e.detail?' — '+esc(e.detail):''}</div></div><div class="history-time">${esc(fmtTime(e.timestamp))}</div></div>`).join(""); }
   } catch(e) { alert("შეცდომა: "+e.message); }
 }
 function closeModal(){ currentId=null; currentLead=null; document.getElementById("modalOverlay").classList.remove("open"); }
@@ -1025,6 +1220,7 @@ async function saveAll() {
   if (!currentId) return;
   const savedId   = currentId;
   const savedLead = currentLead;
+  const name        = document.getElementById("dName").value.trim();
   const status      = document.getElementById("dStatus").value;
   const legal       = document.getElementById("dLegal").value;
   const email       = document.getElementById("dEmail").value.trim();
@@ -1032,6 +1228,7 @@ async function saveAll() {
   const environment      = document.getElementById("dEnvironment").value;
   const city             = document.getElementById("dCity").value;
   const nextContact      = document.getElementById("dNextContact").value;
+  const nextContactTime  = document.getElementById("dNextContactTime").value;
   const nextContactNote  = document.getElementById("dNextContactNote").value.trim();
   const note        = document.getElementById("dNote").value;
   const oldStatus   = savedLead?.status||"";
@@ -1046,13 +1243,21 @@ async function saveAll() {
   closeModal();
 
   try {
-    await sbPatch("leads", `id=eq.${savedId}`, { status, legal, email, onboarded_date: onboarded || null, environment: environment || null, city: city || null, note, next_contact: nextContact || null, next_contact_note: nextContactNote || null });
+    const terminal = ['Onboarded','Declined','No Reply','არ უპასუხა 1','არ უპასუხა 2','Retired'];
+    const clearReminder = terminal.includes(status);
+    // Auto-set onboarded_date when status first becomes Onboarded
+    let finalOnboarded = onboarded;
+    if (status === "Onboarded" && !onboarded && savedLead?.status !== "Onboarded") {
+      finalOnboarded = new Date().toISOString().substring(0, 10);
+    }
+    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null) });
     const changes = [];
+    if (name && name !== (savedLead?.name||"")) changes.push("სახელი: "+savedLead?.name+" → "+name);
     if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
     if (email && savedLead?.email !== email) changes.push("ელ-ფოსტა: "+email);
     if (note !== (savedLead?.note||"")) {
-      const oldNote = (savedLead?.note||"").substring(0,50);
-      const newNote = note.substring(0,50);
+      const oldNote = (savedLead?.note||"");
+      const newNote = note;
       changes.push("კომენტარი: \""+oldNote+"\" → \""+newNote+"\"");
     }
     if (changes.length > 0) {
@@ -1068,6 +1273,173 @@ async function confirmDelete(id) {
     await sbDelete("leads", `id=eq.${id}`);
     if (currentId===id) closeModal();
     loadLeads(currentPage); loadStats();
+  } catch(e) { alert("შეცდომა: "+e.message); }
+}
+
+// ── PUSH NOTIFICATIONS ───────────────────
+async function initNotifications() {
+  if (!("Notification" in window)) return;
+  const btn = document.getElementById("notifBtn");
+  if (Notification.permission === "default") {
+    // Show button — Chrome requires direct user click for permission
+    if (btn) btn.style.display = "inline-flex";
+  } else if (Notification.permission === "granted") {
+    if (btn) btn.style.display = "none";
+    setTimeout(checkCalendarNotifications, 2000);
+    setInterval(checkCalendarNotifications, 15 * 60 * 1000); // check every 15 min
+  }
+  // denied → do nothing
+}
+
+async function enableNotifications() {
+  const btn = document.getElementById("notifBtn");
+  const result = await Notification.requestPermission();
+  if (result === "granted") {
+    if (btn) btn.style.display = "none";
+    checkCalendarNotifications();
+  } else {
+    if (btn) { btn.textContent = "🔕 დაბლოკილია"; btn.style.opacity = "0.5"; btn.onclick = null; }
+  }
+}
+
+async function checkCalendarNotifications() {
+  if (Notification.permission !== "granted") return;
+  try {
+    const nowGE   = new Date(Date.now() + 4*60*60*1000);
+    const today   = nowGE.toISOString().substring(0,10);
+    const tomorrow = new Date(Date.now() + 4*60*60*1000 + 86400000).toISOString().substring(0,10);
+    const currentMin = nowGE.getUTCHours() * 60 + nowGE.getUTCMinutes();
+
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note&next_contact=lte.${tomorrow}&next_contact=neq.null&order=next_contact.asc&limit=200`);
+    const all = data || [];
+
+    const mine = SESSION.role === "admin"
+      ? all
+      : all.filter(l => workerLeadMap[SESSION.display_name]?.has(l.id));
+
+    // Overdue
+    mine.filter(l => l.next_contact < today).forEach(l => {
+      const key = `sx_notif_overdue_${l.id}_${today}`;
+      if (localStorage.getItem(key)) return;
+      pushNotif(`⚠️ გამოტოვებული: ${l.name}`,
+        `📞 ${formatPhone(l.phone)}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}\nდათქმული: ${l.next_contact}`,
+        `overdue_${l.id}`);
+      localStorage.setItem(key, '1');
+    });
+
+    // Today
+    mine.filter(l => l.next_contact === today).forEach(l => {
+      if (l.next_contact_time) {
+        // 2-hour reminder
+        const [hh, mm] = l.next_contact_time.split(':').map(Number);
+        const schedMin = hh * 60 + mm;
+        const diff = schedMin - currentMin;
+        if (diff > 0 && diff <= 120) {
+          const key = `sx_notif_2h_${l.id}_${today}`;
+          if (!localStorage.getItem(key)) {
+            pushNotif(`⏰ 2 საათი დარჩა: ${l.name}`,
+              `📞 ${formatPhone(l.phone)} • ${l.next_contact_time}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}`,
+              `2h_${l.id}`);
+            localStorage.setItem(key, '1');
+          }
+        }
+      } else {
+        // No time — notify once today
+        const key = `sx_notif_day_${l.id}_${today}`;
+        if (!localStorage.getItem(key)) {
+          pushNotif(`📞 დღეს დასარეკი: ${l.name}`,
+            `${formatPhone(l.phone)}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}`,
+            `today_${l.id}`);
+          localStorage.setItem(key, '1');
+        }
+      }
+    });
+
+    // Tomorrow
+    mine.filter(l => l.next_contact === tomorrow).forEach(l => {
+      const key = `sx_notif_tmrw_${l.id}_${today}`;
+      if (localStorage.getItem(key)) return;
+      pushNotif(`📅 ხვალ დასარეკი: ${l.name}`,
+        `${formatPhone(l.phone)}${l.next_contact_note ? '  •  '+l.next_contact_note : ''}`,
+        `tmrw_${l.id}`);
+      localStorage.setItem(key, '1');
+    });
+
+  } catch(e) { console.error("notif error:", e); }
+}
+
+function pushNotif(title, body, tag) {
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, {
+      body,
+      tag,
+      icon: "https://synexia.ge/favicon.ico",
+      badge: "https://synexia.ge/favicon.ico",
+      requireInteraction: false,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch(e){}
+}
+
+// ── BULK SELECT ───────────────────────────
+let selectedLeads = new Set();
+
+function toggleSelectAll(checked) {
+  document.querySelectorAll(".row-check").forEach(cb => {
+    cb.checked = checked;
+    const id = cb.dataset.id;
+    if (checked) selectedLeads.add(id);
+    else selectedLeads.delete(id);
+    cb.closest("tr").classList.toggle("selected-row", checked);
+  });
+  updateBulkBar();
+}
+
+function toggleSelectLead(cb, id) {
+  if (cb.checked) selectedLeads.add(id);
+  else selectedLeads.delete(id);
+  cb.closest("tr").classList.toggle("selected-row", cb.checked);
+  const allCbs = document.querySelectorAll(".row-check");
+  const saCb = document.getElementById("selectAllCb");
+  if (saCb) {
+    saCb.indeterminate = selectedLeads.size > 0 && selectedLeads.size < allCbs.length;
+    saCb.checked = allCbs.length > 0 && selectedLeads.size === allCbs.length;
+  }
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById("bulkBar");
+  if (!bar) return;
+  if (selectedLeads.size === 0) { bar.classList.remove("show"); return; }
+  bar.classList.add("show");
+  document.getElementById("bulkCount").textContent = selectedLeads.size + " ჩანაწერი მონიშნული";
+}
+
+function clearSelection() {
+  selectedLeads.clear();
+  document.querySelectorAll(".row-check").forEach(cb => cb.checked=false);
+  document.querySelectorAll("tr.selected-row").forEach(tr => tr.classList.remove("selected-row"));
+  const saCb = document.getElementById("selectAllCb");
+  if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
+  updateBulkBar();
+}
+
+async function bulkDelete() {
+  if (!selectedLeads.size) return;
+  if (!confirm(`ნამდვილად გსურთ ${selectedLeads.size} ჩანაწერის წაშლა?\nეს მოქმედება შეუქცევადია!`)) return;
+  const ids = [...selectedLeads];
+  const bar = document.getElementById("bulkBar");
+  if (bar) bar.querySelector(".btn-bulk-del").textContent = "⏳ იშლება...";
+  try {
+    for (const id of ids) {
+      await sbDelete("leads", `id=eq.${id}`);
+    }
+    selectedLeads.clear();
+    updateBulkBar();
+    loadLeads(currentPage);
+    loadStats();
   } catch(e) { alert("შეცდომა: "+e.message); }
 }
 
@@ -1098,6 +1470,174 @@ async function loadReminders() {
   } catch(e){}
 }
 
+// ── ONBOARDED TAB ────────────────────────
+const CONTRACT_DAYS = 30;
+async function loadOnboardedTab() {
+  document.getElementById("obBody").innerHTML = '<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  document.getElementById("obAlertBox").style.display = "none";
+  try {
+    const { data } = await sbGet("leads", "status=eq.Onboarded&select=id,name,phone,onboarded_date&order=onboarded_date.asc&limit=500");
+    const leads = data || [];
+
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Find expired leads and auto-retire them
+    const expiredIds = leads.filter(l => {
+      if (!l.onboarded_date) return false;
+      const end = new Date(l.onboarded_date); end.setHours(0,0,0,0);
+      end.setDate(end.getDate() + CONTRACT_DAYS);
+      return end < today;
+    }).map(l => l.id);
+
+    if (expiredIds.length > 0) {
+      for (const id of expiredIds) {
+        await sbPatch("leads", `id=eq.${id}`, { status: "Retired" });
+        await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "ავტო-Retired", lead_id: id, detail: "კონტრაქტი (30 დღე) ვადაგასული — ავტომატურად გადავიდა Retired-ში" });
+      }
+      document.getElementById("obRetiredCount").textContent = expiredIds.length;
+      document.getElementById("obAlertBox").style.display = "flex";
+      document.getElementById("obAlertMsg").textContent = expiredIds.length + " კლიენტი ვადაგასულია და გადავიდა Retired-ში";
+      const badge = document.getElementById("obNavBadge");
+      badge.style.display = "none";
+      loadStats();
+    }
+
+    // Reload remaining onboarded leads after retiring expired ones
+    const { data: fresh } = await sbGet("leads", "status=eq.Onboarded&select=id,name,phone,onboarded_date&order=onboarded_date.asc&limit=500");
+    const active = fresh || [];
+
+    let soon = 0;
+    document.getElementById("obTotal").textContent = active.length;
+    document.getElementById("obCount").textContent = active.length;
+
+    if (!active.length) {
+      document.getElementById("obBody").innerHTML = '<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><p>Onboarded კლიენტი არ არის</p></div></td></tr>';
+      document.getElementById("obSoon").textContent = 0;
+      const badge = document.getElementById("obNavBadge"); badge.style.display = "none";
+      return;
+    }
+
+    document.getElementById("obBody").innerHTML = active.map((l, i) => {
+      if (!l.onboarded_date) {
+        return `<tr onclick="openModal('${l.id}')">
+          <td class="td-date">${i+1}</td>
+          <td class="td-name">${esc(l.name)}</td>
+          <td class="td-phone">${formatPhone(l.phone)}</td>
+          <td style="color:var(--danger);font-size:12px">— თარიღი არ მითითებულა</td>
+          <td>—</td><td>—</td>
+          <td onclick="event.stopPropagation()"><button class="btn-edit" onclick="openModal('${l.id}')">✏️ მითითება</button></td>
+        </tr>`;
+      }
+      const ob = new Date(l.onboarded_date); ob.setHours(0,0,0,0);
+      const end = new Date(ob); end.setDate(end.getDate() + CONTRACT_DAYS);
+      const daysLeft = Math.ceil((end - today) / (1000*60*60*24));
+      const endStr = end.toISOString().substring(0,10);
+      const obStr  = String(l.onboarded_date).substring(0,10);
+
+      let cls, label;
+      if (daysLeft <= 0)      { cls="days-urgent"; label="⚠️ ვადაგასული"; }
+      else if (daysLeft <= 7) { cls="days-warn";   label="⏰ "+daysLeft+" დღე"; soon++; }
+      else                    { cls="days-ok";     label="✅ "+daysLeft+" დღე"; }
+
+      return `<tr onclick="openModal('${l.id}')">
+        <td class="td-date">${i+1}</td>
+        <td class="td-name">${esc(l.name)}</td>
+        <td class="td-phone">${formatPhone(l.phone)}</td>
+        <td class="td-date">${obStr}</td>
+        <td class="td-date" style="font-weight:600">${endStr}</td>
+        <td><span class="days-badge ${cls}">${label}</span></td>
+        <td onclick="event.stopPropagation()"><button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button></td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("obSoon").textContent = soon;
+
+    // Show red badge on nav tab if expiring soon
+    const badge = document.getElementById("obNavBadge");
+    if (soon > 0) { badge.style.display="inline"; badge.textContent=soon; }
+    else badge.style.display="none";
+
+  } catch(e) {
+    document.getElementById("obBody").innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`;
+  }
+}
+
+// ── RETIRED TAB ──────────────────────────
+let allRetired = [];
+let retiredDateMap = {};
+async function loadRetiredTab() {
+  document.getElementById("retBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  try {
+    // Load retired leads
+    const { data } = await sbGet("leads", "status=eq.Retired&select=id,name,phone,ref_code,onboarded_date,reg_date&order=onboarded_date.desc.nullslast&limit=1000");
+    allRetired = data || [];
+
+    // Load retired dates from activity_log (auto-retire or manual → Retired)
+    const { data: logs } = await sbGet("activity_log",
+      "or=(action.eq.ავტო-Retired,detail.ilike.*→ Retired*)&select=lead_id,timestamp&order=timestamp.desc&limit=5000");
+    retiredDateMap = {};
+    (logs||[]).forEach(r => {
+      if (r.lead_id && !retiredDateMap[r.lead_id]) {
+        retiredDateMap[r.lead_id] = r.timestamp;
+      }
+    });
+
+    const thisMonth = new Date().toISOString().substring(0,7);
+    document.getElementById("retTotal").textContent = allRetired.length;
+    document.getElementById("retMonth").textContent = allRetired.filter(l => {
+      const rd = retiredDateMap[l.id]||"";
+      return rd.startsWith(thisMonth);
+    }).length;
+    filterRetired();
+  } catch(e) {
+    document.getElementById("retBody").innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`;
+  }
+}
+function filterRetired() {
+  const q = (document.getElementById("retSearch")?.value||"").toLowerCase();
+  const list = q ? allRetired.filter(l =>
+    (l.name||"").toLowerCase().includes(q) ||
+    (l.phone||"").includes(q) ||
+    (l.ref_code||"").toLowerCase().includes(q)
+  ) : allRetired;
+  document.getElementById("retCount").textContent = list.length;
+  if (!list.length) {
+    document.getElementById("retBody").innerHTML = '<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Retired კლიენტი ვერ მოიძებნა</p></div></td></tr>';
+    return;
+  }
+  const isAdmin = SESSION && SESSION.role === "admin";
+  document.getElementById("retBody").innerHTML = list.map((l, i) => {
+    const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
+
+    const obStr = l.onboarded_date ? String(l.onboarded_date).substring(0,10) : null;
+    const rawRet = retiredDateMap[l.id];
+    const retStr = rawRet ? fmtTime(rawRet).substring(0,10) : null;
+
+    // Period in days
+    let periodCell = '<span style="color:var(--text-dim)">—</span>';
+    if (obStr && retStr) {
+      const days = Math.round((new Date(retStr) - new Date(obStr)) / (1000*60*60*24));
+      periodCell = `<span style="font-weight:700;color:var(--text-mid)">${days} დღე</span>`;
+    }
+
+    const obCell  = obStr  ? `<span style="color:var(--success);font-weight:600">${obStr}</span>`  : '<span style="color:var(--text-dim)">—</span>';
+    const retCell = retStr ? `<span style="color:var(--danger);font-weight:600">${retStr}</span>` : '<span style="color:var(--text-dim)">—</span>';
+
+    return `<tr onclick="openModal('${l.id}')">
+      <td class="td-date">${i+1}</td>
+      <td class="td-name">${esc(l.name)}</td>
+      <td class="td-phone">${formatPhone(l.phone)}</td>
+      <td class="td-ref">${l.ref_code ? esc(l.ref_code) : '<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
+      <td class="td-date">${obCell}</td>
+      <td class="td-date">${retCell}</td>
+      <td class="td-date">${periodCell}</td>
+      <td onclick="event.stopPropagation()"><div class="td-actions">
+        <button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>${delBtn}
+      </div></td>
+    </tr>`;
+  }).join("");
+}
+
 // ── BUSINESSES ────────────────────────────
 let allBiz = [];
 async function loadBusinesses() {
@@ -1115,7 +1655,7 @@ function updateBizStats() {
   document.getElementById("bzCalled").textContent  = allBiz.filter(b=>b.status==="დაკავშირებული").length;
   document.getElementById("bzMeeting").textContent = allBiz.filter(b=>b.status==="შეხვედრა დანიშნული").length;
   document.getElementById("bzClosed").textContent  = allBiz.filter(b=>b.status==="დახურული გარიგება").length;
-  document.getElementById("bzNo").textContent      = allBiz.filter(b=>b.status==="უარი"||b.status==="არ უპასუხა").length;
+  document.getElementById("bzNo").textContent      = allBiz.filter(b=>b.status==="უარი"||b.status==="არ უპასუხა 1").length;
 }
 function applyBizFilters() {
   const search = document.getElementById("bizSearch").value.toLowerCase();
@@ -1254,22 +1794,63 @@ async function loadActivityLog(){
   try{
     const {data}=await sbGet("activity_log","select=*&order=created_at.desc&limit=200");
     if(!data||!data.length){wrap.innerHTML='<div class="log-empty">ჩანაწერი ჯერ არ არის</div>';return;}
-    wrap.innerHTML=data.map(l=>`<div class="log-item">
-      <div class="log-avatar">${(l.display_name||l.username||"?").charAt(0).toUpperCase()}</div>
-      <div class="log-body"><div class="log-who">${esc(l.display_name||l.username)}</div>
-      <div class="log-detail">${esc(l.action)}${l.lead_id?' <span style="color:var(--text-dim);font-size:11px">('+esc(l.lead_id)+')</span>':''} — ${esc(l.detail)}</div></div>
-      <div class="log-time">${esc(String(l.timestamp||"").substring(0,16))}</div>
-    </div>`).join("");
+    // Fetch lead names for all unique lead_ids
+    const ids=[...new Set(data.filter(l=>l.lead_id).map(l=>l.lead_id))];
+    let leadMap={};
+    if(ids.length){
+      const qs='id=in.('+ids.map(id=>'"'+id+'"').join(',')+')'+'&select=id,name,phone';
+      const {data:leads}=await sbGet("leads",qs);
+      if(leads) leads.forEach(l=>{leadMap[l.id]=l;});
+    }
+    wrap.innerHTML=data.map(l=>{
+      const lead=l.lead_id?leadMap[l.lead_id]:null;
+      const leadLabel=lead
+        ?`<span style="color:var(--blue);font-weight:600;cursor:pointer" onclick="openLead('${esc(l.lead_id)}')">👤 ${esc(lead.name)}</span>`
+        :(l.lead_id?`<span style="color:var(--text-dim);font-size:11px">${esc(l.lead_id)}</span>`:'');
+      return `<div class="log-item">
+        <div class="log-avatar">${(l.display_name||l.username||"?").charAt(0).toUpperCase()}</div>
+        <div class="log-body" style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+            <span class="log-who">${esc(l.display_name||l.username)}</span>
+            ${leadLabel?'<span style="color:var(--text-dim);font-size:12px">→</span>'+leadLabel:''}
+          </div>
+          <div class="log-detail" style="white-space:pre-wrap;word-break:break-word">${esc(l.action)}${l.detail?' — '+esc(l.detail):''}</div>
+        </div>
+        <div class="log-time" style="white-space:nowrap;flex-shrink:0">${fmtTime(l.timestamp)}</div>
+      </div>`;
+    }).join("");
   }catch(e){wrap.innerHTML='<div class="log-empty" style="color:var(--danger)">შეცდომა: '+e.message+'</div>';}
 }
 
 // ── CSV ───────────────────────────────────
 async function exportCSV(){
   try{
-    const {data}=await sbGet("leads","select=*&order=added_date.desc&limit=10000");
+    const search      = document.getElementById("filterSearch")?.value.trim()||"";
+    const status      = document.getElementById("filterStatus")?.value||"";
+    const legal       = document.getElementById("filterLegal")?.value||"";
+    const refCode     = document.getElementById("refSearchInput")?.value.trim()||"";
+    const environment = document.getElementById("filterEnvironment")?.value||"";
+    const city        = document.getElementById("filterCity")?.value||"";
+    const dateFrom    = document.getElementById("filterDateFrom")?.value||"";
+    const dateTo      = document.getElementById("filterDateTo")?.value||"";
+
+    let filters = `select=*&order=created_at.desc&limit=10000`;
+    if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
+    if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
+    if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
+    if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
+    if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
+    if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+    if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
+    if (dateTo) {
+      const next = new Date(dateTo); next.setDate(next.getDate()+1);
+      filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
+    }
+
+    const {data}=await sbGet("leads", filters);
     if(!data||!data.length){alert("ჩანაწერი არ არის");return;}
-    const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","რეგ.თარიღი","Onboarded","შენიშვნა"];
-    const rows=data.map(l=>[l.id,l.name,l.phone,l.ref_code,l.email,l.legal,l.status,l.reg_date,l.onboarded_date,l.note].map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(","));
+    const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","ქალაქი","გარემო","რეგ.თარიღი","Onboarded","შენიშვნა"];
+    const rows=data.map(l=>[l.id,l.name,l.phone,l.ref_code,l.email,l.legal,l.status,l.city,l.environment,l.reg_date,l.onboarded_date,l.note].map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(","));
     const csv="\uFEFF"+[h.join(","),...rows].join("\n");
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
@@ -1283,6 +1864,95 @@ async function submitLeadFromForm(data) {
 }
 
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();}});
+
+// ── TASKS ────────────────────────────────
+async function submitTask() {
+  const note = (document.getElementById("taskNoteInput")?.value||"").trim();
+  if (!note) { document.getElementById("taskNoteInput").focus(); return; }
+  if (!currentId) return;
+  try {
+    const ok = await sbPost("tasks", {
+      id: genId("TK"),
+      lead_id: currentId,
+      created_by: SESSION.display_name || SESSION.username,
+      note: note,
+      status: "open"
+    });
+    if (!ok) { alert("შეცდომა — სცადეთ თავიდან"); return; }
+    document.getElementById("taskFormWrap").style.display = "none";
+    document.getElementById("taskNoteInput").value = "";
+    const saveOk = document.getElementById("saveOk");
+    if (saveOk) { const prev=saveOk.textContent; saveOk.textContent="🚩 ამოცანა შეიქმნა!"; saveOk.style.opacity="1"; setTimeout(()=>{saveOk.style.opacity="0"; saveOk.textContent=prev;},2500); }
+    loadTasksBadge();
+  } catch(e) { console.error("task error:",e); }
+}
+
+let currentTaskFilter = "open";
+function setTaskFilter(f) {
+  currentTaskFilter = f;
+  const btnO = document.getElementById("taskFilterOpen");
+  const btnR = document.getElementById("taskFilterResolved");
+  if (btnO) { btnO.style.background = f==="open"?"var(--blue)":"var(--surface2)"; btnO.style.color = f==="open"?"white":"var(--text-dim)"; btnO.style.borderColor = f==="open"?"var(--blue)":"var(--border)"; }
+  if (btnR) { btnR.style.background = f==="resolved"?"#166534":"var(--surface2)"; btnR.style.color = f==="resolved"?"white":"var(--text-dim)"; btnR.style.borderColor = f==="resolved"?"#166534":"var(--border)"; }
+  loadTasks();
+}
+
+async function loadTasks() {
+  const wrap = document.getElementById("tasksWrap");
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div>';
+  try {
+    const enc = encodeURIComponent;
+    const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
+    const sf = currentTaskFilter || "open";
+    const { data } = await sbGet("tasks", `status=eq.${sf}${byFilter}&order=created_at.desc&limit=200`);
+    const tasks = data || [];
+    if (!tasks.length) {
+      wrap.innerHTML = `<div style="color:var(--text-dim);font-size:13px;padding:40px 20px;text-align:center">${sf==="open"?"ამოცანები არ არის ✓":"შესრულებული ამოცანები არ არის"}</div>`;
+      return;
+    }
+    const leadIds = [...new Set(tasks.map(t=>t.lead_id))];
+    const { data: leads } = await sbGet("leads", `select=id,name,phone&id=in.(${leadIds.map(encodeURIComponent).join(",")})&limit=200`);
+    const lmap = {}; (leads||[]).forEach(l=>lmap[l.id]=l);
+    const isResolved = sf === "resolved";
+    wrap.innerHTML = tasks.map(t => {
+      const lead = lmap[t.lead_id]||{};
+      const cardBorder = isResolved ? "#bbf7d0" : "#fde68a";
+      const notesBg    = isResolved ? "#f0fdf4" : "#fffbeb";
+      return `<div class="task-card" style="border-color:${cardBorder};cursor:pointer" onclick="openModal('${t.lead_id}')">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            ${isResolved ? '<span style="background:#dcfce7;color:#166534;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">✓ შესრულდა</span>' : '<span style="background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">🚩 ღია</span>'}
+            <span class="task-lead-name" style="cursor:pointer">${esc(lead.name||t.lead_id)}</span>
+          </div>
+          <div style="font-size:12px;color:var(--blue);margin-bottom:6px">${formatPhone(lead.phone||"")}</div>
+          <div class="task-note" style="background:${notesBg}">${esc(t.note)}</div>
+          <div class="task-meta">👤 ${esc(t.created_by||"—")} &nbsp;•&nbsp; ${fmtTime(t.created_at)}</div>
+        </div>
+        ${(!isResolved && SESSION.role==="admin") ? `<button class="task-resolve-btn" onclick="event.stopPropagation();resolveTask('${t.id}')">✓ მოგვარდა</button>` : ""}
+      </div>`;
+    }).join("");
+  } catch(e) { console.error("tasks err:",e); wrap.innerHTML='<div style="color:red;font-size:13px;padding:20px">შეცდომა</div>'; }
+}
+
+async function resolveTask(taskId) {
+  try {
+    await sbPatch("tasks", `id=eq.${taskId}`, { status: "resolved" });
+    loadTasks(); loadTasksBadge();
+  } catch(e) { console.error("resolve err:",e); }
+}
+
+async function loadTasksBadge() {
+  try {
+    const enc = encodeURIComponent;
+    const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
+    const { count } = await sbGet("tasks", `status=eq.open${byFilter}&limit=1`);
+    const badge = document.getElementById("tasksNavBadge");
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.style.display = "inline"; }
+    else { badge.style.display = "none"; }
+  } catch(e) {}
+}
 
 // ── TEAM STATS ───────────────────────────
 function showUsersView(view) {
@@ -1301,7 +1971,7 @@ function showUsersView(view) {
   }
 }
 
-async function loadTeamStats() {
+async function loadTeamStatsCards() {
   const grid   = document.getElementById("teamStatsGrid");
   const filter = document.getElementById("statsDateFilter").value;
   const label  = document.getElementById("statsDateLabel");
@@ -1311,7 +1981,7 @@ async function loadTeamStats() {
   if (filter !== "all") {
     const from = new Date();
     from.setDate(from.getDate() - parseInt(filter));
-    dateFilter = `&timestamp=gte.${from.toISOString().substring(0,10)}`;
+    dateFilter = `&created_at=gte.${from.toISOString().substring(0,10)}`;
     label.textContent = `${from.toISOString().substring(0,10)}-დან დღემდე`;
   } else {
     label.textContent = "ყველა დრო";
@@ -1330,7 +2000,7 @@ async function loadTeamStats() {
         role: u.role,
         total: 0,
         Contacted: 0, Interested: 0, "In Negotiation": 0,
-        Onboarded: 0, Declined: 0, "არ უპასუხა": 0
+        Onboarded: 0, Declined: 0, "არ უპასუხა 1": 0, "არ უპასუხა 2": 0
       };
     });
 
@@ -1356,7 +2026,8 @@ async function loadTeamStats() {
       {key:"In Negotiation",  label:"In Negotiation",  color:"#7c3aed"},
       {key:"Onboarded",       label:"Onboarded",       color:"#059669"},
       {key:"Declined",        label:"Declined",        color:"#dc2626"},
-      {key:"არ უპასუხა",     label:"არ უპასუხა",     color:"#6b7280"},
+      {key:"არ უპასუხა 1",     label:"არ უპასუხა 1",     color:"#6b7280"},
+      {key:"არ უპასუხა 2",     label:"არ უპასუხა 2",     color:"#374151"},
     ];
 
     if (!sorted.length) { grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">მონაცემი არ არის</div>'; return; }
@@ -1392,34 +2063,34 @@ async function loadTeamStats() {
   wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div>';
 
   try {
-    // build date filter
+    // build date filter using created_at (reliable timestamptz column)
     let dateFilter = "";
     const now = new Date();
     if (period === "today") {
       const d = now.toISOString().substring(0,10);
-      dateFilter = `&timestamp=gte.${d}`;
+      dateFilter = `&created_at=gte.${d}`;
     } else if (period === "week") {
       const d = new Date(now - 7*24*60*60*1000).toISOString().substring(0,10);
-      dateFilter = `&timestamp=gte.${d}`;
+      dateFilter = `&created_at=gte.${d}`;
     } else if (period === "month") {
       const d = new Date(now - 30*24*60*60*1000).toISOString().substring(0,10);
-      dateFilter = `&timestamp=gte.${d}`;
+      dateFilter = `&created_at=gte.${d}`;
     }
 
     const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     // count by user and status
-    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა"];
+    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired"];
     const stats = {};
     (users||[]).forEach(u => {
       if (!u.display_name) return;
-      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0 };
+      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
     });
 
     (logs||[]).forEach(l => {
       if (!l.display_name || !l.detail) return;
-      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა":0 };
+      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
       stats[l.display_name].total++;
       STATUSES.forEach(s => {
         if (l.detail.includes("→ "+s)) stats[l.display_name][s]++;
@@ -1431,7 +2102,7 @@ async function loadTeamStats() {
 
     const statusColors = {
       "Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation",
-      "Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა":"s-noreply"
+      "Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply"
     };
 
     wrap.innerHTML = `<div style="overflow-x:auto">
@@ -1461,7 +2132,7 @@ let calMonth = new Date().getMonth();
 let calLeads = [];
 
 const GEO_MONTHS = ["იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი","ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
-const GEO_DAYS   = ["კვი","ორშ","სამ","ოთხ","ხუთ","პარ","შაბ"];
+const GEO_DAYS   = ["ორშ","სამ","ოთხ","ხუთ","პარ","შაბ","კვი"];
 
 async function loadCalendar() {
   // fetch leads with next_contact in this month
@@ -1479,7 +2150,7 @@ function renderCalendar() {
   const title = document.getElementById("calTitle");
   title.textContent = GEO_MONTHS[calMonth] + " " + calYear;
 
-  const today = new Date().toISOString().substring(0,10);
+  const today = new Date(Date.now()+4*60*60*1000).toISOString().substring(0,10);
   const firstWeekDay = new Date(calYear, calMonth, 1).getDay();
   const startOffset  = firstWeekDay === 0 ? 6 : firstWeekDay - 1;
   const daysInMonth  = new Date(calYear, calMonth+1, 0).getDate();
@@ -1528,6 +2199,48 @@ function renderCalendar() {
 function calPrev()  { calMonth--; if(calMonth<0){calMonth=11;calYear--;} loadCalendar(); }
 function calNext()  { calMonth++; if(calMonth>11){calMonth=0;calYear++;} loadCalendar(); }
 function calToday() { calYear=new Date().getFullYear(); calMonth=new Date().getMonth(); loadCalendar(); }
+
+async function showRefStats() {
+  const sec = document.getElementById('refStatsSection');
+  sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+  if (sec.style.display === 'none') return;
+  const { data } = await sbGet('leads', 'select=ref_code,status&ref_code=neq.null&ref_code=neq.');
+  if (!data || !data.length) {
+    document.getElementById('refStatsTable').innerHTML = '<p style="color:var(--text-dim);font-size:13px">მონაცემი არ არის</p>';
+    return;
+  }
+  const map = {};
+  data.forEach(l => {
+    const k = l.ref_code || '—';
+    if (!map[k]) map[k] = { total:0, onboarded:0, declined:0, new:0 };
+    map[k].total++;
+    if (l.status === 'Onboarded') map[k].onboarded++;
+    else if (l.status === 'Retired') map[k].declined++;
+    else if (l.status === 'Declined' || l.status === 'No Reply' || l.status === 'არ უპასუხა 1') map[k].declined++;
+    else map[k].new++;
+  });
+  const rows = Object.entries(map)
+    .sort((a,b) => b[1].total - a[1].total)
+    .map(([code, s]) => `<tr>
+      <td style="padding:8px 12px;font-weight:600;color:var(--text-main)">${esc(code)}</td>
+      <td style="padding:8px 12px;text-align:center">${s.total}</td>
+      <td style="padding:8px 12px;text-align:center;color:#16A34A">${s.onboarded}</td>
+      <td style="padding:8px 12px;text-align:center;color:#6B7280">${s.new}</td>
+      <td style="padding:8px 12px;text-align:center;color:#DC2626">${s.declined}</td>
+    </tr>`).join('');
+  document.getElementById('refStatsTable').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:6px 12px;text-align:left;color:var(--text-dim);font-weight:500">კოდი</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">სულ</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">Onboarded</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">აქტიური</th>
+        <th style="padding:6px 12px;text-align:center;color:var(--text-dim);font-weight:500">დასრულებული</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 </script>
 </body>
 </html>
