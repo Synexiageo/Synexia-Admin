@@ -1137,6 +1137,7 @@ function renderLeads(leads, offset) {
   const tbody = document.getElementById("leadsBody");
   if (!leads.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
   const isAdmin = SESSION&&SESSION.role==="admin";
+  const isInfluencer = SESSION&&SESSION.role==="influencer";
   // reset select-all checkbox state
   const saCb = document.getElementById("selectAllCb");
   if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
@@ -1146,7 +1147,9 @@ function renderLeads(leads, offset) {
     const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
     const chk = isAdmin ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : `<td></td>`;
     const isSelected = selectedLeads.has(l.id);
-    return `<tr onclick="openModal('${l.id}')" ${isSelected?'class="selected-row"':''}>
+    const rowClick = isInfluencer ? "" : `onclick="openModal('${l.id}')"`;
+    const editBtn  = isInfluencer ? "" : `<button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>`;
+    return `<tr ${rowClick} ${isSelected?'class="selected-row"':''} ${!isInfluencer?'style="cursor:pointer"':''}>
       ${chk}
       <td class="td-date">${(offset||0)+i+1}</td>
       <td><span style="display:flex;align-items:center;gap:5px">${dot}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
@@ -1155,7 +1158,7 @@ function renderLeads(leads, offset) {
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
       <td class="td-date">${fmtTime(l.reg_date)}</td>
       <td onclick="event.stopPropagation()"><div class="td-actions">
-        <button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>${delBtn}
+        ${editBtn}${delBtn}
       </div></td>
     </tr>`;
   }).join("");
