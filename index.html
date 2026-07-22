@@ -996,16 +996,17 @@ function genId(prefix){ return (prefix||"SX")+"-"+Date.now(); }
 async function loadStats() {
   try {
     const enc = encodeURIComponent;
+    const refFilter = (SESSION.role==="influencer"&&SESSION.ref_code) ? `&ref_code=eq.${enc(SESSION.ref_code)}` : "";
     const [tot,nw,inte,co,neg,ob,de,nr1,nr2] = await Promise.all([
-      sbGet("leads","select=id&limit=1"),
-      sbGet("leads","select=id&status=eq."+enc("New Lead")+"&limit=1"),
-      sbGet("leads","select=id&status=eq.Interested&limit=1"),
-      sbGet("leads","select=id&status=eq.Contacted&limit=1"),
-      sbGet("leads","select=id&status=eq."+enc("In Negotiation")+"&limit=1"),
-      sbGet("leads","select=id&status=eq.Onboarded&limit=1"),
-      sbGet("leads","select=id&status=eq.Declined&limit=1"),
-      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 1")+"&limit=1"),
-      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 2")+"&limit=1"),
+      sbGet("leads","select=id&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq."+enc("New Lead")+"&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq.Interested&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq.Contacted&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq."+enc("In Negotiation")+"&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq.Onboarded&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq.Declined&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 1")+"&limit=1"+refFilter),
+      sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 2")+"&limit=1"+refFilter),
     ]);
     document.getElementById("stTotal").textContent     = tot.count||0;
     document.getElementById("stNew").textContent       = nw.count||0;
