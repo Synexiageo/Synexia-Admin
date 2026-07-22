@@ -920,17 +920,26 @@ function showDashboard() {
     document.getElementById("addBizBtn").style.display="";
     document.getElementById("thSelectAll").style.display="";
   }
+  if (SESSION.role === "influencer") {
+    // hide everything except the leads tab
+    document.querySelectorAll(".nav-tab").forEach((btn, i) => {
+      if (i !== 0) btn.style.display = "none";
+    });
+    document.getElementById("csvBtn").style.display = "none";
+  }
   if (SESSION.role === "user") {
     // auto-filter by this user's leads via activity log
     setTimeout(() => loadWorkers(), 500);
   }
   loadLeads(1);
-  loadBusinesses();
+  if (SESSION.role !== "influencer") {
+    loadBusinesses();
+    loadReminders();
+    initNotifications();
+    setTimeout(loadTasksBadge, 1500);
+  }
   loadStats();
   loadWorkers();
-  loadReminders();
-  initNotifications();
-  setTimeout(loadTasksBadge, 1500);
 }
 
 function doLogout() {
