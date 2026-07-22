@@ -161,6 +161,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .user-role-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid;}
 .role-admin{color:var(--purple);background:#f5f3ff;border-color:#ddd6fe;}
 .role-user{color:var(--blue);background:var(--blue-dim2);border-color:rgba(29,110,245,.2);}
+.role-influencer{color:#b45309;background:#fffbeb;border-color:#fde68a;}
 .user-meta{font-size:12px;color:var(--text-dim);line-height:1.7;}
 .user-meta span{color:var(--text-mid);font-weight:500;}
 .user-actions{display:flex;justify-content:flex-end;}
@@ -600,8 +601,11 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <div class="cu-field"><label class="cu-label">სახელი</label><input type="text" class="cu-input" id="cuDisplayName" placeholder="გიორგი შ."></div>
           <div class="cu-field"><label class="cu-label">Username</label><input type="text" class="cu-input" id="cuUsername" placeholder="giorgi.sh"></div>
           <div class="cu-field"><label class="cu-label">პაროლი</label><input type="text" class="cu-input" id="cuPassword" placeholder="პაროლი"></div>
-          <div class="cu-field"><label class="cu-label">როლი</label><select class="cu-select" id="cuRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+          <div class="cu-field"><label class="cu-label">როლი</label><select class="cu-select" id="cuRole" onchange="document.getElementById('cuRefCodeRow').style.display=this.value==='influencer'?'flex':'none'"><option value="user">User</option><option value="admin">Admin</option><option value="influencer">Influencer</option></select></div>
           <button class="btn btn-primary" onclick="createUser()" style="align-self:flex-end;height:38px">შექმნა</button>
+        </div>
+        <div id="cuRefCodeRow" style="display:none;gap:10px;align-items:flex-end;margin-top:8px">
+          <div class="cu-field"><label class="cu-label">რეფ. კოდი <span style="color:var(--danger)">*</span></label><input type="text" class="cu-input" id="cuRefCode" placeholder="მაგ. GIORGI2025" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
         </div>
         <div id="cuMsg" style="font-size:12.5px;margin-top:10px;display:none"></div>
       </div>
@@ -888,9 +892,9 @@ async function doLogin() {
   const err = document.getElementById("loginErr");
   if (!username || !password) { err.style.display="block"; err.textContent="⚠ შეიყვანეთ სახელი და პაროლი"; return; }
   try {
-    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=username,role,display_name`);
+    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=username,role,display_name,ref_code`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"" };
       sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
       // update last_login
       await sbPatch("users", `username=eq.${username}`, { last_login: new Date().toISOString() });
@@ -907,7 +911,7 @@ function showDashboard() {
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("dashboard").style.display="flex";
   document.getElementById("navUserName").textContent  = SESSION.display_name;
-  document.getElementById("navUserRole").textContent  = SESSION.role==="admin"?"ადმინი":"წევრი";
+  document.getElementById("navUserRole").textContent  = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"წევრი";
   document.getElementById("navUserIcon").textContent  = (SESSION.display_name||"?").charAt(0).toUpperCase();
   if (SESSION.role==="admin") {
     document.getElementById("usersTabBtn").style.display="";
@@ -916,8 +920,8 @@ function showDashboard() {
     document.getElementById("addBizBtn").style.display="";
     document.getElementById("thSelectAll").style.display="";
   }
-  if (SESSION.role !== "admin") {
-    // auto-filter by this user's leads
+  if (SESSION.role === "user") {
+    // auto-filter by this user's leads via activity log
     setTimeout(() => loadWorkers(), 500);
   }
   loadLeads(1);
@@ -1042,9 +1046,13 @@ async function loadLeads(page) {
   const assigned = document.getElementById("filterAssigned")?.value||"";
 
   let filters = `select=*&order=created_at.${leadsSort}`;
+  if (SESSION.role === "influencer" && SESSION.ref_code) {
+    filters += `&ref_code=eq.${encodeURIComponent(SESSION.ref_code)}`;
+  } else {
+    if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
+  }
   if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
   if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
-  if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
   if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
@@ -1739,17 +1747,20 @@ async function loadUsers() {
   const grid=document.getElementById("userGrid");
   grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">იტვირთება...</div>';
   try {
-    const {data}=await sbGet("users","select=username,role,display_name,last_login,last_action&order=username");
+    const {data}=await sbGet("users","select=username,role,display_name,last_login,last_action,ref_code&order=username");
     if(!data||!data.length){grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">წევრი ვერ მოიძებნა</div>';return;}
     grid.innerHTML=data.map(u=>{
       const isAdm=u.role==="admin";
+      const isInf=u.role==="influencer";
+      const roleClass=isAdm?"role-admin":isInf?"role-influencer":"role-user";
+      const roleLabel=isAdm?"ადმინი":isInf?"ინფლუენსერი":"წევრი";
       const delBtn=u.username!=="admin"?`<button class="btn-del-user" onclick="deleteUser('${u.username}')">წაშლა</button>`:'<span style="font-size:12px;color:var(--text-dim)">მთავარი</span>';
       return `<div class="user-card"><div class="user-card-head">
         <div class="user-avatar ${isAdm?"admin-av":""}">${(u.display_name||u.username).charAt(0).toUpperCase()}</div>
         <div class="user-info"><div class="user-display">${esc(u.display_name||u.username)}</div><div class="user-username">@${esc(u.username)}</div></div>
-        <span class="user-role-badge ${isAdm?"role-admin":"role-user"}">${isAdm?"ადმინი":"წევრი"}</span>
+        <span class="user-role-badge ${roleClass}">${roleLabel}</span>
       </div>
-      <div class="user-meta">ბოლო შესვლა: <span>${esc(u.last_login||"—")}</span><br>ბოლო ქმედება: <span>${esc(u.last_action||"—")}</span></div>
+      <div class="user-meta">ბოლო შესვლა: <span>${esc(u.last_login||"—")}</span><br>ბოლო ქმედება: <span>${esc(u.last_action||"—")}</span>${isInf&&u.ref_code?`<br>რეფ. კოდი: <span style="color:var(--warning);font-weight:700">${esc(u.ref_code)}</span>`:""}</div>
       <div class="user-actions">${delBtn}</div></div>`;
     }).join("");
   } catch(e){grid.innerHTML='<div style="color:var(--danger)">შეცდომა: '+e.message+'</div>';}
@@ -1759,11 +1770,15 @@ async function createUser(){
   const un=document.getElementById("cuUsername").value.trim();
   const pw=document.getElementById("cuPassword").value.trim();
   const rl=document.getElementById("cuRole").value;
+  const rc=document.getElementById("cuRefCode").value.trim().toUpperCase();
   const msg=document.getElementById("cuMsg");
   if(!dn||!un||!pw){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ყველა ველი სავალდებულოა";return;}
+  if(rl==="influencer"&&!rc){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ინფლუენსერს სავალდებულოა რეფ. კოდი";return;}
   try{
-    const ok=await sbPost("users",{username:un,password:pw,role:rl,display_name:dn});
-    if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword"].forEach(id=>document.getElementById(id).value="");setTimeout(()=>msg.style.display="none",2000);loadUsers();}
+    const body={username:un,password:pw,role:rl,display_name:dn};
+    if(rl==="influencer"&&rc) body.ref_code=rc;
+    const ok=await sbPost("users",body);
+    if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="user";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
     else{msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ username უკვე არსებობს";}
   }catch(e){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="შეცდომა: "+e.message;}
 }
