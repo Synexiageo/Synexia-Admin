@@ -125,7 +125,9 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .s-called     {color:#d97706;background:#fffbeb;border-color:#fde68a;}
 .s-meeting    {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
 .s-closed     {color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
-.s-bizno      {color:#dc2626;background:#fef2f2;border-color:#fecaca;}
+.s-bizno       {color:#dc2626;background:#fef2f2;border-color:#fecaca;}
+.s-unqualified {color:#92400e;background:#fef3c7;border-color:#fde68a;}
+.s-phoneissue  {color:#5b21b6;background:#ede9fe;border-color:#c4b5fd;}
 
 .btn-edit{background:var(--blue-dim2);color:var(--blue);border:1px solid rgba(29,110,245,.2);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;transition:.18s;}
 .btn-edit:hover{background:rgba(29,110,245,.2);}
@@ -429,7 +431,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <select class="tb-select" id="filterStatus" onchange="applyFilters()">
             <option value="">ყველა</option>
             <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option><option>Unqualified</option><option>Phone Model Issue</option>
           </select>
         </div>
         <div class="tb-group">
@@ -747,7 +749,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="d-field"><label class="d-label">სტატუსი</label>
           <select class="d-select" id="dStatus">
             <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option>
+            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option><option>Unqualified</option><option>Phone Model Issue</option>
           </select>
         </div>
         <div class="d-field"><label class="d-label">იურიდიული სტატუსი</label>
@@ -981,7 +983,7 @@ function refreshCurrent() {
 function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function statusClass(s){
-  const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply","არ უპასუხა 2":"s-noreply2","Retired":"s-retired",
+  const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply","არ უპასუხა 2":"s-noreply2","Retired":"s-retired","Unqualified":"s-unqualified","Phone Model Issue":"s-phoneissue",
   "დასარეკი":"s-tocall","დაკავშირებული":"s-called","შეხვედრა დანიშნული":"s-meeting","დახურული გარიგება":"s-closed","უარი":"s-bizno"};
   return m[s]||"s-new";
 }
