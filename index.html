@@ -785,7 +785,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="d-section-title" style="margin-top:8px">ცვლილებების ისტორია</div>
         <div id="leadHistory"><div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">იტვირთება...</div></div>
         <div id="taskFormWrap" class="task-form-wrap" style="display:none">
-          <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px">🚩 ამოცანა ადმინისთვის</div>
+          <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px">🚩 ამოცანის მიცემა</div>
+          <select id="taskAssignedTo" style="width:100%;margin-bottom:8px;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-family:inherit;font-size:13px;background:white;outline:none">
+            <option value="">— ვის მიეცეს? —</option>
+          </select>
           <textarea id="taskNoteInput" placeholder="აღწერე — რა საჭიროებს ყურადღებას..." style="width:100%;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-family:inherit;font-size:13px;resize:none;height:72px;box-sizing:border-box;outline:none"></textarea>
           <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
             <button class="btn btn-outline" onclick="document.getElementById('taskFormWrap').style.display='none'" style="height:32px;font-size:12px">გაუქმება</button>
@@ -1118,11 +1121,14 @@ async function loadWorkers() {
     const { data: users } = await sbGet("users", "select=display_name&order=display_name");
     const sel = document.getElementById("filterAssigned");
     while(sel.options.length > 1) sel.remove(1);
+    const taskSel = document.getElementById("taskAssignedTo");
+    if (taskSel) { while(taskSel.options.length > 1) taskSel.remove(1); }
     (users||[]).forEach(u => {
       if (!u.display_name) return;
       const o = document.createElement("option");
       o.value = u.display_name; o.textContent = u.display_name;
       sel.appendChild(o);
+      if (taskSel) taskSel.appendChild(o.cloneNode(true));
     });
     // also load activity log for workerLeadMap
     const { data: logs } = await sbGet("activity_log", "select=display_name,lead_id&lead_id=neq.&limit=10000");
@@ -1882,14 +1888,17 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeB
 
 // ── TASKS ────────────────────────────────
 async function submitTask() {
-  const note = (document.getElementById("taskNoteInput")?.value||"").trim();
-  if (!note) { document.getElementById("taskNoteInput").focus(); return; }
+  const note       = (document.getElementById("taskNoteInput")?.value||"").trim();
+  const assignedTo = (document.getElementById("taskAssignedTo")?.value||"").trim();
+  if (!note)       { document.getElementById("taskNoteInput").focus(); return; }
+  if (!assignedTo) { document.getElementById("taskAssignedTo").focus(); return; }
   if (!currentId) return;
   try {
     const ok = await sbPost("tasks", {
       id: genId("TK"),
       lead_id: currentId,
       created_by: SESSION.display_name || SESSION.username,
+      assigned_to: assignedTo,
       note: note,
       status: "open"
     });
@@ -1918,7 +1927,8 @@ async function loadTasks() {
   wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div>';
   try {
     const enc = encodeURIComponent;
-    const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
+    const n = enc(SESSION.display_name||SESSION.username);
+    const byFilter = SESSION.role === "admin" ? "" : `&or=(created_by.eq.${n},assigned_to.eq.${n})`;
     const sf = currentTaskFilter || "open";
     const { data } = await sbGet("tasks", `status=eq.${sf}${byFilter}&order=created_at.desc&limit=200`);
     const tasks = data || [];
@@ -1942,9 +1952,9 @@ async function loadTasks() {
           </div>
           <div style="font-size:12px;color:var(--blue);margin-bottom:6px">${formatPhone(lead.phone||"")}</div>
           <div class="task-note" style="background:${notesBg}">${esc(t.note)}</div>
-          <div class="task-meta">👤 ${esc(t.created_by||"—")} &nbsp;•&nbsp; ${fmtTime(t.created_at)}</div>
+          <div class="task-meta">👤 ${esc(t.created_by||"—")} → <strong>${esc(t.assigned_to||"—")}</strong> &nbsp;•&nbsp; ${fmtTime(t.created_at)}</div>
         </div>
-        ${(!isResolved && SESSION.role==="admin") ? `<button class="task-resolve-btn" onclick="event.stopPropagation();resolveTask('${t.id}')">✓ მოგვარდა</button>` : ""}
+        ${(!isResolved && (SESSION.role==="admin" || t.assigned_to===(SESSION.display_name||SESSION.username))) ? `<button class="task-resolve-btn" onclick="event.stopPropagation();resolveTask('${t.id}')">✓ მოგვარდა</button>` : ""}
       </div>`;
     }).join("");
   } catch(e) { console.error("tasks err:",e); wrap.innerHTML='<div style="color:red;font-size:13px;padding:20px">შეცდომა</div>'; }
@@ -1960,7 +1970,8 @@ async function resolveTask(taskId) {
 async function loadTasksBadge() {
   try {
     const enc = encodeURIComponent;
-    const byFilter = SESSION.role === "admin" ? "" : `&created_by=eq.${enc(SESSION.display_name||SESSION.username)}`;
+    const n = enc(SESSION.display_name||SESSION.username);
+    const byFilter = SESSION.role === "admin" ? "" : `&or=(created_by.eq.${n},assigned_to.eq.${n})`;
     const { count } = await sbGet("tasks", `status=eq.open${byFilter}&limit=1`);
     const badge = document.getElementById("tasksNavBadge");
     if (!badge) return;
