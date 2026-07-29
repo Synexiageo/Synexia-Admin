@@ -90,6 +90,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tb-search{flex:1;min-width:220px;}
 .btn-reset-sm{background:white;border:1.5px solid var(--border);color:var(--text-dim);padding:7px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:.18s;height:34px;align-self:flex-end;}
 .btn-reset-sm:hover{border-color:var(--blue);color:var(--blue);}
+.status-multi-btn{background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;padding:0 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;min-width:150px;user-select:none;transition:border-color .2s;}
+.status-multi-btn:hover,.status-multi-btn.open{border-color:var(--blue);}
+.status-multi-drop{display:none;position:absolute;top:calc(100% + 3px);left:0;z-index:300;background:white;border:1.5px solid var(--border);border-radius:10px;padding:6px;box-shadow:var(--shadow);min-width:210px;max-height:300px;overflow-y:auto;}
+.status-multi-drop.open{display:block;}
+.sm-item{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap;}
+.sm-item:hover{background:var(--bg);}
+.sm-item input[type=checkbox]{accent-color:var(--blue);cursor:pointer;width:14px;height:14px;flex-shrink:0;}
 
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm);}
 .table-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface2);}
@@ -426,13 +433,28 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <button onclick="applyFilters()" style="height:34px;padding:0 16px;background:var(--blue);color:white;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer">🔍 ძიება</button>
           </div>
         </div>
-        <div class="tb-group">
+        <div class="tb-group" style="position:relative">
           <span class="tb-label">სტატუსი</span>
-          <select class="tb-select" id="filterStatus" onchange="applyFilters()">
-            <option value="">ყველა</option>
-            <option>New Lead</option><option>Potential Op.</option><option>Interested</option><option>Contacted</option><option>In Negotiation</option>
-            <option>Onboarded</option><option>Declined</option><option>არ უპასუხა 1</option><option>არ უპასუხა 2</option><option>Retired</option><option>Unqualified</option><option>Phone Model Issue</option>
-          </select>
+          <div id="statusMultiBtn" class="status-multi-btn" onclick="toggleStatusDrop(event)">
+            <span id="statusMultiLabel">ყველა</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="statusMultiDrop" class="status-multi-drop">
+            <label class="sm-item"><input type="checkbox" id="smChkAll" onchange="smCheckAll(this)"> <span>ყველა</span></label>
+            <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="New Lead"         onchange="smChange()"> <span>New Lead</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Potential Op."    onchange="smChange()"> <span>Potential Op.</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Interested"       onchange="smChange()"> <span>Interested</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Contacted"        onchange="smChange()"> <span>Contacted</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="In Negotiation"   onchange="smChange()"> <span>In Negotiation</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Onboarded"        onchange="smChange()"> <span>Onboarded</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Declined"         onchange="smChange()"> <span>Declined</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="არ უპასუხა 1"    onchange="smChange()"> <span>არ უპასუხა 1</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="არ უპასუხა 2"    onchange="smChange()"> <span>არ უპასუხა 2</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Retired"          onchange="smChange()"> <span>Retired</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Unqualified"      onchange="smChange()"> <span>Unqualified</span></label>
+            <label class="sm-item"><input type="checkbox" class="sm-chk" value="Phone Model Issue" onchange="smChange()"> <span>Phone Model Issue</span></label>
+          </div>
         </div>
         <div class="tb-group">
           <span class="tb-label">იურ. სტატუსი</span>
@@ -1055,7 +1077,7 @@ async function loadLeads(page) {
   document.getElementById("leadsPagination").style.display="none";
 
   const search   = document.getElementById("filterSearch")?.value.trim()||"";
-  const status   = document.getElementById("filterStatus")?.value||"";
+  const statuses = [...document.querySelectorAll(".sm-chk:checked")].map(c=>c.value);
   const legal    = document.getElementById("filterLegal")?.value||"";
   const refCode  = document.getElementById("refSearchInput")?.value.trim()||"";
   const assigned = document.getElementById("filterAssigned")?.value||"";
@@ -1066,7 +1088,8 @@ async function loadLeads(page) {
   } else {
     if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
   }
-  if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
+  if (statuses.length === 1) filters += `&status=eq.${encodeURIComponent(statuses[0])}`;
+  else if (statuses.length > 1) filters += `&status=in.(${statuses.map(s=>encodeURIComponent(s)).join(",")})`;
   if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
   if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
 
@@ -1110,7 +1133,10 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterStatus","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  document.querySelectorAll(".sm-chk").forEach(c=>c.checked=false);
+  const all=document.getElementById("smChkAll"); if(all) all.checked=false;
+  document.getElementById("statusMultiLabel").textContent="ყველა";
   loadLeads(1);
 }
 
@@ -1847,7 +1873,7 @@ async function loadActivityLog(){
 async function exportCSV(){
   try{
     const search      = document.getElementById("filterSearch")?.value.trim()||"";
-    const status      = document.getElementById("filterStatus")?.value||"";
+    const statuses    = [...document.querySelectorAll(".sm-chk:checked")].map(c=>c.value);
     const legal       = document.getElementById("filterLegal")?.value||"";
     const refCode     = document.getElementById("refSearchInput")?.value.trim()||"";
     const environment = document.getElementById("filterEnvironment")?.value||"";
@@ -1856,7 +1882,8 @@ async function exportCSV(){
     const dateTo      = document.getElementById("filterDateTo")?.value||"";
 
     let filters = `select=*&order=created_at.desc&limit=10000`;
-    if (status)  filters += `&status=eq.${encodeURIComponent(status)}`;
+    if (statuses.length === 1) filters += `&status=eq.${encodeURIComponent(statuses[0])}`;
+    else if (statuses.length > 1) filters += `&status=in.(${statuses.map(s=>encodeURIComponent(s)).join(",")})`;
     if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
     if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
     if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
@@ -1884,7 +1911,14 @@ async function submitLeadFromForm(data) {
   return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false });
 }
 
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();}});
+document.addEventListener("click",e=>{if(!e.target.closest("#statusMultiBtn")&&!e.target.closest("#statusMultiDrop"))closeStatusDrop();});
+
+function toggleStatusDrop(e){e.stopPropagation();const d=document.getElementById("statusMultiDrop");const b=document.getElementById("statusMultiBtn");const open=d.classList.toggle("open");b.classList.toggle("open",open);}
+function closeStatusDrop(){document.getElementById("statusMultiDrop")?.classList.remove("open");document.getElementById("statusMultiBtn")?.classList.remove("open");}
+function smCheckAll(cb){document.querySelectorAll(".sm-chk").forEach(c=>c.checked=cb.checked);smUpdateLabel();applyFilters();}
+function smChange(){const chks=document.querySelectorAll(".sm-chk");const all=document.getElementById("smChkAll");const checked=[...chks].filter(c=>c.checked);all.checked=checked.length===chks.length;all.indeterminate=checked.length>0&&checked.length<chks.length;smUpdateLabel();applyFilters();}
+function smUpdateLabel(){const vals=[...document.querySelectorAll(".sm-chk:checked")].map(c=>c.value);const lbl=document.getElementById("statusMultiLabel");if(!vals.length)lbl.textContent="ყველა";else if(vals.length===1)lbl.textContent=vals[0];else lbl.textContent=vals.length+" სტატუსი";}
 
 // ── TASKS ────────────────────────────────
 async function submitTask() {
