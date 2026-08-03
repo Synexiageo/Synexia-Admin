@@ -1176,7 +1176,7 @@ function renderLeads(leads, offset) {
     const sc = statusClass(l.status);
     const dot = !l.viewed ? '<span class="new-dot"></span>' : '';
     const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
-    const chk = isAdmin ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : `<td></td>`;
+    const chk = isAdmin ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : ``;
     const isSelected = selectedLeads.has(l.id);
     const rowClick = isInfluencer ? "" : `onclick="openModal('${l.id}')"`;
     const editBtn  = isInfluencer ? "" : `<button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>`;
