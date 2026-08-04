@@ -1272,14 +1272,11 @@ function handleOverlayClick(e){ if(e.target===document.getElementById("modalOver
 
 function renderHistory(hist) {
   const hEl = document.getElementById("leadHistory");
-  if (!hist || !hist.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">ჯერ ჩანაწერი არ არის</div>'; return; }
-  hEl.innerHTML = hist.map(e => {
-    if (e.action === "კომენტარი") {
-      return `<div class="comment-item"><div class="comment-item-who">${esc(e.display_name||e.username||"?")} <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc(e.detail||"")}</div></div>`;
-    }
-    let detail = (e.detail||"").split(" | ").map(p => p.startsWith("კომენტარი: \"") ? "შენიშვნა განახლდა" : p).join(" | ");
-    return `<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name||e.username||"?")}</div><div class="history-detail">${esc(e.action)}${detail?' — '+esc(detail):''}</div></div><div class="history-time">${esc(fmtTime(e.timestamp))}</div></div>`;
-  }).join("");
+  const comments = (hist||[]).filter(e => e.action === "კომენტარი");
+  if (!comments.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">კომენტარი ჯერ არ არის</div>'; return; }
+  hEl.innerHTML = comments.map(e =>
+    `<div class="comment-item"><div class="comment-item-who">${esc(e.display_name||e.username||"?")} <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc(e.detail||"")}</div></div>`
+  ).join("");
 }
 
 async function addComment() {
