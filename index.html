@@ -268,6 +268,13 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .history-who{font-size:12.5px;font-weight:700;}
 .history-detail{font-size:12px;color:var(--text-mid);margin-top:1px;}
 .history-time{font-size:11px;color:var(--text-dim);white-space:nowrap;}
+.comment-item{background:var(--surface2);border-radius:10px;padding:10px 13px;margin-bottom:8px;}
+.comment-item-who{font-size:12.5px;font-weight:700;color:var(--blue);}
+.comment-item-text{font-size:13px;color:var(--text);margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+.comment-item-time{font-size:11px;color:var(--text-dim);margin-top:4px;}
+.comment-input-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--bg2);}
+.comment-textarea{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:none;height:60px;box-sizing:border-box;outline:none;background:var(--surface);color:var(--text);transition:.15s;}
+.comment-textarea:focus{border-color:var(--primary);}
 
 .days-badge{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;border:1px solid;white-space:nowrap;}
 .days-ok    {color:#059669;background:#ecfdf5;border-color:#a7f3d0;}
@@ -800,8 +807,14 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="d-field"><label class="d-label">შენიშვნა</label><input type="text" class="d-input" id="dNextContactNote" placeholder="მაგ. დარეკვა შეთანხმებაზე"></div>
       </div>
       <div class="history-section">
-        <div class="d-section-title" style="margin-top:8px">ცვლილებების ისტორია</div>
-        <div id="leadHistory"><div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">იტვირთება...</div></div>
+        <div class="d-section-title" style="margin-top:8px">კომენტარები და ცვლილებები</div>
+        <div class="comment-input-wrap">
+          <textarea id="commentInput" class="comment-textarea" placeholder="კომენტარი დაამატე..." onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();addComment();}"></textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:6px">
+            <button class="btn btn-primary" onclick="addComment()" style="height:32px;font-size:12px;padding:0 16px">+ კომენტარი</button>
+          </div>
+        </div>
+        <div id="leadHistory" style="margin-top:8px"><div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">იტვირთება...</div></div>
         <div id="taskFormWrap" class="task-form-wrap" style="display:none">
           <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px">🚩 ამოცანის მიცემა</div>
           <select id="taskAssignedTo" style="width:100%;margin-bottom:8px;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-family:inherit;font-size:13px;background:white;outline:none">
@@ -1250,14 +1263,38 @@ async function openModal(id) {
     }
 
     // load history
-    const { data: hist } = await sbGet("activity_log", `lead_id=eq.${id}&order=created_at.desc&limit=20&select=*`);
-    const hEl = document.getElementById("leadHistory");
-    if (!hist || !hist.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">ჯერ ცვლილება არ არის</div>'; }
-    else { hEl.innerHTML = hist.map(e=>`<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name)}</div><div class="history-detail">${esc(e.action)}${e.detail?' — '+esc(e.detail):''}</div></div><div class="history-time">${esc(fmtTime(e.timestamp))}</div></div>`).join(""); }
+    const { data: hist } = await sbGet("activity_log", `lead_id=eq.${id}&order=created_at.desc&limit=50&select=*`);
+    renderHistory(hist);
   } catch(e) { alert("შეცდომა: "+e.message); }
 }
-function closeModal(){ currentId=null; currentLead=null; document.getElementById("modalOverlay").classList.remove("open"); }
+function closeModal(){ currentId=null; currentLead=null; document.getElementById("modalOverlay").classList.remove("open"); document.getElementById("commentInput").value=""; }
 function handleOverlayClick(e){ if(e.target===document.getElementById("modalOverlay"))closeModal(); }
+
+function renderHistory(hist) {
+  const hEl = document.getElementById("leadHistory");
+  if (!hist || !hist.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">ჯერ ჩანაწერი არ არის</div>'; return; }
+  hEl.innerHTML = hist.map(e => {
+    if (e.action === "კომენტარი") {
+      return `<div class="comment-item"><div class="comment-item-who">${esc(e.display_name||e.username||"?")} <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc(e.detail||"")}</div></div>`;
+    }
+    let detail = (e.detail||"").split(" | ").map(p => p.startsWith("კომენტარი: \"") ? "შენიშვნა განახლდა" : p).join(" | ");
+    return `<div class="history-item"><div class="history-dot"></div><div class="history-body"><div class="history-who">${esc(e.display_name||e.username||"?")}</div><div class="history-detail">${esc(e.action)}${detail?' — '+esc(detail):''}</div></div><div class="history-time">${esc(fmtTime(e.timestamp))}</div></div>`;
+  }).join("");
+}
+
+async function addComment() {
+  const text = document.getElementById("commentInput").value.trim();
+  if (!text || !currentId) return;
+  const btn = document.querySelector(".comment-input-wrap .btn-primary");
+  btn.disabled = true; btn.textContent = "...";
+  try {
+    await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "კომენტარი", lead_id: currentId, detail: text });
+    document.getElementById("commentInput").value = "";
+    const { data: hist } = await sbGet("activity_log", `lead_id=eq.${currentId}&order=created_at.desc&limit=50&select=*`);
+    renderHistory(hist);
+  } catch(err) { alert("შეცდომა: "+err.message); }
+  finally { btn.disabled = false; btn.textContent = "+ კომენტარი"; }
+}
 
 async function saveAll() {
   if (!currentId) return;
