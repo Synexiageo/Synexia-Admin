@@ -1278,16 +1278,29 @@ function extractNoteComment(detail) {
   if (text.endsWith('"')) text = text.slice(0, -1);
   return text.trim() || null;
 }
+function extractStatusChange(detail) {
+  const m = (detail||"").match(/სტატუსი:\s*(.+?)\s*→\s*(.+?)(?:\s*\||$)/);
+  return m ? { from: m[1].trim(), to: m[2].trim() } : null;
+}
 function renderHistory(hist) {
   const hEl = document.getElementById("leadHistory");
   const entries = (hist||[]).filter(e => {
     if (e.action === "კომენტარი") return true;
     if (e.action === "განახლება" && (e.detail||"").includes("კომენტარი: \"")) return true;
+    if (e.action === "განახლება" && (e.detail||"").includes("სტატუსი:")) return true;
     return false;
   });
   if (!entries.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">კომენტარი ჯერ არ არის</div>'; return; }
   hEl.innerHTML = entries.map(e => {
-    const text = e.action === "კომენტარი" ? (e.detail||"") : (extractNoteComment(e.detail||"")||"შენიშვნა განახლდა");
+    if (e.action === "კომენტარი") {
+      return `<div class="comment-item"><div class="comment-item-who">${esc(e.display_name||e.username||"?")} <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc(e.detail||"")}</div></div>`;
+    }
+    if ((e.detail||"").includes("სტატუსი:") && !(e.detail||"").includes("კომენტარი: \"")) {
+      const sc = extractStatusChange(e.detail||"");
+      const label = sc ? `${esc(sc.from)} → ${esc(sc.to)}` : "სტატუსი შეიცვალა";
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg2);font-size:12px;color:var(--text-mid)"><span style="width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;display:inline-block"></span><span><b>${esc(e.display_name||e.username||"?")}</b> — ${label}</span><span style="margin-left:auto;font-size:11px;color:var(--text-dim);white-space:nowrap">${esc(fmtTime(e.timestamp))}</span></div>`;
+    }
+    const text = extractNoteComment(e.detail||"")||"შენიშვნა განახლდა";
     return `<div class="comment-item"><div class="comment-item-who">${esc(e.display_name||e.username||"?")} <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc(text)}</div></div>`;
   }).join("");
 }
