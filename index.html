@@ -514,7 +514,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="pagination" id="leadsPaginationTop" style="display:none;border-bottom:1px solid var(--border);border-top:none"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th id="thSelectAll" style="display:none;width:36px;text-align:center"><input type="checkbox" id="selectAllCb" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)" onchange="toggleSelectAll(this.checked)" onclick="event.stopPropagation()"></th><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
+            <thead><tr><th id="thSelectAll" style="display:none;width:36px;text-align:center"><input type="checkbox" id="selectAllCb" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)" onchange="toggleSelectAll(this.checked)" onclick="event.stopPropagation()"></th><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>ოპერატორი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
             <tbody id="leadsBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
@@ -1200,6 +1200,7 @@ function renderLeads(leads, offset) {
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
+      <td style="font-size:12px;color:var(--text-mid);font-weight:500">${l.last_operator?esc(l.last_operator):'<span style="color:var(--text-dim)">—</span>'}</td>
       <td class="td-date">${fmtTime(l.reg_date)}</td>
       <td onclick="event.stopPropagation()"><div class="td-actions">
         ${editBtn}${delBtn}
@@ -1353,7 +1354,7 @@ async function saveAll() {
     if (status === "Onboarded" && !onboarded && savedLead?.status !== "Onboarded") {
       finalOnboarded = new Date().toISOString().substring(0, 10);
     }
-    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null) });
+    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username });
     const changes = [];
     if (name && name !== (savedLead?.name||"")) changes.push("სახელი: "+savedLead?.name+" → "+name);
     if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
