@@ -2108,7 +2108,7 @@ async function loadTeamStatsCards() {
     // get all users
     const { data: users } = await sbGet("users", "select=username,display_name,role&order=display_name");
     // get activity logs
-    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
+    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება&order=created_at.desc${dateFilter}&limit=5000`);
 
     const statsMap = {};
     (users||[]).forEach(u => {
@@ -2194,7 +2194,7 @@ async function loadTeamStats() {
       dateFilter = `&created_at=gte.${d}`;
     }
 
-    const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება${dateFilter}&limit=10000`);
+    const { data: logs } = await sbGet("activity_log", `select=display_name,detail,timestamp&action=eq.განახლება&order=created_at.desc${dateFilter}&limit=5000`);
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     // count by user and status
@@ -2207,11 +2207,11 @@ async function loadTeamStats() {
 
     (logs||[]).forEach(l => {
       if (!l.display_name || !l.detail) return;
+      const statusMatch = STATUSES.find(s => l.detail.includes("→ "+s));
+      if (!statusMatch) return;
       if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
       stats[l.display_name].total++;
-      STATUSES.forEach(s => {
-        if (l.detail.includes("→ "+s)) stats[l.display_name][s]++;
-      });
+      stats[l.display_name][statusMatch]++;
     });
 
     const names = Object.keys(stats).sort((a,b) => stats[b].total - stats[a].total);
