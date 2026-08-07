@@ -1108,6 +1108,7 @@ async function loadLeads(page) {
   const dateTo   = document.getElementById("filterDateTo")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+  if (assigned)    filters += `&last_operator=eq.${encodeURIComponent(assigned)}`;
   // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
   if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
   if (dateTo) {
@@ -1126,11 +1127,7 @@ async function loadLeads(page) {
     currentPage = page;
     totalPages  = Math.ceil(totalLeads / PAGE_SIZE) || 1;
 
-    // if assigned filter — filter by activity log workers
     let leads = data || [];
-    if (assigned && workerLeadMap[assigned]) {
-      leads = leads.filter(l => workerLeadMap[assigned].has(l.id));
-    }
 
     document.getElementById("displayCount").textContent = totalLeads;
     renderLeads(leads, from);
@@ -1152,26 +1149,28 @@ function resetFilters(){
 let workerLeadMap = {};
 async function loadWorkers() {
   try {
-    // load all users for dropdown
     const { data: users } = await sbGet("users", "select=display_name&order=display_name");
     const sel = document.getElementById("filterAssigned");
     while(sel.options.length > 1) sel.remove(1);
     const taskSel = document.getElementById("taskAssignedTo");
     if (taskSel) { while(taskSel.options.length > 1) taskSel.remove(1); }
+    // populate from users table
+    const seen = new Set();
     (users||[]).forEach(u => {
       if (!u.display_name) return;
+      seen.add(u.display_name);
       const o = document.createElement("option");
       o.value = u.display_name; o.textContent = u.display_name;
       sel.appendChild(o);
       if (taskSel) taskSel.appendChild(o.cloneNode(true));
     });
-    // also load activity log for workerLeadMap
-    const { data: logs } = await sbGet("activity_log", "select=display_name,lead_id&lead_id=neq.&limit=10000");
-    workerLeadMap = {};
-    (logs||[]).forEach(r => {
-      if (!r.display_name || !r.lead_id) return;
-      if (!workerLeadMap[r.display_name]) workerLeadMap[r.display_name] = new Set();
-      workerLeadMap[r.display_name].add(r.lead_id);
+    // also add any last_operator values not in users table
+    const { data: ops } = await sbGet("leads", "select=last_operator&last_operator=not.is.null&order=last_operator");
+    const extra = [...new Set((ops||[]).map(r=>r.last_operator).filter(Boolean))].filter(n=>!seen.has(n));
+    extra.forEach(name => {
+      const o = document.createElement("option");
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
     });
     if (SESSION.role !== "admin") { sel.value=SESSION.display_name; loadLeads(1); }
   } catch(e){}
