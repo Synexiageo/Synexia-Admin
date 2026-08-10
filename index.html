@@ -171,6 +171,12 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .role-admin{color:var(--purple);background:#f5f3ff;border-color:#ddd6fe;}
 .role-user{color:var(--blue);background:var(--blue-dim2);border-color:rgba(29,110,245,.2);}
 .role-influencer{color:#b45309;background:#fffbeb;border-color:#fde68a;}
+.role-agent{color:#047857;background:#ecfdf5;border-color:#a7f3d0;}
+.user-role-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.user-role-lbl{font-size:11px;color:var(--text-dim);font-weight:600;flex-shrink:0;}
+.user-role-sel{flex:1;min-width:0;font-family:inherit;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:white;color:var(--text-dark);cursor:pointer;outline:none;}
+.user-role-sel:focus{border-color:var(--blue);}
+.user-role-sel:disabled{opacity:.6;cursor:wait;}
 .user-meta{font-size:12px;color:var(--text-dim);line-height:1.7;}
 .user-meta span{color:var(--text-mid);font-weight:500;}
 .user-actions{display:flex;justify-content:flex-end;}
@@ -635,7 +641,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <div class="cu-field"><label class="cu-label">სახელი</label><input type="text" class="cu-input" id="cuDisplayName" placeholder="გიორგი შ."></div>
           <div class="cu-field"><label class="cu-label">Username</label><input type="text" class="cu-input" id="cuUsername" placeholder="giorgi.sh"></div>
           <div class="cu-field"><label class="cu-label">პაროლი</label><input type="text" class="cu-input" id="cuPassword" placeholder="პაროლი"></div>
-          <div class="cu-field"><label class="cu-label">როლი</label><select class="cu-select" id="cuRole" onchange="document.getElementById('cuRefCodeRow').style.display=this.value==='influencer'?'flex':'none'"><option value="agent">Agent</option><option value="admin">Admin</option><option value="influencer">Influencer</option></select></div>
+          <div class="cu-field"><label class="cu-label">როლი</label><select class="cu-select" id="cuRole" onchange="document.getElementById('cuRefCodeRow').style.display=this.value==='influencer'?'flex':'none'"><option value="agent">Agent — იღებს ახალ ლიდებს</option><option value="user">User — ლიდები არ ხვდება</option><option value="admin">Admin</option><option value="influencer">Influencer</option></select></div>
           <button class="btn btn-primary" onclick="createUser()" style="align-self:flex-end;height:38px">შექმნა</button>
         </div>
         <div id="cuRefCodeRow" style="display:none;gap:10px;align-items:flex-end;margin-top:8px">
@@ -1915,14 +1921,21 @@ async function loadUsers() {
     grid.innerHTML=data.map(u=>{
       const isAdm=u.role==="admin";
       const isInf=u.role==="influencer";
-      const roleClass=isAdm?"role-admin":isInf?"role-influencer":"role-user";
-      const roleLabel=isAdm?"ადმინი":isInf?"ინფლუენსერი":"აგენტი";
+      const isAgent=u.role==="agent";
+      const roleClass=isAdm?"role-admin":isInf?"role-influencer":isAgent?"role-agent":"role-user";
+      const roleLabel=isAdm?"ადმინი":isInf?"ინფლუენსერი":isAgent?"აგენტი":"წევრი";
       const delBtn=u.username!=="admin"?`<button class="btn-del-user" onclick="deleteUser('${u.username}')">წაშლა</button>`:'<span style="font-size:12px;color:var(--text-dim)">მთავარი</span>';
+      const roleSel=u.username==="admin" ? "" : `<div class="user-role-row">
+        <span class="user-role-lbl">როლი</span>
+        <select class="user-role-sel" data-prev="${u.role}" onchange="changeUserRole('${u.username}', this.value, this)">
+          ${["agent","user","admin","influencer"].map(r=>`<option value="${r}" ${u.role===r?"selected":""}>${r==="agent"?"აგენტი — იღებს ახალ ლიდებს":r==="user"?"წევრი — ლიდები არ ხვდება":r==="admin"?"ადმინი":"ინფლუენსერი"}</option>`).join("")}
+        </select></div>`;
       return `<div class="user-card"><div class="user-card-head">
         <div class="user-avatar ${isAdm?"admin-av":""}">${(u.display_name||u.username).charAt(0).toUpperCase()}</div>
         <div class="user-info"><div class="user-display">${esc(u.display_name||u.username)}</div><div class="user-username">@${esc(u.username)}</div></div>
         <span class="user-role-badge ${roleClass}">${roleLabel}</span>
       </div>
+      ${roleSel}
       <div class="user-meta">ბოლო შესვლა: <span>${esc(u.last_login||"—")}</span><br>ბოლო ქმედება: <span>${esc(u.last_action||"—")}</span>${isInf&&u.ref_code?`<br>რეფ. კოდი: <span style="color:var(--warning);font-weight:700">${esc(u.ref_code)}</span>`:""}</div>
       <div class="user-actions">${delBtn}</div></div>`;
     }).join("");
@@ -1944,6 +1957,20 @@ async function createUser(){
     if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="agent";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
     else{msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ username უკვე არსებობს";}
   }catch(e){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="შეცდომა: "+e.message;}
+}
+async function changeUserRole(username, role, sel){
+  const prev = sel ? sel.dataset.prev : null;
+  sel.disabled = true;
+  try{
+    const ok = await sbPatch("users", `username=eq.${encodeURIComponent(username)}`, { role });
+    if(!ok) throw new Error("ვერ შეინახა");
+    await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "როლი", detail: `@${username} → ${role}` });
+    loadUsers();      // refresh badge + colour
+    loadWorkers();    // agent lists depend on roles
+  }catch(e){
+    alert("შეცდომა: "+e.message);
+    if(prev) sel.value = prev;
+  }finally{ sel.disabled = false; }
 }
 async function deleteUser(username){
   if(!confirm(username+" წაიშალოს?")) return;
