@@ -55,6 +55,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .nav-user-icon{width:26px;height:26px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;}
 .nav-user-name{font-size:13px;font-weight:600;color:#FFFFFF;}
 .nav-user-role{font-size:10.5px;color:rgba(255,255,255,0.45);}
+#segmentSwitch{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 11px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.22);background:rgba(255,255,255,0.1);color:white;cursor:pointer;outline:none;}
+#segmentSwitch:hover{background:rgba(255,255,255,0.16);}
+#segmentSwitch option{background:#0f1e35;color:white;}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:.18s;}
 .btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
 .btn-primary{background:var(--blue);color:white;box-shadow:0 2px 8px rgba(240,73,35,.3);}
@@ -407,6 +410,11 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="nav-user-icon" id="navUserIcon">?</div>
         <div><div class="nav-user-name" id="navUserName">—</div><div class="nav-user-role" id="navUserRole">—</div></div>
       </div>
+      <select id="segmentSwitch" onchange="switchSegment(this.value)" style="display:none" title="სეგმენტი">
+        <option value="general">🏢 ზოგადი</option>
+        <option value="home">🏠 დიასახლისები</option>
+        <option value="">📋 ყველა</option>
+      </select>
       <button id="notifBtn" onclick="enableNotifications()" style="display:none;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:8px;padding:7px 13px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;gap:6px;align-items:center;transition:.18s" title="შეტყობინებების ჩართვა">
         🔔 შეტყობინებები
       </button>
@@ -901,7 +909,12 @@ let SESSION = null, currentId = null, currentBizId = null, currentTab = 'leads';
 let currentPage = 1, totalPages = 1, totalLeads = 0;
 
 // ── Supabase API ──────────────────────────
+// Active segment: "" = all (admin only). Every leads query is scoped through sbGet.
+let SEGMENT = "general";
+const SEGMENTS = { general: "ზოგადი", home: "დიასახლისები" };
+
 async function sbGet(table, params = "") {
+  if (table === "leads" && SEGMENT) params += `&segment=eq.${encodeURIComponent(SEGMENT)}`;
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
     headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Prefer": "count=exact", "Cache-Control": "no-cache" }
   });
@@ -941,9 +954,13 @@ async function doLogin() {
   const err = document.getElementById("loginErr");
   if (!username || !password) { err.style.display="block"; err.textContent="⚠ შეიყვანეთ სახელი და პაროლი"; return; }
   try {
-    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=username,role,display_name,ref_code`);
+    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=username,role,display_name,ref_code,segment`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"" };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"" };
+      // admins may switch segments; everyone else is pinned to their own
+      SEGMENT = SESSION.role === "admin"
+        ? (localStorage.getItem("sx_segment") || "general")
+        : (SESSION.segment || "general");
       sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
       // update last_login
       await sbPatch("users", `username=eq.${username}`, { last_login: new Date().toISOString() });
@@ -956,11 +973,27 @@ async function doLogin() {
   } catch(e) { err.style.display="block"; err.textContent="⚠ კავშირის შეცდომა: "+e.message; }
 }
 
+function switchSegment(value) {
+  SEGMENT = value;
+  localStorage.setItem("sx_segment", value);
+  const roleTxt = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"აგენტი";
+  document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
+  clearSelection();
+  loadLeads(1);
+  loadStats();
+  loadWorkers();
+}
+
 function showDashboard() {
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("dashboard").style.display="flex";
   document.getElementById("navUserName").textContent  = SESSION.display_name;
-  document.getElementById("navUserRole").textContent  = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"აგენტი";
+  const roleTxt = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"აგენტი";
+  document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
+  if (SESSION.role === "admin") {
+    const sw = document.getElementById("segmentSwitch");
+    sw.style.display = ""; sw.value = SEGMENT;
+  }
   document.getElementById("navUserIcon").textContent  = (SESSION.display_name||"?").charAt(0).toUpperCase();
   if (SESSION.role==="admin") {
     document.getElementById("usersTabBtn").style.display="";
@@ -1163,7 +1196,7 @@ function resetFilters(){
 const UNASSIGNED = "__none__";
 async function loadWorkers() {
   try {
-    const { data: users } = await sbGet("users", "select=display_name,role&order=display_name");
+    const { data: users } = await sbGet("users", "select=display_name,role,segment&order=display_name");
     const sel = document.getElementById("filterAssigned");
     while(sel.options.length > 1) sel.remove(1);
     const taskSel = document.getElementById("taskAssignedTo");
@@ -1186,7 +1219,8 @@ async function loadWorkers() {
       sel.appendChild(o);
       if (taskSel) taskSel.appendChild(o.cloneNode(true));
       // only agents (and admins) can own leads
-      if (bulkSel && u.role !== "influencer") bulkSel.appendChild(o.cloneNode(true));
+      const inSegment = !SEGMENT || u.role === "admin" || (u.segment || "general") === SEGMENT;
+      if (bulkSel && u.role !== "influencer" && inSegment) bulkSel.appendChild(o.cloneNode(true));
     });
     // also add any assigned_to values not in users table (people who left, renamed, etc.)
     const { data: ops } = await sbGet("leads", "select=assigned_to&assigned_to=not.is.null&order=assigned_to");
@@ -1916,7 +1950,7 @@ async function loadUsers() {
   const grid=document.getElementById("userGrid");
   grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">იტვირთება...</div>';
   try {
-    const {data}=await sbGet("users","select=username,role,display_name,last_login,last_action,ref_code&order=username");
+    const {data}=await sbGet("users","select=username,role,display_name,last_login,last_action,ref_code,segment&order=username");
     if(!data||!data.length){grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">წევრი ვერ მოიძებნა</div>';return;}
     grid.innerHTML=data.map(u=>{
       const isAdm=u.role==="admin";
@@ -1929,6 +1963,11 @@ async function loadUsers() {
         <span class="user-role-lbl">როლი</span>
         <select class="user-role-sel" data-prev="${u.role}" onchange="changeUserRole('${u.username}', this.value, this)">
           ${["agent","user","admin","influencer"].map(r=>`<option value="${r}" ${u.role===r?"selected":""}>${r==="agent"?"აგენტი — იღებს ახალ ლიდებს":r==="user"?"წევრი — ლიდები არ ხვდება":r==="admin"?"ადმინი":"ინფლუენსერი"}</option>`).join("")}
+        </select></div>
+        <div class="user-role-row">
+        <span class="user-role-lbl">სეგმ.</span>
+        <select class="user-role-sel" data-prev="${u.segment||'general'}" onchange="changeUserSegment('${u.username}', this.value, this)">
+          ${Object.entries({general:"ზოგადი",home:"დიასახლისები"}).map(([v,l])=>`<option value="${v}" ${(u.segment||'general')===v?"selected":""}>${l}</option>`).join("")}
         </select></div>`;
       return `<div class="user-card"><div class="user-card-head">
         <div class="user-avatar ${isAdm?"admin-av":""}">${(u.display_name||u.username).charAt(0).toUpperCase()}</div>
@@ -1951,7 +1990,7 @@ async function createUser(){
   if(!dn||!un||!pw){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ყველა ველი სავალდებულოა";return;}
   if(rl==="influencer"&&!rc){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ინფლუენსერს სავალდებულოა რეფ. კოდი";return;}
   try{
-    const body={username:un,password:pw,role:rl,display_name:dn};
+    const body={username:un,password:pw,role:rl,display_name:dn,segment:(SEGMENT||"general")};
     if(rl==="influencer"&&rc) body.ref_code=rc;
     const ok=await sbPost("users",body);
     if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="agent";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
@@ -1967,6 +2006,19 @@ async function changeUserRole(username, role, sel){
     await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "როლი", detail: `@${username} → ${role}` });
     loadUsers();      // refresh badge + colour
     loadWorkers();    // agent lists depend on roles
+  }catch(e){
+    alert("შეცდომა: "+e.message);
+    if(prev) sel.value = prev;
+  }finally{ sel.disabled = false; }
+}
+async function changeUserSegment(username, segment, sel){
+  const prev = sel ? sel.dataset.prev : null;
+  sel.disabled = true;
+  try{
+    const ok = await sbPatch("users", `username=eq.${encodeURIComponent(username)}`, { segment });
+    if(!ok) throw new Error("ვერ შეინახა");
+    await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "სეგმენტი", detail: `@${username} → ${segment}` });
+    loadUsers(); loadWorkers();
   }catch(e){
     alert("შეცდომა: "+e.message);
     if(prev) sel.value = prev;
@@ -2051,7 +2103,7 @@ async function exportCSV(){
 
 // ── FORM SUBMIT (სარეგისტრაციო ფორმიდან) ──
 async function submitLeadFromForm(data) {
-  return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false });
+  return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false, segment: SEGMENT || "general" });
 }
 
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();}});
