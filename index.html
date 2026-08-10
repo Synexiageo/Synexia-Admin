@@ -286,6 +286,11 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .bulk-count{font-size:13px;font-weight:700;flex:1;}
 .btn-bulk-del{background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
 .btn-bulk-del:hover{background:#b91c1c;}
+.bulk-select{background:rgba(255,255,255,0.1);color:white;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;outline:none;font-family:inherit;max-width:190px;}
+.bulk-select option{background:#0f1e35;color:white;}
+.btn-bulk-assign{background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
+.btn-bulk-assign:hover{filter:brightness(1.1);}
+.btn-bulk-assign:disabled{opacity:.5;cursor:not-allowed;}
 .btn-bulk-cancel{background:rgba(255,255,255,0.1);color:white;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
 .btn-bulk-cancel:hover{background:rgba(255,255,255,0.2);}
 .row-check{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);}
@@ -514,12 +519,14 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="pagination" id="leadsPaginationTop" style="display:none;border-bottom:1px solid var(--border);border-top:none"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th id="thSelectAll" style="display:none;width:36px;text-align:center"><input type="checkbox" id="selectAllCb" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)" onchange="toggleSelectAll(this.checked)" onclick="event.stopPropagation()"></th><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>ოპერატორი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
+            <thead><tr><th id="thSelectAll" style="display:none;width:36px;text-align:center"><input type="checkbox" id="selectAllCb" style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)" onchange="toggleSelectAll(this.checked)" onclick="event.stopPropagation()"></th><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>რეფ. კოდი</th><th>სტატუსი</th><th>აგენტი</th><th>რეგ. თარიღი</th><th>მოქმედება</th></tr></thead>
             <tbody id="leadsBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
         <div id="bulkBar" class="bulk-bar">
           <span class="bulk-count" id="bulkCount">0 მონიშნული</span>
+          <select class="bulk-select" id="bulkAssignSel"><option value="">— აგენტი —</option></select>
+          <button class="btn-bulk-assign" onclick="bulkAssign()">👤 მიბმა</button>
           <button class="btn-bulk-del" onclick="bulkDelete()">🗑 წაშლა</button>
           <button class="btn-bulk-cancel" onclick="clearSelection()">✕ გაუქმება</button>
         </div>
@@ -628,7 +635,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <div class="cu-field"><label class="cu-label">სახელი</label><input type="text" class="cu-input" id="cuDisplayName" placeholder="გიორგი შ."></div>
           <div class="cu-field"><label class="cu-label">Username</label><input type="text" class="cu-input" id="cuUsername" placeholder="giorgi.sh"></div>
           <div class="cu-field"><label class="cu-label">პაროლი</label><input type="text" class="cu-input" id="cuPassword" placeholder="პაროლი"></div>
-          <div class="cu-field"><label class="cu-label">როლი</label><select class="cu-select" id="cuRole" onchange="document.getElementById('cuRefCodeRow').style.display=this.value==='influencer'?'flex':'none'"><option value="user">User</option><option value="admin">Admin</option><option value="influencer">Influencer</option></select></div>
+          <div class="cu-field"><label class="cu-label">როლი</label><select class="cu-select" id="cuRole" onchange="document.getElementById('cuRefCodeRow').style.display=this.value==='influencer'?'flex':'none'"><option value="agent">Agent</option><option value="admin">Admin</option><option value="influencer">Influencer</option></select></div>
           <button class="btn btn-primary" onclick="createUser()" style="align-self:flex-end;height:38px">შექმნა</button>
         </div>
         <div id="cuRefCodeRow" style="display:none;gap:10px;align-items:flex-end;margin-top:8px">
@@ -947,7 +954,7 @@ function showDashboard() {
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("dashboard").style.display="flex";
   document.getElementById("navUserName").textContent  = SESSION.display_name;
-  document.getElementById("navUserRole").textContent  = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"წევრი";
+  document.getElementById("navUserRole").textContent  = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"აგენტი";
   document.getElementById("navUserIcon").textContent  = (SESSION.display_name||"?").charAt(0).toUpperCase();
   if (SESSION.role==="admin") {
     document.getElementById("usersTabBtn").style.display="";
@@ -963,7 +970,7 @@ function showDashboard() {
     });
     document.getElementById("csvBtn").style.display = "none";
   }
-  if (SESSION.role === "user") {
+  if (SESSION.role === "user" || SESSION.role === "agent") {
     // auto-filter by this user's leads via activity log
     setTimeout(() => loadWorkers(), 500);
   }
@@ -1108,7 +1115,8 @@ async function loadLeads(page) {
   const dateTo   = document.getElementById("filterDateTo")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
-  if (assigned)    filters += `&last_operator=eq.${encodeURIComponent(assigned)}`;
+  if (assigned === UNASSIGNED) filters += `&assigned_to=is.null`;
+  else if (assigned)           filters += `&assigned_to=eq.${encodeURIComponent(assigned)}`;
   // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
   if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
   if (dateTo) {
@@ -1146,14 +1154,22 @@ function resetFilters(){
   loadLeads(1);
 }
 
-let workerLeadMap = {};
+const UNASSIGNED = "__none__";
 async function loadWorkers() {
   try {
-    const { data: users } = await sbGet("users", "select=display_name&order=display_name");
+    const { data: users } = await sbGet("users", "select=display_name,role&order=display_name");
     const sel = document.getElementById("filterAssigned");
     while(sel.options.length > 1) sel.remove(1);
     const taskSel = document.getElementById("taskAssignedTo");
     if (taskSel) { while(taskSel.options.length > 1) taskSel.remove(1); }
+    const bulkSel = document.getElementById("bulkAssignSel");
+    if (bulkSel) { while(bulkSel.options.length > 1) bulkSel.remove(1); }
+
+    // "მიუბმელი" — leads with no agent yet
+    const noneOpt = document.createElement("option");
+    noneOpt.value = UNASSIGNED; noneOpt.textContent = "— მიუბმელი —";
+    sel.appendChild(noneOpt);
+
     // populate from users table
     const seen = new Set();
     (users||[]).forEach(u => {
@@ -1163,15 +1179,23 @@ async function loadWorkers() {
       o.value = u.display_name; o.textContent = u.display_name;
       sel.appendChild(o);
       if (taskSel) taskSel.appendChild(o.cloneNode(true));
+      // only agents (and admins) can own leads
+      if (bulkSel && u.role !== "influencer") bulkSel.appendChild(o.cloneNode(true));
     });
-    // also add any last_operator values not in users table
-    const { data: ops } = await sbGet("leads", "select=last_operator&last_operator=not.is.null&order=last_operator");
-    const extra = [...new Set((ops||[]).map(r=>r.last_operator).filter(Boolean))].filter(n=>!seen.has(n));
+    // also add any assigned_to values not in users table (people who left, renamed, etc.)
+    const { data: ops } = await sbGet("leads", "select=assigned_to&assigned_to=not.is.null&order=assigned_to");
+    const extra = [...new Set((ops||[]).map(r=>r.assigned_to).filter(Boolean))].filter(n=>!seen.has(n));
     extra.forEach(name => {
       const o = document.createElement("option");
       o.value = name; o.textContent = name;
       sel.appendChild(o);
     });
+    // "მიბმა" button unassigns when nothing is picked — make that explicit
+    if (bulkSel) {
+      const clr = document.createElement("option");
+      clr.value = UNASSIGNED; clr.textContent = "— მიბმის მოხსნა —";
+      bulkSel.appendChild(clr);
+    }
     if (SESSION.role !== "admin") { sel.value=SESSION.display_name; loadLeads(1); }
   } catch(e){}
 }
@@ -1199,7 +1223,12 @@ function renderLeads(leads, offset) {
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
-      <td style="font-size:12px;color:var(--text-mid);font-weight:500">${l.last_operator?esc(l.last_operator):'<span style="color:var(--text-dim)">—</span>'}</td>
+      <td style="font-size:12px;color:var(--text-mid);font-weight:500">${
+        l.assigned_to
+          ? esc(l.assigned_to) + (l.last_operator && l.last_operator !== l.assigned_to
+              ? `<div style="font-size:10.5px;color:var(--text-dim);font-weight:400">ბოლო: ${esc(l.last_operator)}</div>` : "")
+          : '<span style="color:var(--text-dim)">—</span>'
+      }</td>
       <td class="td-date">${fmtTime(l.reg_date)}</td>
       <td onclick="event.stopPropagation()"><div class="td-actions">
         ${editBtn}${delBtn}
@@ -1413,12 +1442,13 @@ async function checkCalendarNotifications() {
     const tomorrow = new Date(Date.now() + 4*60*60*1000 + 86400000).toISOString().substring(0,10);
     const currentMin = nowGE.getUTCHours() * 60 + nowGE.getUTCMinutes();
 
-    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note&next_contact=lte.${tomorrow}&next_contact=neq.null&order=next_contact.asc&limit=200`);
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note,assigned_to&next_contact=lte.${tomorrow}&next_contact=neq.null&order=next_contact.asc&limit=200`);
     const all = data || [];
 
+    // non-admins only get reminders for leads assigned to them
     const mine = SESSION.role === "admin"
       ? all
-      : all.filter(l => workerLeadMap[SESSION.display_name]?.has(l.id));
+      : all.filter(l => l.assigned_to === SESSION.display_name);
 
     // Overdue
     mine.filter(l => l.next_contact < today).forEach(l => {
@@ -1527,6 +1557,36 @@ function clearSelection() {
   const saCb = document.getElementById("selectAllCb");
   if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
   updateBulkBar();
+}
+
+async function bulkAssign() {
+  if (!selectedLeads.size) return;
+  const sel = document.getElementById("bulkAssignSel");
+  const val = sel ? sel.value : "";
+  if (!val) { alert("აირჩიეთ აგენტი"); return; }
+  const agent = val === UNASSIGNED ? null : val;
+  const label = agent || "მიუბმელი";
+  if (!confirm(`${selectedLeads.size} ლიდი მიება: ${label}`)) return;
+
+  const ids = [...selectedLeads];
+  const btn = document.querySelector(".btn-bulk-assign");
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ მიბმა..."; }
+  let done = 0, failed = 0;
+  try {
+    // PostgREST allows one call per batch of ids
+    const CHUNK = 50;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const part = ids.slice(i, i + CHUNK);
+      const match = `id=in.(${part.map(id => encodeURIComponent(`"${id}"`)).join(",")})`;
+      const ok = await sbPatch("leads", match, { assigned_to: agent });
+      if (ok) done += part.length; else failed += part.length;
+    }
+    await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "მიბმა", detail: `${done} ლიდი → ${label}` });
+    clearSelection();
+    loadLeads(currentPage);
+    if (failed) alert(`${done} მიება, ${failed} ვერ მოხერხდა`);
+  } catch(e) { alert("შეცდომა: " + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = "👤 მიბმა"; } }
 }
 
 async function bulkDelete() {
@@ -1856,7 +1916,7 @@ async function loadUsers() {
       const isAdm=u.role==="admin";
       const isInf=u.role==="influencer";
       const roleClass=isAdm?"role-admin":isInf?"role-influencer":"role-user";
-      const roleLabel=isAdm?"ადმინი":isInf?"ინფლუენსერი":"წევრი";
+      const roleLabel=isAdm?"ადმინი":isInf?"ინფლუენსერი":"აგენტი";
       const delBtn=u.username!=="admin"?`<button class="btn-del-user" onclick="deleteUser('${u.username}')">წაშლა</button>`:'<span style="font-size:12px;color:var(--text-dim)">მთავარი</span>';
       return `<div class="user-card"><div class="user-card-head">
         <div class="user-avatar ${isAdm?"admin-av":""}">${(u.display_name||u.username).charAt(0).toUpperCase()}</div>
@@ -1881,7 +1941,7 @@ async function createUser(){
     const body={username:un,password:pw,role:rl,display_name:dn};
     if(rl==="influencer"&&rc) body.ref_code=rc;
     const ok=await sbPost("users",body);
-    if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="user";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
+    if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="agent";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
     else{msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ username უკვე არსებობს";}
   }catch(e){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="შეცდომა: "+e.message;}
 }
