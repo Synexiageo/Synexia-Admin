@@ -1309,6 +1309,22 @@ function renderPagination() {
 
 // ── LEAD MODAL ────────────────────────────
 let currentLead = null;
+// A stored value that is not in a <select>'s option list silently renders
+// blank. Free-text sources (Facebook short answers) routinely produce these,
+// so surface whatever was actually saved instead of losing it.
+function setSelectValue(id, value) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const v = (value || "").trim();
+  sel.value = v;
+  if (v && sel.value !== v) {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v + " *";
+    sel.appendChild(o);
+    sel.value = v;
+  }
+}
+
 async function openModal(id) {
   try {
     const { data } = await sbGet("leads", `id=eq.${id}&select=*`);
@@ -1325,7 +1341,7 @@ async function openModal(id) {
     document.getElementById("dEmail").value       = l.email||"";
     document.getElementById("dOnboarded").value   = l.onboarded_date?String(l.onboarded_date).substring(0,10):"";
     document.getElementById("dEnvironment").value    = l.environment||"";
-    document.getElementById("dCity").value            = l.city||"";
+    setSelectValue("dCity", l.city);
     document.getElementById("dNextContact").value     = l.next_contact?String(l.next_contact).substring(0,10):"";
     document.getElementById("dNextContactTime").value = l.next_contact_time||"";
     document.getElementById("dNextContactNote").value = l.next_contact_note||"";
