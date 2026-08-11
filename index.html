@@ -296,6 +296,8 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .btn-bulk-del{background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
 .btn-bulk-del:hover{background:#b91c1c;}
 .prio-star{font-size:13px;line-height:1;flex-shrink:0;cursor:help;}
+.prio-phone{display:inline-flex;align-items:center;flex-shrink:0;cursor:help;color:var(--blue);}
+.prio-phone svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
 .bulk-select{background:rgba(255,255,255,0.1);color:white;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;outline:none;font-family:inherit;max-width:190px;}
 .bulk-select option{background:#0f1e35;color:white;}
 .btn-bulk-assign{background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
@@ -520,7 +522,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <select class="tb-select" id="filterPriority" onchange="applyFilters()">
             <option value="">ყველა</option>
             <option value="hot">⭐ ცხელი — ტელეფონი + სფერო</option>
-            <option value="yes">📱 ტელეფონი ვარგისია</option>
+            <option value="yes">ტელეფონი ვარგისია</option>
             <option value="no">არაპრიორიტეტული</option>
           </select>
         </div>
@@ -1298,7 +1300,7 @@ function renderLeads(leads, offset) {
         const sph = SPHERES[l.sphere_rank];
         return sph
           ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>`
-          : `<span class="prio-star" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}">📱</span>`;
+          : `<span class="prio-phone" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span>`;
       })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
