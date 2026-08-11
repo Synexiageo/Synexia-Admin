@@ -519,7 +519,8 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <span class="tb-label">პრიორიტეტი</span>
           <select class="tb-select" id="filterPriority" onchange="applyFilters()">
             <option value="">ყველა</option>
-            <option value="yes">⭐ პრიორიტეტული</option>
+            <option value="hot">⭐ ცხელი — ტელეფონი + სფერო</option>
+            <option value="yes">📱 ტელეფონი ვარგისია</option>
             <option value="no">არაპრიორიტეტული</option>
           </select>
         </div>
@@ -1161,7 +1162,11 @@ async function loadLeads(page) {
   const refCode  = document.getElementById("refSearchInput")?.value.trim()||"";
   const assigned = document.getElementById("filterAssigned")?.value||"";
 
-  let filters = `select=*&order=created_at.${leadsSort}`;
+  const prioSort = (document.getElementById("filterPriority")?.value||"") !== "";
+  // in the priority views the sphere ranking decides the order — logistics first
+  let filters = prioSort
+    ? `select=*&order=sphere_rank.asc.nullslast,created_at.${leadsSort}`
+    : `select=*&order=created_at.${leadsSort}`;
   if (SESSION.role === "influencer" && SESSION.ref_code) {
     filters += `&ref_code=eq.${encodeURIComponent(SESSION.ref_code)}`;
   } else {
@@ -1179,8 +1184,9 @@ async function loadLeads(page) {
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
   if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
   const prio = document.getElementById("filterPriority")?.value||"";
-  if (prio === "yes") filters += `&priority=is.true`;
-  else if (prio === "no") filters += `&priority=is.false`;
+  if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
+  else if (prio === "yes") filters += `&priority=is.true`;
+  else if (prio === "no")  filters += `&priority=is.false`;
   if (assigned === UNASSIGNED) filters += `&assigned_to=is.null`;
   else if (assigned)           filters += `&assigned_to=eq.${encodeURIComponent(assigned)}`;
   // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
@@ -1221,6 +1227,7 @@ function resetFilters(){
 }
 
 const UNASSIGNED = "__none__";
+const SPHERES = {1:"ლოგისტიკა",2:"საცალო ვაჭრობა",3:"სასტუმრო და კვება",4:"საწარმო",5:"მშენებლობა",6:"სოფლის მეურნეობა",7:"დიასახლისი"};
 async function loadWorkers() {
   try {
     const { data: users } = await sbGet("users", "select=*&order=display_name");
@@ -1286,7 +1293,13 @@ function renderLeads(leads, offset) {
     return `<tr ${rowClick} ${isSelected?'class="selected-row"':''} ${!isInfluencer?'style="cursor:pointer"':''}>
       ${chk}
       <td class="td-date">${(offset||0)+i+1}</td>
-      <td><span style="display:flex;align-items:center;gap:5px">${dot}${l.priority?`<span class="prio-star" title="პრიორიტეტული — ${esc(l.phone_model||"")}">⭐</span>`:""}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
+      <td><span style="display:flex;align-items:center;gap:5px">${dot}${(()=>{
+        if (!l.priority) return "";
+        const sph = SPHERES[l.sphere_rank];
+        return sph
+          ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>`
+          : `<span class="prio-star" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}">📱</span>`;
+      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
