@@ -911,10 +911,23 @@ let currentPage = 1, totalPages = 1, totalLeads = 0;
 // ── Supabase API ──────────────────────────
 // Active segment: "" = all (admin only). Every leads query is scoped through sbGet.
 let SEGMENT = "general";
+let SEGMENT_READY = false;   // false until the segment column is confirmed to exist
 const SEGMENTS = { general: "ზოგადი", home: "დიასახლისები" };
 
+// The segment migration may not have run yet. Probe once; until it has,
+// the CRM behaves exactly as it did before segments existed.
+async function probeSegment() {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/leads?select=segment&limit=1`, {
+      headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+    });
+    SEGMENT_READY = res.ok;
+  } catch(e) { SEGMENT_READY = false; }
+  return SEGMENT_READY;
+}
+
 async function sbGet(table, params = "") {
-  if (table === "leads" && SEGMENT) params += `&segment=eq.${encodeURIComponent(SEGMENT)}`;
+  if (table === "leads" && SEGMENT && SEGMENT_READY) params += `&segment=eq.${encodeURIComponent(SEGMENT)}`;
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
     headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Prefer": "count=exact", "Cache-Control": "no-cache" }
   });
@@ -954,7 +967,7 @@ async function doLogin() {
   const err = document.getElementById("loginErr");
   if (!username || !password) { err.style.display="block"; err.textContent="⚠ შეიყვანეთ სახელი და პაროლი"; return; }
   try {
-    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=username,role,display_name,ref_code,segment`);
+    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
       SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"" };
       // admins may switch segments; everyone else is pinned to their own
@@ -984,13 +997,15 @@ function switchSegment(value) {
   loadWorkers();
 }
 
-function showDashboard() {
+async function showDashboard() {
+  await probeSegment();
+  if (!SEGMENT_READY) SEGMENT = "";   // pre-migration: behave exactly as before
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("dashboard").style.display="flex";
   document.getElementById("navUserName").textContent  = SESSION.display_name;
   const roleTxt = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"აგენტი";
-  document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
-  if (SESSION.role === "admin") {
+  document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT_READY && SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
+  if (SESSION.role === "admin" && SEGMENT_READY) {
     const sw = document.getElementById("segmentSwitch");
     sw.style.display = ""; sw.value = SEGMENT;
   }
@@ -1196,7 +1211,7 @@ function resetFilters(){
 const UNASSIGNED = "__none__";
 async function loadWorkers() {
   try {
-    const { data: users } = await sbGet("users", "select=display_name,role,segment&order=display_name");
+    const { data: users } = await sbGet("users", "select=*&order=display_name");
     const sel = document.getElementById("filterAssigned");
     while(sel.options.length > 1) sel.remove(1);
     const taskSel = document.getElementById("taskAssignedTo");
@@ -1950,7 +1965,7 @@ async function loadUsers() {
   const grid=document.getElementById("userGrid");
   grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">იტვირთება...</div>';
   try {
-    const {data}=await sbGet("users","select=username,role,display_name,last_login,last_action,ref_code,segment&order=username");
+    const {data}=await sbGet("users","select=*&order=username");
     if(!data||!data.length){grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">წევრი ვერ მოიძებნა</div>';return;}
     grid.innerHTML=data.map(u=>{
       const isAdm=u.role==="admin";
@@ -1964,11 +1979,11 @@ async function loadUsers() {
         <select class="user-role-sel" data-prev="${u.role}" onchange="changeUserRole('${u.username}', this.value, this)">
           ${["agent","user","admin","influencer"].map(r=>`<option value="${r}" ${u.role===r?"selected":""}>${r==="agent"?"აგენტი — იღებს ახალ ლიდებს":r==="user"?"წევრი — ლიდები არ ხვდება":r==="admin"?"ადმინი":"ინფლუენსერი"}</option>`).join("")}
         </select></div>
-        <div class="user-role-row">
+        ${!SEGMENT_READY ? "" : `<div class="user-role-row">
         <span class="user-role-lbl">სეგმ.</span>
         <select class="user-role-sel" data-prev="${u.segment||'general'}" onchange="changeUserSegment('${u.username}', this.value, this)">
           ${Object.entries({general:"ზოგადი",home:"დიასახლისები"}).map(([v,l])=>`<option value="${v}" ${(u.segment||'general')===v?"selected":""}>${l}</option>`).join("")}
-        </select></div>`;
+        </select></div>`}`;
       return `<div class="user-card"><div class="user-card-head">
         <div class="user-avatar ${isAdm?"admin-av":""}">${(u.display_name||u.username).charAt(0).toUpperCase()}</div>
         <div class="user-info"><div class="user-display">${esc(u.display_name||u.username)}</div><div class="user-username">@${esc(u.username)}</div></div>
@@ -1990,7 +2005,8 @@ async function createUser(){
   if(!dn||!un||!pw){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ყველა ველი სავალდებულოა";return;}
   if(rl==="influencer"&&!rc){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ინფლუენსერს სავალდებულოა რეფ. კოდი";return;}
   try{
-    const body={username:un,password:pw,role:rl,display_name:dn,segment:(SEGMENT||"general")};
+    const body={username:un,password:pw,role:rl,display_name:dn};
+    if(SEGMENT_READY) body.segment=(SEGMENT||"general");
     if(rl==="influencer"&&rc) body.ref_code=rc;
     const ok=await sbPost("users",body);
     if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="agent";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
@@ -2103,7 +2119,7 @@ async function exportCSV(){
 
 // ── FORM SUBMIT (სარეგისტრაციო ფორმიდან) ──
 async function submitLeadFromForm(data) {
-  return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false, segment: SEGMENT || "general" });
+  return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false, ...(SEGMENT_READY ? { segment: SEGMENT || "general" } : {}) });
 }
 
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();}});
