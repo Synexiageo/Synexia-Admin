@@ -983,7 +983,7 @@ async function doLogin() {
     if (data && data.length > 0) {
       SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"" };
       // admins may switch segments; everyone else is pinned to their own
-      SEGMENT = SESSION.role === "admin"
+      SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
         : (SESSION.segment || "general");
       sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
@@ -1017,7 +1017,7 @@ async function showDashboard() {
   document.getElementById("navUserName").textContent  = SESSION.display_name;
   const roleTxt = SESSION.role==="admin"?"ადმინი":SESSION.role==="influencer"?"ინფლუენსერი":"აგენტი";
   document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT_READY && SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
-  if (SESSION.role === "admin" && SEGMENT_READY) {
+  if ((SESSION.role === "admin" || SESSION.segment === "all") && SEGMENT_READY) {
     const sw = document.getElementById("segmentSwitch");
     sw.style.display = ""; sw.value = SEGMENT;
   }
@@ -1255,7 +1255,7 @@ async function loadWorkers() {
       sel.appendChild(o);
       if (taskSel) taskSel.appendChild(o.cloneNode(true));
       // only agents (and admins) can own leads
-      const inSegment = !SEGMENT || u.role === "admin" || (u.segment || "general") === SEGMENT;
+      const inSegment = !SEGMENT || u.role === "admin" || u.segment === "all" || (u.segment || "general") === SEGMENT;
       if (bulkSel && u.role !== "influencer" && inSegment) bulkSel.appendChild(o.cloneNode(true));
     });
     // also add any assigned_to values not in users table (people who left, renamed, etc.)
@@ -2025,7 +2025,7 @@ async function loadUsers() {
         ${!SEGMENT_READY ? "" : `<div class="user-role-row">
         <span class="user-role-lbl">სეგმ.</span>
         <select class="user-role-sel" data-prev="${u.segment||'general'}" onchange="changeUserSegment('${u.username}', this.value, this)">
-          ${Object.entries({general:"ზოგადი",home:"დიასახლისები"}).map(([v,l])=>`<option value="${v}" ${(u.segment||'general')===v?"selected":""}>${l}</option>`).join("")}
+          ${Object.entries({general:"ზოგადი",home:"დიასახლისები",all:"ორივე"}).map(([v,l])=>`<option value="${v}" ${(u.segment||'general')===v?"selected":""}>${l}</option>`).join("")}
         </select></div>`}`;
       return `<div class="user-card"><div class="user-card-head">
         <div class="user-avatar ${isAdm?"admin-av":""}">${(u.display_name||u.username).charAt(0).toUpperCase()}</div>
