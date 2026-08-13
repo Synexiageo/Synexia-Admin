@@ -320,10 +320,15 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
 .cal-cell.today{background:rgba(240,73,35,0.07);}
 .cal-date{font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:2px;}
 .cal-cell.today .cal-date{color:var(--blue);background:var(--blue);color:white;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.cal-event{background:var(--blue-dim2);border:1px solid rgba(29,110,245,.2);border-radius:5px;padding:2px 6px;font-size:11px;font-weight:600;color:var(--blue);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-event{background:var(--blue-dim2);border:1px solid rgba(29,110,245,.2);border-radius:5px;padding:2px 6px;font-size:11px;font-weight:600;color:var(--blue);cursor:pointer;overflow:hidden;}
 .cal-event:hover{background:rgba(29,110,245,.2);}
 .cal-event.overdue{background:#fef2f2;border-color:#fecaca;color:#dc2626;}
 .cal-event.today-event{background:#ecfdf5;border-color:#a7f3d0;color:#059669;}
+.cal-ev-name{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-ev-agent{display:block;font-size:9px;font-weight:600;opacity:.7;margin-top:1px;line-height:1.2;}
+.cal-date-row{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:2px;}
+.cal-count{background:var(--blue);color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;flex:none;}
+.cal-cell.today .cal-count{background:#f04923;}
 .team-table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm);}
 .team-table th{background:var(--surface2);padding:11px 16px;text-align:left;font-size:10.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
 .team-table td{padding:11px 16px;border-bottom:1px solid var(--bg2);font-size:13px;}
@@ -700,7 +705,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <span class="cal-title" id="calTitle">—</span>
           <button class="cal-nav-btn" onclick="calNext()">›</button>
         </div>
-        <button class="cal-nav-btn" onclick="calToday()">დღეს</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select class="tb-select" id="calAgent" onchange="loadCalendar()"><option value="">ყველა აგენტი</option></select>
+          <button class="cal-nav-btn" onclick="calToday()">დღეს</button>
+        </div>
       </div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
@@ -1540,7 +1548,7 @@ async function checkCalendarNotifications() {
     const tomorrow = new Date(Date.now() + 4*60*60*1000 + 86400000).toISOString().substring(0,10);
     const currentMin = nowGE.getUTCHours() * 60 + nowGE.getUTCMinutes();
 
-    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note,assigned_to&next_contact=lte.${tomorrow}&next_contact=neq.null&order=next_contact.asc&limit=200`);
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note,assigned_to&next_contact=lte.${tomorrow}&next_contact=neq.null&status=neq.Onboarded&order=next_contact.asc&limit=200`);
     const all = data || [];
 
     // non-admins only get reminders for leads assigned to them
@@ -1708,7 +1716,7 @@ async function bulkDelete() {
 async function loadReminders() {
   try {
     const today = new Date().toISOString().substring(0,10);
-    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_note,status&next_contact=lte.${today}&next_contact=neq.null&order=next_contact.asc&limit=50`);
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_note,status&next_contact=lte.${today}&next_contact=neq.null&status=neq.Onboarded&order=next_contact.asc&limit=50`);
     const box   = document.getElementById("remindersBox");
     const list  = document.getElementById("remindersList");
     const count = document.getElementById("remindersCount");
@@ -2448,13 +2456,42 @@ let calLeads = [];
 const GEO_MONTHS = ["იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი","ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
 const GEO_DAYS   = ["ორშ","სამ","ოთხ","ხუთ","პარ","შაბ","კვი"];
 
+let calAgentReady = false;
+async function populateCalAgents() {
+  if (calAgentReady) return;
+  const sel = document.getElementById("calAgent");
+  if (!sel) return;
+  // აგენტი: მხოლოდ "ჩემი" ან "ყველა" (ნაგულისხმევად — ჩემი)
+  if (SESSION.role !== "admin") {
+    sel.innerHTML = `<option value="${esc(SESSION.display_name||"")}">ჩემი</option><option value="">ყველა</option>`;
+    sel.value = SESSION.display_name || "";
+    calAgentReady = true;
+    return;
+  }
+  // ადმინი: "ყველა აგენტი" + თითო აგენტის ფილტრი
+  try {
+    const { data } = await sbGet("leads", "select=assigned_to&assigned_to=not.is.null&order=assigned_to");
+    const names = [...new Set((data||[]).map(r=>r.assigned_to).filter(Boolean))];
+    names.forEach(n => {
+      const o = document.createElement("option");
+      o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+    calAgentReady = true;
+  } catch(e){}
+}
+
 async function loadCalendar() {
-  // fetch leads with next_contact in this month
+  await populateCalAgents();
+  // fetch leads with next_contact in this month (Onboarded არ ჩანს)
   const firstDay = `${calYear}-${String(calMonth+1).padStart(2,"0")}-01`;
   const _ld = new Date(calYear, calMonth+1, 0);
   const lastDay = `${_ld.getFullYear()}-${String(_ld.getMonth()+1).padStart(2,"0")}-${String(_ld.getDate()).padStart(2,"0")}`;
+  const agent = document.getElementById("calAgent")?.value || "";
+  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&status=neq.Onboarded&order=next_contact.asc&limit=500`;
+  if (agent) q += `&assigned_to=eq.${encodeURIComponent(agent)}`;
   try {
-    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_note,status&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&order=next_contact.asc&limit=200`);
+    const { data } = await sbGet("leads", q);
     calLeads = data||[];
     renderCalendar();
   } catch(e){ console.error(e); }
@@ -2464,6 +2501,8 @@ function renderCalendar() {
   const grid  = document.getElementById("calGrid");
   const title = document.getElementById("calTitle");
   title.textContent = GEO_MONTHS[calMonth] + " " + calYear;
+  // აგენტის ლეიბლი ("ვისგან") ჩანს მხოლოდ "ყველა აგენტი" ხედვისას
+  const calShowAgent = !document.getElementById("calAgent")?.value;
 
   const today = new Date(Date.now()+4*60*60*1000).toISOString().substring(0,10);
   const firstWeekDay = new Date(calYear, calMonth, 1).getDay();
@@ -2502,10 +2541,13 @@ function renderCalendar() {
 
     const events = dayLeads.map(l => {
       const cls = dateStr < today ? "overdue" : dateStr === today ? "today-event" : "";
-      return `<div class="cal-event ${cls}" onclick="openModal('${l.id}')" title="${esc(l.name)} — ${esc(l.next_contact_note||"")}">${esc(l.name)}</div>`;
+      const ag = (calShowAgent && l.assigned_to) ? `<span class="cal-ev-agent">${esc(l.assigned_to)}</span>` : "";
+      const tt = `${esc(l.name)}${l.assigned_to ? " — "+esc(l.assigned_to) : ""}${l.next_contact_note ? " — "+esc(l.next_contact_note) : ""}`;
+      return `<div class="cal-event ${cls}" onclick="openModal('${l.id}')" title="${tt}"><span class="cal-ev-name">${esc(l.name)}</span>${ag}</div>`;
     }).join("");
 
-    html += `<div class="cal-cell ${isOther?"other-month":""} ${isToday?"today":""}">${dateLabel}${events}</div>`;
+    const cntBadge = dayLeads.length ? `<span class="cal-count" title="${dayLeads.length} ადამიანი">${dayLeads.length}</span>` : "";
+    html += `<div class="cal-cell ${isOther?"other-month":""} ${isToday?"today":""}"><div class="cal-date-row">${dateLabel}${cntBadge}</div>${events}</div>`;
   }
 
   grid.innerHTML = html;
