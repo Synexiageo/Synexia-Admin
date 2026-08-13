@@ -2468,10 +2468,23 @@ async function populateCalAgents() {
     calAgentReady = true;
     return;
   }
-  // ადმინი: "ყველა აგენტი" + თითო აგენტის ფილტრი
+  // ადმინი: "ყველა აგენტი" + ყველა ოპერატორი (users ცხრილიდან, სეგმენტის მიუხედავად)
   try {
-    const { data } = await sbGet("leads", "select=assigned_to&assigned_to=not.is.null&order=assigned_to");
-    const names = [...new Set((data||[]).map(r=>r.assigned_to).filter(Boolean))];
+    const [{ data: users }, { data: ops }] = await Promise.all([
+      sbGet("users", "select=display_name,role&order=display_name"),
+      sbGet("leads", "select=assigned_to&assigned_to=not.is.null&order=assigned_to")
+    ]);
+    const names = [], seen = new Set();
+    (users||[]).forEach(u => {
+      if (u.display_name && u.role !== "influencer" && !seen.has(u.display_name)) {
+        seen.add(u.display_name); names.push(u.display_name);
+      }
+    });
+    (ops||[]).forEach(r => {
+      if (r.assigned_to && !seen.has(r.assigned_to)) {
+        seen.add(r.assigned_to); names.push(r.assigned_to);
+      }
+    });
     names.forEach(n => {
       const o = document.createElement("option");
       o.value = n; o.textContent = n;
