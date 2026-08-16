@@ -2156,11 +2156,23 @@ async function exportCSV(){
       const next = new Date(dateTo); next.setDate(next.getDate()+1);
       filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
     }
+    // ცხელი/priority ფილტრი (ისევე როგორც ლიდების გვერდზე)
+    const prio = document.getElementById("filterPriority")?.value||"";
+    if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
+    else if (prio === "yes") filters += `&priority=is.true`;
+    else if (prio === "no")  filters += `&priority=is.false`;
 
     const {data}=await sbGet("leads", filters);
     if(!data||!data.length){alert("ჩანაწერი არ არის");return;}
-    const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","ქალაქი","გარემო","რეგ.თარიღი","Onboarded","შენიშვნა"];
-    const rows=data.map(l=>[l.id,l.name,l.phone,l.ref_code,l.email,l.legal,l.status,l.city,l.environment,l.reg_date,l.onboarded_date,l.note].map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(","));
+    const SPH={1:"ლოგისტიკა",2:"საცალო ვაჭრობა",3:"სასტუმრო და კვება",4:"საწარმო",5:"მშენებლობა",6:"სოფლის მეურნეობა",7:"დიასახლისი"};
+    const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","ქალაქი","გარემო","ტელეფონის მოდელი","ცხელი","საქმიანობა","აგენტი","სეგმენტი","შემდეგი კონტაქტი","რეგ.თარიღი","Onboarded","შენიშვნა"];
+    const rows=data.map(l=>{
+      const cxeli = (l.priority && l.sphere_rank!=null) ? "ცხელი" : (l.priority ? "ტელეფონი ✓" : "");
+      const sakm  = SPH[l.sphere_rank] || "";
+      const segm  = l.segment==="home" ? "დიასახლისები" : "ზოგადი";
+      const nc    = l.next_contact ? (l.next_contact + (l.next_contact_time ? " "+l.next_contact_time : "")) : "";
+      return [l.id,l.name,l.phone,l.ref_code,l.email,l.legal,l.status,l.city,l.environment,l.phone_model,cxeli,sakm,l.assigned_to,segm,nc,l.reg_date,l.onboarded_date,l.note].map(v=>`"${String(v||"").replace(/"/g,'""')}"`).join(",");
+    });
     const csv="\uFEFF"+[h.join(","),...rows].join("\n");
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
