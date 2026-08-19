@@ -2500,16 +2500,17 @@ async function loadTeamStats() {
     const { data: logs } = await sbGet("activity_log", `select=display_name,action,detail,timestamp&order=created_at.desc${dateFilter}&limit=5000`);
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
-    const STATUSES = ["Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired"];
+    const STATUSES = ["New Lead","Potential Op.","Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired","Unqualified","Phone Model Issue"];
+    const blank = () => { const o = { total:0 }; STATUSES.forEach(s => o[s] = 0); return o; };
     const stats = {};
     (users||[]).forEach(u => {
       if (!u.display_name) return;
-      stats[u.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
+      stats[u.display_name] = blank();
     });
 
     (logs||[]).forEach(l => {
       if (!l.display_name) return;
-      if (!stats[l.display_name]) stats[l.display_name] = { total:0, Interested:0, Contacted:0, "In Negotiation":0, Onboarded:0, Declined:0, "არ უპასუხა 1":0, "არ უპასუხა 2":0, Retired:0 };
+      if (!stats[l.display_name]) stats[l.display_name] = blank();
       stats[l.display_name].total++;
       if (l.action === "განახლება" && l.detail) {
         const statusMatch = STATUSES.find(s => l.detail.includes("→ "+s));
