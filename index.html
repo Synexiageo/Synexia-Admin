@@ -296,6 +296,8 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .btn-bulk-del{background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;}
 .btn-bulk-del:hover{background:#b91c1c;}
 .prio-star{font-size:13px;line-height:1;flex-shrink:0;cursor:help;}
+.prio-flag{font-size:12px;line-height:1;flex-shrink:0;cursor:help;color:#d97706;}
+#unqSweepBanner{display:none;margin:0 0 10px;padding:9px 14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;color:#92400e;font-size:12.5px;font-weight:600;}
 .prio-phone{display:inline-flex;align-items:center;flex-shrink:0;cursor:help;color:var(--blue);}
 .prio-phone svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
 .bulk-select{background:rgba(255,255,255,0.1);color:white;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;outline:none;font-family:inherit;max-width:190px;}
@@ -529,6 +531,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="hot">⭐ ცხელი — ტელეფონი + სფერო</option>
             <option value="yes">ტელეფონი ვარგისია</option>
             <option value="no">არაპრიორიტეტული</option>
+            <option value="flag">⚠ საეჭვო — ავტო-ფილტრი</option>
           </select>
         </div>
         <div class="tb-group">
@@ -546,6 +549,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
       </div>
       <div class="table-wrap">
+        <div id="unqSweepBanner"></div>
         <div class="table-header"><div class="table-count">ნაჩვენებია <span id="displayCount">0</span> ჩანაწერი</div></div>
         <div class="pagination" id="leadsPaginationTop" style="display:none;border-bottom:1px solid var(--border);border-top:none"></div>
         <div class="table-scroll">
@@ -989,7 +993,7 @@ async function doLogin() {
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"" };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars };
       // admins may switch segments; everyone else is pinned to their own
       SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
@@ -1057,6 +1061,7 @@ async function showDashboard() {
   }
   loadStats();
   loadWorkers();
+  setTimeout(autoUnqualifySweep, 1200);
 }
 
 function doLogout() {
@@ -1197,6 +1202,11 @@ async function loadLeads(page) {
   if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
   else if (prio === "yes") filters += `&priority=is.true`;
   else if (prio === "no")  filters += `&priority=is.false`;
+  else if (prio === "flag") {
+    // ავტო-ფილტრის საეჭვო სიტყვები — მხოლოდ ⭐ ცხელ ლიდებში
+    filters += `&priority=is.true&sphere_rank=not.is.null&or=(${UNQ_SOFT.concat(UNQ_HARD).map(k=>`note.ilike.*${encodeURIComponent(k)}*`).join(",")})`;
+    filters += UNQ_RESCUE.map(k=>`&note=not.ilike.*${encodeURIComponent(k)}*`).join("");   // ხელით მუშაობს — გამოვრიცხოთ
+  }
   if (assigned === UNASSIGNED) filters += `&assigned_to=is.null`;
   else if (assigned)           filters += `&assigned_to=eq.${encodeURIComponent(assigned)}`;
   // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
@@ -1238,6 +1248,79 @@ function resetFilters(){
 
 const UNASSIGNED = "__none__";
 const SPHERES = {1:"ლოგისტიკა",2:"საცალო ვაჭრობა",3:"სასტუმრო და კვება",4:"საწარმო",5:"მშენებლობა",6:"სოფლის მეურნეობა",7:"დიასახლისი"};
+
+// ── AUTO-UNQUALIFY ფილტრი ─────────────────
+// ⭐ ცხელ ლიდებზე მუშაობს. აგებულია 188 ისტორიულად Unqualified ცხელი ლიდის ანალიზზე.
+// HARD — ისტორიულად 0 კარგი ლიდი მოხვდა, 64% Unqualified → სტატუსი ავტომატურად იცვლება.
+// SOFT — 19% Unqualified (საბაზისო 5.9%) → მხოლოდ ⚠ ნიშანი, სტატუსს არ ცვლის.
+const UNQ_HARD = ["იუველირ","საიუველირო","ოქრომჭედელ","სამკაულ","მინანქარ","სუვენირ","iuvelir","oqromch","ტატუ","tatu","მაკიაჟ","მანიკურ","პედიკურ","სილამაზ","ხატმწერ","სტომატოლოგ","კბილის","რადიოლოგ","სამედიცინო","თერაპევტ","მრტ","ტაქსი","taqsi","taxi","კურიერ","curier","courier","delivery","ფოსტა","მძღოლ","დისპეჩ","დისპეჩინგ","მერჩენდაიზ","შემფასებელ","დაზღვევ","სიგორტა","იმპორტიორ","უძრავი","საქმისწარმოება","trading","ბეტონმზიდ","მანიპულატორ","ავტოპარკ","კოშკურ","jcb"];
+const UNQ_SOFT = ["მენეჯერ","manager","menejer","გაყიდვებ","გაყიდვა","აგენტი","არქიტექტ","ადმინისტრ","დისტრიბუც","distribuc","ვიდეო","ედითინგ","media","მედია","რეჟისორ","კონტენტ","developer","დეველოპ","დიზაინერ","სარეკლამო","რეკლამ","შემდუღებელ","შედუღება","სვარკ","სვარჩიკ","აირშედუღება","shemdugeb","svark","პოლირება","detailing","ავტოსამრეცხაო","ქიმწმენდ","ჭერ","თაბაშირმუყაო","გასაჭიმი","ალპინიზმ","კონდიციონერ","ბანერ","შუშების","მიმტან","ბელბოი","ოფიციან","სერვის","დარბაზ","ტურიზმ","სასტუმრო","ამწე","სალონ","ხატვა","მხატვრ","სანთლებ","საჩუქრ"];
+const UNQ_RESCUE = ["რემონტ","მონტაჟ","ხელოსან","ინჟინერ","საწყობ","დურგალ","ავეჯ","მექანიკოს","ელექტრიკ","სანტექნიკ","მშენებლ","მზარეულ","ხელობა","ხელნაკეთ","წარმოება","შეკეთებ","xelosan","mshenebl","remont","დამზადებ","დადნობ","ვალაგებ","ვრეცხავ","ვაუთოვებ","ხელით"];
+const UNQ_CATS = {
+  "საიუველირო/წვრილი ხელსაქმე": ["იუველირ","საიუველირო","ოქრომჭედელ","სამკაულ","მინანქარ","სუვენირ","iuvelir","oqromch","სანთლებ","საჩუქრ"],
+  "სილამაზე/ხელოვნება": ["ტატუ","tatu","მაკიაჟ","მანიკურ","პედიკურ","სილამაზ","ხატმწერ","სალონ","ხატვა","მხატვრ"],
+  "მედიცინა": ["სტომატოლოგ","კბილის","რადიოლოგ","სამედიცინო","თერაპევტ","მრტ"],
+  "მართვა/მიტანა/სპეცტექნიკა": ["ტაქსი","taqsi","taxi","კურიერ","curier","courier","delivery","ფოსტა","მძღოლ","ბეტონმზიდ","მანიპულატორ","ავტოპარკ","კოშკურ","jcb","ამწე","დისტრიბუც","distribuc"],
+  "საოფისე/დესკი": ["დისპეჩ","დისპეჩინგ","მერჩენდაიზ","შემფასებელ","დაზღვევ","სიგორტა","იმპორტიორ","უძრავი","საქმისწარმოება","trading","მენეჯერ","manager","menejer","გაყიდვებ","გაყიდვა","აგენტი","არქიტექტ","ადმინისტრ"],
+  "მედია/IT/დიზაინი": ["ვიდეო","ედითინგ","media","მედია","რეჟისორ","კონტენტ","developer","დეველოპ","დიზაინერ","სარეკლამო","რეკლამ"],
+  "შედუღება": ["შემდუღებელ","შედუღება","სვარკ","სვარჩიკ","აირშედუღება","shemdugeb","svark"],
+  "ავტო-კოსმეტიკა": ["პოლირება","detailing","ავტოსამრეცხაო","ქიმწმენდ"],
+  "ზევით მიმართული ხელები": ["ჭერ","თაბაშირმუყაო","გასაჭიმი","ალპინიზმ","კონდიციონერ","ბანერ","შუშების"],
+  "სერვისი/სასტუმრო": ["მიმტან","ბელბოი","ოფიციან","სერვის","დარბაზ","ტურიზმ","სასტუმრო"]
+};
+
+function unqNoteFields(note) {
+  const d = {};
+  String(note||"").split("|").forEach(p => {
+    const i = p.indexOf(":");
+    if (i > 0) d[p.slice(0,i).trim()] = p.slice(i+1).trim();
+  });
+  return d;
+}
+// ლიდის შემოწმება → {level:"hard"|"soft", cat, kw} ან null
+function unqCheck(l) {
+  if (!l || !l.priority || l.sphere_rank == null) return null;   // მხოლოდ ⭐ ცხელი
+  const d = unqNoteFields(l.note);
+  const sphere = (d["სფერო"]||"").toLowerCase();
+  const full = (sphere + " " + (d["სამუშაო"]||"") + " " + (d["პროფესია"]||"")).toLowerCase();
+  if (!sphere) return null;
+  if (UNQ_RESCUE.some(r => full.includes(r))) return null;       // ხელით მუშაობს — არ ვეხებით
+  const cat = kw => Object.keys(UNQ_CATS).find(c => UNQ_CATS[c].includes(kw)) || "სხვა";
+  const h = UNQ_HARD.find(k => sphere.includes(k));
+  if (h) return { level:"hard", cat: cat(h), kw: h };
+  const s = UNQ_SOFT.find(k => full.includes(k));
+  if (s) return { level:"soft", cat: cat(s), kw: s };
+  return null;
+}
+
+// ახალი ლიდების ავტომატური დამუშავება — სესიაზე ერთხელ
+async function autoUnqualifySweep() {
+  if (!SESSION || SESSION.role === "influencer") return;
+  if (sessionStorage.getItem("sx_unq_sweep")) return;
+  sessionStorage.setItem("sx_unq_sweep", "1");
+  try {
+    const { data } = await sbGet("leads",
+      `select=id,name,note,status,priority,sphere_rank&status=eq.${encodeURIComponent("New Lead")}&priority=is.true&sphere_rank=not.is.null&order=created_at.desc&limit=1000`);
+    const hits = (data||[]).map(l => ({ l, r: unqCheck(l) })).filter(x => x.r && x.r.level === "hard");
+    for (const { l, r } of hits) {
+      await sbPatch("leads", `id=eq.${l.id}`, { status: "Unqualified" });
+      await sbPost("activity_log", {
+        timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name,
+        action: "ავტო-Unqualified", lead_id: l.id,
+        detail: `ავტო-ფილტრი: ${r.cat} („${r.kw}") — სტატუსი: New Lead → Unqualified`
+      });
+    }
+    if (hits.length) {
+      const b = document.getElementById("unqSweepBanner");
+      if (b) {
+        b.textContent = `⚙ ავტო-ფილტრმა ${hits.length} ცხელი ლიდი გადაიყვანა Unqualified-ში (${[...new Set(hits.map(h=>h.r.cat))].join(", ")})`;
+        b.style.display = "block";
+      }
+      loadStats();
+    }
+  } catch(e) { console.error("autoUnqualifySweep:", e); }
+}
+
 async function loadWorkers() {
   try {
     const { data: users } = await sbGet("users", "select=*&order=display_name");
@@ -1306,8 +1389,11 @@ function renderLeads(leads, offset) {
       <td><span style="display:flex;align-items:center;gap:5px">${dot}${(()=>{
         if (!l.priority) return "";
         const sph = SPHERES[l.sphere_rank];
+        const fl = unqCheck(l);
+        const flg = (fl && l.status !== "Unqualified")
+          ? `<span class="prio-flag" title="ავტო-ფილტრი: ${esc(fl.cat)} (\u201e${esc(fl.kw)}\u201c) — შესამოწმებელია">⚠</span>` : "";
         return sph
-          ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>`
+          ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>` + flg
           : `<span class="prio-phone" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span>`;
       })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
@@ -2473,8 +2559,10 @@ async function populateCalAgents() {
   if (calAgentReady) return;
   const sel = document.getElementById("calAgent");
   if (!sel) return;
+  // ადმინი ან ცალკე უფლებამოსილი აგენტი — სრული სია; დანარჩენები მხოლოდ "ჩემი"/"ყველა"
+  const canPickAgent = SESSION.role === "admin" || SESSION.sees_all_calendars;
   // აგენტი: მხოლოდ "ჩემი" ან "ყველა" (ნაგულისხმევად — ჩემი)
-  if (SESSION.role !== "admin") {
+  if (!canPickAgent) {
     sel.innerHTML = `<option value="${esc(SESSION.display_name||"")}">ჩემი</option><option value="">ყველა</option>`;
     sel.value = SESSION.display_name || "";
     calAgentReady = true;
