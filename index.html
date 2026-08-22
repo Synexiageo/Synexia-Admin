@@ -688,12 +688,18 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <span class="section-title">გუნდის სტატისტიკა</span>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:12px;color:var(--text-dim)">პერიოდი:</span>
-          <select class="tb-select" id="teamStatsPeriod" onchange="loadTeamStats()" style="height:32px;font-size:12px">
+          <select class="tb-select" id="teamStatsPeriod" onchange="teamStatsPeriodChange()" style="height:32px;font-size:12px">
             <option value="all">ყველა დრო</option>
             <option value="today">დღეს</option>
             <option value="week">ბოლო 7 დღე</option>
             <option value="month">ბოლო 30 დღე</option>
+            <option value="range">📅 თარიღით</option>
           </select>
+          <input type="date" class="tb-input" id="teamStatsFrom" onchange="loadTeamStats()"
+                 style="height:32px;font-size:12px;display:none" title="დან">
+          <span id="teamStatsDash" style="display:none;color:var(--text-dim)">—</span>
+          <input type="date" class="tb-input" id="teamStatsTo" onchange="loadTeamStats()"
+                 style="height:32px;font-size:12px;display:none" title="მდე">
           <button class="btn btn-outline" onclick="loadTeamStats()" style="height:32px;padding:0 12px;font-size:12px">
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
             განახლება
@@ -2552,6 +2558,23 @@ async function loadTeamStatsCards() {
 }
 
 // ── TEAM STATS ───────────────────────────
+function teamStatsPeriodChange() {
+  const isRange = document.getElementById("teamStatsPeriod").value === "range";
+  ["teamStatsFrom","teamStatsDash","teamStatsTo"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isRange ? "" : "none";
+  });
+  if (isRange) {
+    // ნაგულისხმევად — დღევანდელი დღე ორივე ველში
+    const today = new Date().toISOString().substring(0,10);
+    const from = document.getElementById("teamStatsFrom");
+    const to   = document.getElementById("teamStatsTo");
+    if (from && !from.value) from.value = today;
+    if (to   && !to.value)   to.value   = today;
+  }
+  loadTeamStats();
+}
+
 async function loadTeamStats() {
   const wrap   = document.getElementById("teamStatsWrap");
   const period = document.getElementById("teamStatsPeriod")?.value||"all";
@@ -2570,13 +2593,24 @@ async function loadTeamStats() {
     } else if (period === "month") {
       const d = new Date(now - 30*24*60*60*1000).toISOString().substring(0,10);
       dateFilter = `&created_at=gte.${d}`;
+    } else if (period === "range") {
+      const from = document.getElementById("teamStatsFrom")?.value;
+      const to   = document.getElementById("teamStatsTo")?.value;
+      if (from) dateFilter += `&created_at=gte.${from}`;
+      // "მდე" ჩათვლით — მომდევნო დღის დასაწყისამდე
+      if (to) {
+        // UTC-ით ვითვლით, თორემ toISOString სასაათო სარტყელს გამოაკლებს და ბოლო დღეს მოჭრის
+        const next = new Date(to + "T00:00:00Z");
+        next.setUTCDate(next.getUTCDate() + 1);
+        dateFilter += `&created_at=lt.${next.toISOString().substring(0,10)}`;
+      }
     }
 
     const { data: logs } = await sbGet("activity_log", `select=display_name,action,detail,timestamp&order=created_at.desc${dateFilter}&limit=5000`);
     const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
 
     const STATUSES = ["New Lead","Potential Op.","Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired","Unqualified","Phone Model Issue"];
-    const blank = () => { const o = { total:0 }; STATUSES.forEach(s => o[s] = 0); return o; };
+    const blank = () => { const o = { total:0, auto:0 }; STATUSES.forEach(s => o[s] = 0); return o; };
     const stats = {};
     (users||[]).forEach(u => {
       if (!u.display_name) return;
@@ -2585,7 +2619,10 @@ async function loadTeamStats() {
 
     (logs||[]).forEach(l => {
       if (!l.display_name) return;
+      // ავტო-ფილტრის ჩანაწერები რობოტის ნამუშევარია, არა ოპერატორის — ცალკე ვთვლით
+      const isAuto = (l.action||"").startsWith("ავტო-");
       if (!stats[l.display_name]) stats[l.display_name] = blank();
+      if (isAuto) { stats[l.display_name].auto++; return; }
       stats[l.display_name].total++;
       if (l.action === "განახლება" && l.detail) {
         const statusMatch = STATUSES.find(s => l.detail.includes("→ "+s));
@@ -2606,6 +2643,7 @@ async function loadTeamStats() {
       <thead><tr>
         <th>ოპერატორი</th>
         <th>სულ ცვლილება</th>
+        <th title="ავტომატური ფილტრი — რობოტის ნამუშევარი, ოპერატორის არა">🤖 ავტო</th>
         ${STATUSES.map(s=>`<th>${s}</th>`).join("")}
       </tr></thead>
       <tbody>
@@ -2615,6 +2653,7 @@ async function loadTeamStats() {
             <span style="font-weight:600">${esc(name)}</span>
           </div></td>
           <td><span class="team-num" style="color:var(--blue)">${stats[name].total}</span></td>
+          <td>${stats[name].auto>0?`<span class="team-num" style="color:var(--text-dim)">${stats[name].auto}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>
           ${STATUSES.map(s => `<td>${stats[name][s]>0?`<span class="team-num" style="color:var(--text)">${stats[name][s]}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>`).join("")}
         </tr>`).join("")}
       </tbody>
@@ -2622,6 +2661,7 @@ async function loadTeamStats() {
         <tr class="team-total-row">
           <td style="font-weight:800">ჯამი</td>
           <td><span class="team-num" style="color:var(--blue)">${names.reduce((a,n)=>a+stats[n].total,0)}</span></td>
+          <td><span class="team-num" style="color:var(--text-dim)">${names.reduce((a,n)=>a+stats[n].auto,0)}</span></td>
           ${STATUSES.map(s => {
             const sum = names.reduce((a,n)=>a+stats[n][s],0);
             return `<td>${sum>0?`<span class="team-num" style="color:var(--text)">${sum}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>`;
