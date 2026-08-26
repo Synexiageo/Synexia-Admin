@@ -45,8 +45,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .nav-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;color:#FFFFFF;}
 .nav-badge{font-size:10px;background:rgba(240,73,35,0.2);color:#F47050;border:1px solid rgba(240,73,35,0.35);border-radius:20px;padding:2px 7px;font-weight:700;text-transform:uppercase;}
 .nav-div{width:1px;height:22px;background:rgba(255,255,255,0.15);}
-.nav-tabs{display:flex;gap:2px;}
-.nav-tab{padding:6px 14px;border-radius:7px;font-size:13px;font-weight:600;color:rgba(255,255,255,0.55);cursor:pointer;border:none;background:none;transition:.15s;display:flex;align-items:center;gap:6px;}
+.nav-tabs{display:flex;gap:2px;min-width:0;overflow-x:auto;scrollbar-width:none;}
+.nav-tabs::-webkit-scrollbar{display:none;}
+.nav-tab{flex:0 0 auto;white-space:nowrap;padding:6px 14px;border-radius:7px;font-size:13px;font-weight:600;color:rgba(255,255,255,0.55);cursor:pointer;border:none;background:none;transition:.15s;display:flex;align-items:center;gap:6px;}
 .nav-tab:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.9);}
 .nav-tab.active{background:rgba(240,73,35,0.2);color:#F47050;}
 .nav-tab svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
@@ -359,6 +360,40 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
 @media(max-width:900px){.stats-grid{grid-template-columns:repeat(3,1fr)}.biz-stats{grid-template-columns:repeat(3,1fr)}.cu-grid{grid-template-columns:1fr 1fr}.d-grid{grid-template-columns:1fr}.ab-grid{grid-template-columns:1fr 1fr}}
+
+/* ── მობილური ─────────────────────────── */
+@media(max-width:640px){
+  /* ნავიგაცია: ბრენდი + მომხმარებელი ზემოთ, ჩანართები ცალკე რიგში (გვერდულად ჩამოსქროლვადი) */
+  /* ტელეფონზე ჩარჩო 3 რიგად იშლება — sticky-დ 20%+ ეკრანს იკავებდა, ამიტომ ჩვეულებრივ სქროლავს */
+  .navbar{position:static;height:auto;min-height:52px;padding:8px 12px;flex-wrap:wrap;gap:8px;}
+  .nav-div{display:none;}
+  .nav-tabs{order:3;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
+  .nav-tabs::-webkit-scrollbar{display:none;}
+  .nav-tab{flex:0 0 auto;white-space:nowrap;padding:7px 12px;}
+  .nav-right{gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto;min-width:0;}
+  .nav-user{padding:4px 7px;}
+  .nav-user-role{display:none;}
+  .nav-user-name{max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* ღილაკები მხოლოდ ხატულებით — წარწერა ეკრანს ჭამს */
+  .navbar .btn,.navbar .btn-logout{font-size:0;gap:0;padding:7px 9px;}
+  .navbar .btn svg,.navbar .btn-logout svg{width:15px;height:15px;}
+  #segmentSwitch{font-size:12px;padding:6px 7px;max-width:104px;}
+
+  .main{padding:14px 12px 32px;}
+  .stats-grid,.biz-stats{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .cu-grid,.ab-grid{grid-template-columns:1fr;}
+  .toolbar{padding:10px 12px;gap:8px;}
+  .section-head{flex-wrap:wrap;gap:8px;}
+  .table-header{flex-wrap:wrap;gap:8px;}
+
+  /* iOS-ზე 16px-ზე ნაკლები შრიფტი ველზე დაჭერისას ეკრანს აზუმებს */
+  .tb-input,.tb-select,input,select,textarea{font-size:16px;}
+
+  /* მოდალი — ქვედან ამოსული ფურცელივით, სრულ სიგანეზე */
+  .modal-overlay{padding:0;align-items:flex-end;}
+  .modal{max-width:100%;max-height:94vh;border-radius:18px 18px 0 0;}
+  .modal-head{padding:16px 18px 12px;border-radius:18px 18px 0 0;}
+}
 </style>
 </head>
 <body>
