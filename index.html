@@ -383,6 +383,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
   .stats-grid,.biz-stats{grid-template-columns:repeat(2,1fr);gap:8px;}
   .cu-grid,.ab-grid{grid-template-columns:1fr;}
   .toolbar{padding:10px 12px;gap:8px;}
+  /* ძიება ცალკე რიგში — თორემ min-width:220px სტატუსს ეჯახება და ღილაკს ფარავს */
+  .toolbar>.tb-group{min-width:0;}
+  .toolbar>.tb-group:first-child{flex:1 0 100%;}
   .section-head{flex-wrap:wrap;gap:8px;}
   .table-header{flex-wrap:wrap;gap:8px;}
 
