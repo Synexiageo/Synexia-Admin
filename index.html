@@ -1037,6 +1037,9 @@ async function sbPatch(table, match, body) {
   if (!res.ok) { const e = await res.text(); console.error("PATCH error:", e); }
   return res.ok;
 }
+// ძველი სტატუსები, რომლებიც მოგვიანებით გადაერქვა — ისტორიაში ჯერ კიდევ არიან
+const LEGACY_STATUS = { "არ უპასუხა": "არ უპასუხა 1", "No Reply": "არ უპასუხა 1" };
+
 async function sbRpc(fn, args) {
   const res = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -2645,7 +2648,8 @@ async function loadTeamStatsCards() {
       if (!s) return;
       s.total = Number(r.total) || 0;
       Object.entries(r.statuses || {}).forEach(([k, v]) => {
-        if (s[k] !== undefined) s[k] = Number(v) || 0;
+        const key = LEGACY_STATUS[k] || k;
+        if (s[key] !== undefined) s[key] += Number(v) || 0;
       });
     });
 
@@ -2756,7 +2760,8 @@ async function loadTeamStats() {
       s.auto  = Number(r.auto_count) || 0;
       // ბაზა ყველა სტატუსს აბრუნებს — მხოლოდ ცნობილებს ვხატავთ
       Object.entries(r.statuses || {}).forEach(([k, v]) => {
-        if (k in s) s[k] = Number(v) || 0;
+        const key = LEGACY_STATUS[k] || k;
+        if (key in s) s[key] += Number(v) || 0;   // ორი გასაღები ერთ სვეტში თუ ჩაჯდა
       });
     });
 
@@ -2774,7 +2779,7 @@ async function loadTeamStats() {
         <th>ოპერატორი</th>
         <th>სულ ცვლილება</th>
         <th title="ავტომატური ფილტრი — რობოტის ნამუშევარი, ოპერატორის არა">🤖 ავტო</th>
-        ${STATUSES.map(s=>`<th>${s}</th>`).join("")}
+        ${STATUSES.map(s=>`<th${s==="არ უპასუხა 1"?' title="მოიცავს ძველ „არ უპასუხა“-საც (ნომრის გარეშე)"':""}>${s}</th>`).join("")}
       </tr></thead>
       <tbody>
         ${names.map(name => `<tr>
