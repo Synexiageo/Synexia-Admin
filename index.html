@@ -1037,6 +1037,16 @@ async function sbPatch(table, match, body) {
   if (!res.ok) { const e = await res.text(); console.error("PATCH error:", e); }
   return res.ok;
 }
+async function sbRpc(fn, args) {
+  const res = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Cache-Control": "no-cache" },
+    body: JSON.stringify(args || {})
+  });
+  if (!res.ok) { console.error("RPC error:", await res.text()); return { data: [], ok: false }; }
+  const data = await res.json();
+  return { data: Array.isArray(data) ? data : [], ok: true };
+}
 async function sbDelete(table, match) {
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${match}`, {
     method: "DELETE",
@@ -2602,12 +2612,12 @@ async function loadTeamStatsCards() {
   const label  = document.getElementById("statsDateLabel");
   grid.innerHTML = '<div style="color:var(--text-dim);font-size:13px">იტვირთება...</div>';
 
-  let dateFilter = "";
+  let rpcFrom = null;
   if (filter !== "all") {
     const from = new Date();
     from.setDate(from.getDate() - parseInt(filter));
-    dateFilter = `&created_at=gte.${from.toISOString().substring(0,10)}`;
-    label.textContent = `${from.toISOString().substring(0,10)}-დან დღემდე`;
+    rpcFrom = from.toISOString().substring(0,10);
+    label.textContent = `${rpcFrom}-დან დღემდე`;
   } else {
     label.textContent = "ყველა დრო";
   }
@@ -2616,7 +2626,8 @@ async function loadTeamStatsCards() {
     // get all users
     const { data: users } = await sbGet("users", "select=username,display_name,role&order=display_name");
     // get activity logs
-    const { data: logs }  = await sbGet("activity_log", `select=display_name,action,detail,timestamp&action=eq.განახლება&order=created_at.desc${dateFilter}&limit=5000`);
+    // დათვლა ბაზაშია — იხ. team_stats(); ადრე 5000 ჩანაწერზე იჭრებოდა
+    const { data: rows } = await sbRpc("team_stats", { p_from: rpcFrom, p_to: null });
 
     const statsMap = {};
     (users||[]).forEach(u => {
@@ -2629,17 +2640,13 @@ async function loadTeamStatsCards() {
       };
     });
 
-    (logs||[]).forEach(l => {
-      if (!statsMap[l.display_name]) return;
-      statsMap[l.display_name].total++;
-      // parse detail: "სტატუსი: New Lead → Contacted"
-      const match = (l.detail||"").match(/სტატუსი:.*→\s*(.+)/);
-      if (match) {
-        const toStatus = match[1].trim().split(" | ")[0];
-        if (statsMap[l.display_name][toStatus] !== undefined) {
-          statsMap[l.display_name][toStatus]++;
-        }
-      }
+    (rows||[]).forEach(r => {
+      const s = statsMap[r.display_name];
+      if (!s) return;
+      s.total = Number(r.total) || 0;
+      Object.entries(r.statuses || {}).forEach(([k, v]) => {
+        if (s[k] !== undefined) s[k] = Number(v) || 0;
+      });
     });
 
     const sorted = Object.values(statsMap).sort((a,b)=>b.total-a.total);
@@ -2705,33 +2712,33 @@ async function loadTeamStats() {
   wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px">იტვირთება...</div>';
 
   try {
-    // build date filter using created_at (reliable timestamptz column)
-    let dateFilter = "";
+    // პერიოდი — ბაზას თარიღებს ვუგზავნით, დათვლა იქ ხდება
+    let pFrom = null, pTo = null;
     const now = new Date();
     if (period === "today") {
-      const d = now.toISOString().substring(0,10);
-      dateFilter = `&created_at=gte.${d}`;
+      pFrom = now.toISOString().substring(0,10);
     } else if (period === "week") {
-      const d = new Date(now - 7*24*60*60*1000).toISOString().substring(0,10);
-      dateFilter = `&created_at=gte.${d}`;
+      pFrom = new Date(now - 7*24*60*60*1000).toISOString().substring(0,10);
     } else if (period === "month") {
-      const d = new Date(now - 30*24*60*60*1000).toISOString().substring(0,10);
-      dateFilter = `&created_at=gte.${d}`;
+      pFrom = new Date(now - 30*24*60*60*1000).toISOString().substring(0,10);
     } else if (period === "range") {
-      const from = document.getElementById("teamStatsFrom")?.value;
-      const to   = document.getElementById("teamStatsTo")?.value;
-      if (from) dateFilter += `&created_at=gte.${from}`;
-      // "მდე" ჩათვლით — მომდევნო დღის დასაწყისამდე
+      pFrom = document.getElementById("teamStatsFrom")?.value || null;
+      const to = document.getElementById("teamStatsTo")?.value;
       if (to) {
+        // "მდე" ჩათვლით — მომდევნო დღის დასაწყისამდე.
         // UTC-ით ვითვლით, თორემ toISOString სასაათო სარტყელს გამოაკლებს და ბოლო დღეს მოჭრის
         const next = new Date(to + "T00:00:00Z");
         next.setUTCDate(next.getUTCDate() + 1);
-        dateFilter += `&created_at=lt.${next.toISOString().substring(0,10)}`;
+        pTo = next.toISOString().substring(0,10);
       }
     }
 
-    const { data: logs } = await sbGet("activity_log", `select=display_name,action,detail,timestamp&order=created_at.desc${dateFilter}&limit=5000`);
-    const { data: users } = await sbGet("users", "select=display_name,username&order=display_name");
+    // დათვლა ბაზაშია — ადრე 5000 უახლეს ჩანაწერს ვიღებდით და
+    // ბრაუზერში ვთვლიდით, ამიტომ "ყველა დრო" სინამდვილეში რამდენიმე დღე იყო
+    const [{ data: rows }, { data: users }] = await Promise.all([
+      sbRpc("team_stats", { p_from: pFrom, p_to: pTo }),
+      sbGet("users", "select=display_name,username&order=display_name")
+    ]);
 
     const STATUSES = ["New Lead","Potential Op.","Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired","Unqualified","Phone Model Issue"];
     const blank = () => { const o = { total:0, auto:0 }; STATUSES.forEach(s => o[s] = 0); return o; };
@@ -2741,17 +2748,16 @@ async function loadTeamStats() {
       stats[u.display_name] = blank();
     });
 
-    (logs||[]).forEach(l => {
-      if (!l.display_name) return;
-      // ავტო-ფილტრის ჩანაწერები რობოტის ნამუშევარია, არა ოპერატორის — ცალკე ვთვლით
-      const isAuto = (l.action||"").startsWith("ავტო-");
-      if (!stats[l.display_name]) stats[l.display_name] = blank();
-      if (isAuto) { stats[l.display_name].auto++; return; }
-      stats[l.display_name].total++;
-      if (l.action === "განახლება" && l.detail) {
-        const statusMatch = STATUSES.find(s => l.detail.includes("→ "+s));
-        if (statusMatch) stats[l.display_name][statusMatch]++;
-      }
+    (rows||[]).forEach(r => {
+      if (!r.display_name) return;
+      if (!stats[r.display_name]) stats[r.display_name] = blank();
+      const s = stats[r.display_name];
+      s.total = Number(r.total)      || 0;
+      s.auto  = Number(r.auto_count) || 0;
+      // ბაზა ყველა სტატუსს აბრუნებს — მხოლოდ ცნობილებს ვხატავთ
+      Object.entries(r.statuses || {}).forEach(([k, v]) => {
+        if (k in s) s[k] = Number(v) || 0;
+      });
     });
 
     const names = Object.keys(stats).sort((a,b) => stats[b].total - stats[a].total);
