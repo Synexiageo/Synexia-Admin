@@ -337,6 +337,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
 .team-table td{padding:11px 16px;border-bottom:1px solid var(--bg2);font-size:13px;}
 .team-table tr:last-child td{border-bottom:none;}
 .team-table tr:hover td{background:var(--blue-dim);}
+.fav-btn{background:none;border:none;cursor:pointer;padding:0 2px;font-size:13px;line-height:1;flex-shrink:0;opacity:.28;filter:grayscale(1);transition:opacity .12s,filter .12s;}
+.fav-btn:hover{opacity:.75;filter:grayscale(.3);}
+.fav-btn.on{opacity:1;filter:none;}
+.fav-hint{font-size:10.5px;color:var(--text-dim);font-weight:400;line-height:1.3;margin-top:1px;}
 .team-table .team-total-row td{background:var(--surface2);border-top:2px solid var(--border);border-bottom:none;font-weight:800;}
 .team-table .team-total-row:hover td{background:var(--surface2);}
 .team-num{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;}
@@ -571,6 +575,13 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="yes">ტელეფონი ვარგისია</option>
             <option value="no">არაპრიორიტეტული</option>
             <option value="flag">⚠ საეჭვო — ავტო-ფილტრი</option>
+          </select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">ფავორიტები</span>
+          <select class="tb-select" id="filterFavorite" onchange="applyFilters()">
+            <option value="">ყველა</option>
+            <option value="only">🔖 მხოლოდ ჩემი</option>
           </select>
         </div>
         <div class="tb-group">
@@ -854,6 +865,11 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <div class="modal-info-item"><span class="modal-info-label">რეფ. კოდი</span><span class="modal-info-val ref" id="dRefCode">—</span></div>
           <div class="modal-info-item"><span class="modal-info-label">რეგ. თარიღი</span><span class="modal-info-val" id="dRegDate">—</span></div>
           <div class="modal-info-item" id="dViewedWrap" style="display:none"><span class="modal-info-label">პირველი ნახვა</span><span class="modal-info-val viewed-info" id="dViewedInfo">—</span></div>
+        </div>
+        <div id="dFavWrap" style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <button class="fav-btn" id="dFavBtn" style="font-size:16px" onclick="toggleFavorite(currentId,this)">🔖</button>
+          <input type="text" class="tb-input" id="dFavHint" maxlength="80" placeholder="მინიშნება (ჩანს მხოლოდ თქვენ)"
+                 style="flex:1;height:30px;font-size:12.5px" onchange="saveFavHint(currentId,this.value)" onblur="saveFavHint(currentId,this.value)">
         </div>
       </div>
       <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -1261,6 +1277,18 @@ async function loadLeads(page) {
     const next = new Date(dateTo); next.setDate(next.getDate()+1);
     filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
   }
+  // ფავორიტები — სია ლოკალურად გვაქვს, ამიტომ id-ებით ვფილტრავთ
+  await loadFavorites();
+  if (document.getElementById("filterFavorite")?.value === "only") {
+    const ids = [...FAVS.keys()];
+    if (!ids.length) {
+      document.getElementById("displayCount").textContent = 0;
+      renderLeads([], 0); totalPages = 1; renderPagination();
+      return;
+    }
+    filters += `&id=in.(${ids.map(i=>`"${encodeURIComponent(i)}"`).join(",")})`;
+  }
+
   // pagination
   const from = (page-1)*PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
@@ -1284,7 +1312,7 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterPriority","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterPriority","filterFavorite","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   document.querySelectorAll(".sm-chk").forEach(c=>c.checked=false);
   const all=document.getElementById("smChkAll"); if(all) all.checked=false;
   document.getElementById("statusMultiLabel").textContent="ყველა";
@@ -1301,37 +1329,37 @@ const SPHERES = {1:"ლოგისტიკა",2:"საცალო ვაჭ
 const UNQ_ABS = {
   "მიტანა/ტრანსპორტი": {
     kw: ["glovo","გლოვო","დელივერ","delivery","კურიერ","curier","courier","მიტანის სერვის","ტრანსპორტირ","ტაქსი","taxi","taqsi","რულთან","ბოლტ","bolt","yandex","იანდექს","მძღოლ"],
-    exc: ["ხელოსან","სერვის-ტექნიკ","ტექნიკოს","შეკეთებ","რემონტ","მექანიკოს"] },
+    exc: ["ხელოსან","სერვის-ტექნიკ","ტექნიკოს","შეკეთებ","რემონტ","მექანიკოს","მზარეულ","სამზარეულო","კვების ობიექტ","სუშ","ვამზადებ","ვაცხობ"] },
   "ქოლცენტრი/ოპერატორი": {
     kw: ["ქოლცენტრ","კოლცენტრ","ქოლ ცენტრ","call center","ვპასუხობ ზარებ","შემომავალ ზარებ","ცხელ ხაზ","კლიენტთა მომსახურ","ონლაინ ოპერატორ","ჩათებ","ოპერატორი ვარ","ტექნიკური დახმარებ","დისპეჩ"],
-    exc: ["ხელოსან","რემონტ","მშენებლ"] },
+    exc: ["ხელოსან","რემონტ","მშენებლ","მზარეულ","დიასახლის"] },
   "ოფისი/კომპიუტერი": {
     kw: ["ოფისში","ოფუს","ლეპტოპ","კომპიუტერთან","trading","trader","ტრეიდ","ბუღალტერ","ფინანსებ","მარკეტერ","marketing","მარკეტინგ","account manager","გაყიდვების მენეჯერ","საგადახდო","გაყიდვებ"],
-    exc: ["ხელოსან","რემონტ","მშენებლ","ავეჯ","სანტექნიკ","ტექნიკოს","შეკეთებ","დიასახლის"] },
+    exc: ["ხელოსან","რემონტ","მშენებლ","ავეჯ","სანტექნიკ","ტექნიკოს","შეკეთებ","დიასახლის","სოფლის მეურნეობ","ფერმერ","ხელსაქმე","ელექტრობ","მობილურებ","კერვ","მზარეულ","ვამზადებ"] },
   "IT": {
     kw: ["აიტი","it სპეციალისტ","ქსელის ადმინისტრ","სისტემური ადმინისტრ","პროგრამისტ","developer","დეველოპ"],
-    exc: ["ხელოსან","სანტექნიკ","ელექტრობ","ინსტალატორ","რემონტ","შეკეთებ","ტექნიკოს"] },
+    exc: ["ხელოსან","სანტექნიკ","ელექტრობ","ინსტალატორ","რემონტ","შეკეთებ","ტექნიკოს","სოფლის მეურნეობ","მშენებლ","ფერმერ"] },
   "მედიცინა": {
     kw: ["ექიმი","ინექცი","ფილერ","სტომატოლოგ","ოპერაციებს ვაკეთებ","კლინიკა","პაციენტ","მედდა","ექთან","რადიოლოგ","კბილის","თერაპევტ","ორთოპედი","სუპინატორ","სამედიცინო"],
-    exc: ["ინჟინერ","აპარატურ","რემონტ","მშენებლ","ხელოსან"] },
+    exc: ["ინჟინერ","აპარატურ","რემონტ","მშენებლ","ხელოსან","ტექნიკოს","პროტეზ","ლაბორატორ","დიასახლის","ვალაგებ","ფურშეტ","ხელით","დაზგ"] },
   "სილამაზე": {
     kw: ["წამწამ","nail","ნეილ","სილამაზ","სტილისტ","თმას ვჭრი","მაკიაჟ","ტატუ","მანიკურ","პედიკურ","კოსმეტოლოგ","ვიზაჟისტ"],
     exc: ["მანქან","ავტო","რემონტ","დიასახლის"] },
   "განათლება": {
     kw: ["მასწავლებელ","რეპეტიტორ","ლექტორ","პედაგოგ","აღმზრდელ"],
-    exc: ["ხელოსან","რემონტ","მშენებლ"] },
+    exc: ["ხელოსან","რემონტ","მშენებლ","დიასახლის","ვამზადებ","ვალაგებ","ოჯახში","ბაღის"] },
   "ტურიზმი/გიდი": {
     kw: ["ტურ გიდ","ვატარებ ტურ","ტურიზმ","გიდი ვარ","ექსკურსი"],
-    exc: ["ხელოსან","მზარეულ","რემონტ"] },
+    exc: ["ხელოსან","მზარეულ","რემონტ","მშენებლ","ვამზადებ","არმატურ"] },
   "დაცვა": {
     kw: ["დაცვის კომპანი","მცველ","კერძო დაცვ","დაცვის სამსახურ"],
     exc: ["ხელოსან","რემონტ"] },
   "სპეცტექნიკა": {
     kw: ["ტრაქტორ","ექსკავატორ","jcb","ამწე","კოშკურ","მანიპულატორ","ბეტონმზიდ","ბულდოზერ"],
-    exc: ["დასერვისებ","სერვისებ","ავეჯ"] },
+    exc: ["დასერვისებ","სერვისებ","ავეჯ","რემონტ","სამალიარო","ლესვ"] },
   "უაზრო ჩანაწერი": {
     kw: ["mainteresebs","მაინტერესებს","sasmelebi","ar vici","არ ვიცი"],
-    exc: [] },
+    exc: ["დიასახლის","მზარეულ","ხელოსან","მშენებლ","რემონტ","ვამზადებ"] },
   "სხვა უვარგისი": {
     kw: ["ფლორისტ","კონტენტ კრეატორ","ბენზო","გასამართ სადგურ","საგზაო მონიშვნ","ვხაზავთ გზებ","რკინიგზ","მებუნიკე","ავტო იმპორტ","avto importi","კაზინოს","მოქანდაკ","იუველირ","ოქრომჭედელ","სამკაულ","სუვენირ","ვიდეოგრაფ","ვიდეო მემონტაჟ","სანთლ","თაბაშირის ნაწარმ","ტრანსი"],
     exc: ["ხელოსან","რემონტ","მშენებლ","ავეჯ","სანტექნიკ","ელექტრიკ"] }
@@ -1342,12 +1370,12 @@ const PH_BAD = ["redmi","რედმი","honor","ჰონორ","poco","პ�
 const PH_UNK = ["არ ვიცი","ar vici","ანდროიდი","android","უცნობი"];
 const PH_NOMODEL = /^\s*(samsung|samsungi|სამსუნგი?|galaxy|გალაქსი?|xiaomi|ქსიაომი|სამსუნგ\s+გალაქსი?)[\s.]*$/i;
 // თუ ჩანაწერში ვარგისი მოდელიც არის (მაგ. „Poco X3 / Galaxy s22 +"), ტელეფონის წესი არ მუშაობს
-const PH_GOOD = /(?:iphone|ipone|iphon|ifon|აიფონ)\s*1[1-7]\b|\b(?:galaxy|samsung|სამსუნგ|გალაქს)\D{0,10}s\s?(?:10|2[0-6])\b|\b[სs]\s?(?:10|2[0-6])\b|pixel\s*[7-9]|(?:^|[^\d])1[1-7]\s*(pro|პრო|max|მაქს|plus|mini)/i;         // ბრენდი კი, მოდელი არა — 0% priority
+const PH_GOOD = /(?:iphone|ipone|iphon|ifon|ifoni|aipon|აიფონ|იფონ|იპონე)\s*(?:1[1-7]\b|pro|პრო|max|მაქს)|(?:iphone|ipone|aipon|აიფონ|იპონე)\s*1[1-7]\b|\b(?:galaxy|samsung|სამსუნგ|გალაქს)\D{0,10}s\s?(?:10|2[0-6])\b|\b[სs]\s?(?:10|2[0-6])\b|pixel\s*[7-9]|(?:^|[^\d])1[1-7]\s*(pro|პრო|max|მაქს|plus|mini)/i;         // ბრენდი კი, მოდელი არა — 0% priority
 
 // ⭐ ცხელ ლიდებზე დამატებითი სფერო-ფილტრი
 const UNQ_HARD = ["იუველირ","საიუველირო","ოქრომჭედელ","სამკაულ","მინანქარ","სუვენირ","iuvelir","oqromch","ტატუ","tatu","მაკიაჟ","მანიკურ","პედიკურ","სილამაზ","ხატმწერ","სტომატოლოგ","კბილის","რადიოლოგ","სამედიცინო","თერაპევტ","მრტ","ტაქსი","taqsi","taxi","კურიერ","curier","courier","delivery","ფოსტა","მძღოლ","დისპეჩ","დისპეჩინგ","მერჩენდაიზ","შემფასებელ","დაზღვევ","სიგორტა","იმპორტიორ","უძრავი","საქმისწარმოება","trading","ბეტონმზიდ","მანიპულატორ","ავტოპარკ","კოშკურ","jcb"];
 const UNQ_SOFT = ["მენეჯერ","manager","menejer","გაყიდვებ","გაყიდვა","აგენტი","არქიტექტ","ადმინისტრ","დისტრიბუც","distribuc","ვიდეო","ედითინგ","media","მედია","რეჟისორ","კონტენტ","developer","დეველოპ","დიზაინერ","სარეკლამო","რეკლამ","შემდუღებელ","შედუღება","სვარკ","სვარჩიკ","აირშედუღება","shemdugeb","svark","პოლირება","detailing","ავტოსამრეცხაო","ქიმწმენდ","ჭერ","თაბაშირმუყაო","გასაჭიმი","ალპინიზმ","კონდიციონერ","ბანერ","შუშების","მიმტან","ბელბოი","ოფიციან","სერვის","დარბაზ","ტურიზმ","სასტუმრო","ამწე","სალონ","ხატვა","მხატვრ","სანთლებ","საჩუქრ"];
-const UNQ_RESCUE = ["რემონტ","მონტაჟ","ხელოსან","ინჟინერ","საწყობ","დურგალ","ავეჯ","მექანიკოს","ელექტრიკ","სანტექნიკ","მშენებლ","მზარეულ","ხელობა","ხელნაკეთ","წარმოება","შეკეთებ","xelosan","mshenebl","remont","დამზადებ","დადნობ","ვალაგებ","ვრეცხავ","ვაუთოვებ","ხელით"];
+const UNQ_RESCUE = ["რემონტ","მონტაჟ","ხელოსან","ინჟინერ","საწყობ","დურგალ","ავეჯ","მექანიკოს","ელექტრიკ","სანტექნიკ","მშენებლ","მზარეულ","ხელობა","ხელნაკეთ","წარმოება","შეკეთებ","xelosan","mshenebl","remont","დამზადებ","დადნობ","ვალაგებ","ვრეცხავ","ვაუთოვებ","ხელით","დიასახლის"];
 const UNQ_CATS = {
   "საიუველირო/წვრილი ხელსაქმე": ["იუველირ","საიუველირო","ოქრომჭედელ","სამკაულ","მინანქარ","სუვენირ","iuvelir","oqromch","სანთლებ","საჩუქრ"],
   "სილამაზე/ხელოვნება": ["ტატუ","tatu","მაკიაჟ","მანიკურ","პედიკურ","სილამაზ","ხატმწერ","სალონ","ხატვა","მხატვრ"],
@@ -1377,15 +1405,19 @@ function unqCheck(l) {
   const sphere = (d["სფერო"]||d["პროფესია"]||"").toLowerCase();
   const full = (sphere + " " + (d["სამუშაო"]||"") + " " + (d["პროფესია"]||"")).toLowerCase();
 
+  let pending = null;   // ⚠ ნიშანი, რომელიც მხოლოდ მაშინ დაბრუნდება, თუ უფრო ძლიერი წესი არ ამუშავდა
+
   // 1. ტელეფონი — ყველა ლიდზე
   const pm = String(l.phone_model||"").trim();
   if (pm && !PH_GOOD.test(pm)) {
     const p = pm.toLowerCase();
     const b = PH_BAD.find(k => p.includes(k));
     if (b) return { level:"phone", status:"Phone Model Issue", cat:"ტელეფონი უვარგისია", kw:b };
+    // მოდელი უცნობია — ეს ინფორმაციის ნაკლებობაა და არა უვარგისობა.
+    // სტატუსს არ ვცვლით: ოპერატორმა ზარზე უნდა იკითხოს მოდელი.
     const un = PH_UNK.find(k => p.includes(k));
-    if (un) return { level:"phone", status:"Phone Model Issue", cat:"ტელეფონი მიუთითებელია", kw:un };
-    if (PH_NOMODEL.test(pm)) return { level:"phone", status:"Phone Model Issue", cat:"მოდელი მითითებული არ არის", kw:pm };
+    if (un) pending = { level:"soft", status:null, cat:"მოდელი დასაზუსტებელია", kw:un };
+    else if (PH_NOMODEL.test(pm)) pending = { level:"soft", status:null, cat:"მოდელი დასაზუსტებელია", kw:pm };
   }
 
   // 2. საქმიანობა — ყველა ლიდზე, სადაც ტექსტი არსებობს
@@ -1399,14 +1431,14 @@ function unqCheck(l) {
   }
 
   // 3. ⭐ ცხელი ლიდების სფერო-ფილტრი
-  if (!l.priority || l.sphere_rank == null || !sphere) return null;
-  if (UNQ_RESCUE.some(r => full.includes(r))) return null;
+  if (!l.priority || l.sphere_rank == null || !sphere) return pending;
+  if (UNQ_RESCUE.some(r => full.includes(r))) return pending;
   const catOf = kw => Object.keys(UNQ_CATS).find(c => UNQ_CATS[c].includes(kw)) || "სხვა";
   const h = UNQ_HARD.find(k => sphere.includes(k));
   if (h) return { level:"hard", status:"Unqualified", cat: catOf(h), kw: h };
   const s = UNQ_SOFT.find(k => full.includes(k));
   if (s) return { level:"soft", status:null, cat: catOf(s), kw: s };
-  return null;
+  return pending;
 }
 
 // ახალი ლიდების ავტომატური დამუშავება — სესიაზე ერთხელ
@@ -1485,6 +1517,55 @@ async function loadWorkers() {
   } catch(e){}
 }
 
+// ── ფავორიტები — პირადი, თითო მომხმარებელს თავისი ────────
+let FAVS = new Map();      // lead_id → მინიშნება
+let favsReady = false;
+const favUser = () => (SESSION && SESSION.username) || "";
+const favMatch = id => `lead_id=eq.${encodeURIComponent(id)}&username=eq.${encodeURIComponent(favUser())}`;
+
+async function loadFavorites(force) {
+  if (favsReady && !force) return;
+  const u = favUser();
+  if (!u) { FAVS = new Map(); favsReady = true; return; }
+  try {
+    const { data } = await sbGet("lead_favorites", `username=eq.${encodeURIComponent(u)}&select=lead_id,hint&limit=2000`);
+    FAVS = new Map((data||[]).map(r => [r.lead_id, r.hint || ""]));
+  } catch(e) {}
+  favsReady = true;
+}
+
+function favBtn(id) {
+  const on = FAVS.has(id);
+  return `<button class="fav-btn ${on?"on":""}" title="${on?"ფავორიტებიდან ამოღება":"ფავორიტებში დამატება"}" onclick="event.stopPropagation();toggleFavorite('${id}',this)">🔖</button>`;
+}
+
+async function toggleFavorite(id, btn) {
+  const u = favUser(); if (!u) return;
+  const was = FAVS.has(id);
+  // ჯერ ეკრანზე ვცვლით, მერე ბაზაში — შეცდომისას უკან ვაბრუნებთ
+  if (was) FAVS.delete(id); else FAVS.set(id, "");
+  if (btn) { btn.classList.toggle("on", !was); btn.title = was ? "ფავორიტებში დამატება" : "ფავორიტებიდან ამოღება"; }
+  const ok = was
+    ? await sbDelete("lead_favorites", favMatch(id))
+    : await sbPost("lead_favorites", { lead_id: id, username: u });
+  if (!ok) {
+    if (was) FAVS.set(id, ""); else FAVS.delete(id);
+    if (btn) { btn.classList.toggle("on", was); }
+    return;
+  }
+  if (document.getElementById("filterFavorite")?.value === "only") loadLeads(currentPage);
+}
+
+async function saveFavHint(id, hint) {
+  const u = favUser(); if (!u || !id) return;
+  hint = (hint||"").trim();
+  if (hint === (FAVS.get(id)||"")) return;
+  const ok = FAVS.has(id)
+    ? await sbPatch("lead_favorites", favMatch(id), { hint })
+    : (hint ? await sbPost("lead_favorites", { lead_id: id, username: u, hint }) : true);
+  if (ok && (hint || FAVS.has(id))) FAVS.set(id, hint);
+}
+
 function renderLeads(leads, offset) {
   const tbody = document.getElementById("leadsBody");
   if (!leads.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
@@ -1513,7 +1594,7 @@ function renderLeads(leads, offset) {
         return sph
           ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>` + flg
           : `<span class="prio-phone" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span>`;
-      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}</span></td>
+      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}${isInfluencer?"":favBtn(l.id)}</span>${FAVS.get(l.id)?`<div class="fav-hint">🔖 ${esc(FAVS.get(l.id))}</div>`:""}</td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
@@ -1572,6 +1653,12 @@ async function openModal(id) {
 
     document.getElementById("dName").value    = l.name||"";
     document.getElementById("dMeta").innerHTML = `ID: ${esc(l.id)}`+(l.submission_count>1?` &nbsp;<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">⚠️ ${l.submission_count}-ჯერ შემოვიდა</span>`:"");
+    await loadFavorites();
+    const favOn = FAVS.has(l.id);
+    const favBtnEl = document.getElementById("dFavBtn");
+    if (favBtnEl) { favBtnEl.classList.toggle("on", favOn); favBtnEl.title = favOn ? "ფავორიტებიდან ამოღება" : "ფავორიტებში დამატება"; }
+    const favHintEl = document.getElementById("dFavHint");
+    if (favHintEl) favHintEl.value = FAVS.get(l.id) || "";
     document.getElementById("dPhone").textContent   = formatPhone(l.phone)||"—";
     document.getElementById("dRefCode").textContent = l.ref_code||"—";
     document.getElementById("dRegDate").textContent = fmtTime(l.reg_date);
