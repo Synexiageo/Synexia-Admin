@@ -1075,7 +1075,7 @@ async function doLogin() {
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected, can_delete_leads: !!data[0].can_delete_leads };
       // admins may switch segments; everyone else is pinned to their own
       SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
@@ -1122,8 +1122,9 @@ async function showDashboard() {
     document.getElementById("logTabBtn").style.display="";
     document.getElementById("csvBtn").style.display="";
     document.getElementById("addBizBtn").style.display="";
-    document.getElementById("thSelectAll").style.display="";
   }
+  // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ჩექბოქსი დარჩება
+  document.getElementById("thSelectAll").style.display = canDeleteLeads() ? "" : "none";
   // გუნდის სტატისტიკა — ადმინს და ცალკე უფლებამოსილს (ხელმძღვანელს).
   // აგენტს არც თავისი უჩანს, არც სხვისი.
   // ორივე მიმართულებით ვაყენებთ — თორემ სხვისი სესიის შემდეგ ჩანართი დარჩება გახსნილი
@@ -1557,6 +1558,11 @@ async function loadWorkers() {
 
 // ავტომატურად უარყოფილი ლიდები მათი მომვლელის საქმეა — აგენტს არ უჩანს.
 // ხელით გადაყვანილი კი საერთოა და ყველას უჩანს.
+// ლიდის წაშლა შეუქცევადია — ცალკე უფლებაა, არა როლზე მიბმული
+function canDeleteLeads() {
+  return !!SESSION && (SESSION.role === "admin" || SESSION.can_delete_leads);
+}
+
 function hidesRejected() {
   if (!SESSION) return false;
   return SESSION.role === "agent" && !SESSION.handles_rejected;
@@ -1643,14 +1649,15 @@ function renderLeads(leads, offset) {
   if (!leads.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ჩანაწერი არ მოიძებნა</p></div></td></tr>`; return; }
   const isAdmin = SESSION&&SESSION.role==="admin";
   const isInfluencer = SESSION&&SESSION.role==="influencer";
+  const canDelete = canDeleteLeads();
   // reset select-all checkbox state
   const saCb = document.getElementById("selectAllCb");
   if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
   tbody.innerHTML = leads.map((l,i) => {
     const sc = statusClass(l.status);
     const dot = !l.viewed ? '<span class="new-dot"></span>' : '';
-    const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
-    const chk = isAdmin ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : ``;
+    const delBtn = canDelete ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
+    const chk = canDelete ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : ``;
     const isSelected = selectedLeads.has(l.id);
     const rowClick = isInfluencer ? "" : `onclick="openModal('${l.id}')"`;
     const editBtn  = isInfluencer ? "" : `<button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>`;
@@ -1869,6 +1876,7 @@ async function saveAll() {
 }
 
 async function confirmDelete(id) {
+  if (!canDeleteLeads()) return;
   if (!confirm("ნამდვილად გსურთ წაშლა?")) return;
   try {
     await sbDelete("leads", `id=eq.${id}`);
@@ -2059,6 +2067,7 @@ async function bulkAssign() {
 }
 
 async function bulkDelete() {
+  if (!canDeleteLeads()) return;
   if (!selectedLeads.size) return;
   if (!confirm(`ნამდვილად გსურთ ${selectedLeads.size} ჩანაწერის წაშლა?\nეს მოქმედება შეუქცევადია!`)) return;
   const ids = [...selectedLeads];
@@ -2237,9 +2246,8 @@ function filterRetired() {
     document.getElementById("retBody").innerHTML = '<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>Retired კლიენტი ვერ მოიძებნა</p></div></td></tr>';
     return;
   }
-  const isAdmin = SESSION && SESSION.role === "admin";
   document.getElementById("retBody").innerHTML = list.map((l, i) => {
-    const delBtn = isAdmin ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
+    const delBtn = canDeleteLeads() ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
 
     const obStr = l.onboarded_date ? String(l.onboarded_date).substring(0,10) : null;
     const rawRet = retiredDateMap[l.id];
