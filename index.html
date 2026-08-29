@@ -578,6 +578,12 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           </select>
         </div>
         <div class="tb-group">
+          <span class="tb-label">პროფესია</span>
+          <select class="tb-select" id="filterProfession" onchange="applyFilters()">
+            <option value="">ყველა</option>
+          </select>
+        </div>
+        <div class="tb-group">
           <span class="tb-label">ფავორიტები</span>
           <select class="tb-select" id="filterFavorite" onchange="applyFilters()">
             <option value="">ყველა</option>
@@ -1093,6 +1099,7 @@ function switchSegment(value) {
   loadLeads(1);
   loadStats();
   loadWorkers();
+  populateProfessions();
 }
 
 async function showDashboard() {
@@ -1140,6 +1147,7 @@ async function showDashboard() {
   }
   loadStats();
   loadWorkers();
+  populateProfessions();
   setTimeout(autoUnqualifySweep, 1200);
 }
 
@@ -1297,6 +1305,10 @@ async function loadLeads(page) {
     const next = new Date(dateTo); next.setDate(next.getDate()+1);
     filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
   }
+  const prof = document.getElementById("filterProfession")?.value || "";
+  if (prof === "__none__")  filters += `&profession=is.null`;
+  else if (prof)            filters += `&profession=eq.${encodeURIComponent(prof)}`;
+
   // ფავორიტები — სია ლოკალურად გვაქვს, ამიტომ id-ებით ვფილტრავთ
   await loadFavorites();
   if (document.getElementById("filterFavorite")?.value === "only") {
@@ -1332,7 +1344,7 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterPriority","filterFavorite","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterPriority","filterProfession","filterFavorite","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   document.querySelectorAll(".sm-chk").forEach(c=>c.checked=false);
   const all=document.getElementById("smChkAll"); if(all) all.checked=false;
   document.getElementById("statusMultiLabel").textContent="ყველა";
@@ -1535,6 +1547,30 @@ async function loadWorkers() {
     }
     if (SESSION.role !== "admin") { sel.value=SESSION.display_name; loadLeads(1); }
   } catch(e){}
+}
+
+// ── პროფესიების ჩამონათვალი ფილტრისთვის ──────────────────
+let professionsReady = false;
+async function populateProfessions() {
+  if (professionsReady) return;
+  const sel = document.getElementById("filterProfession");
+  if (!sel) return;
+  try {
+    const { data } = await sbGet("leads", "select=profession&profession=not.is.null&limit=20000");
+    const counts = new Map();
+    (data||[]).forEach(r => counts.set(r.profession, (counts.get(r.profession)||0) + 1));
+    [...counts.entries()]
+      .sort((a,b) => b[1] - a[1])
+      .forEach(([name, n]) => {
+        const o = document.createElement("option");
+        o.value = name; o.textContent = `${name} (${n})`;
+        sel.appendChild(o);
+      });
+    const none = document.createElement("option");
+    none.value = "__none__"; none.textContent = "— ვერ დაჯგუფდა —";
+    sel.appendChild(none);
+    professionsReady = true;
+  } catch(e) {}
 }
 
 // ── ფავორიტები — პირადი, თითო მომხმარებელს თავისი ────────
