@@ -1074,7 +1074,7 @@ async function doLogin() {
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected };
       // admins may switch segments; everyone else is pinned to their own
       SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
@@ -1098,6 +1098,7 @@ function switchSegment(value) {
   document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
   clearSelection();
   loadLeads(1);
+  applyRejectedVisibility();
   loadStats();
   loadWorkers();
   populateProfessions();
@@ -1146,6 +1147,7 @@ async function showDashboard() {
     initNotifications();
     setTimeout(loadTasksBadge, 1500);
   }
+  applyRejectedVisibility();
   loadStats();
   loadWorkers();
   populateProfessions();
@@ -1306,6 +1308,9 @@ async function loadLeads(page) {
     const next = new Date(dateTo); next.setDate(next.getDate()+1);
     filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
   }
+  // უარყოფილი ლიდები ცალკე ადამიანთანაა — აგენტს არ უჩანს
+  if (hidesRejected()) filters += `&status=not.in.("Unqualified","Phone Model Issue")`;
+
   const prof = document.getElementById("filterProfession")?.value || "";
   if (prof === "__none__")  filters += `&profession=is.null`;
   else if (prof)            filters += `&profession=eq.${encodeURIComponent(prof)}`;
@@ -1548,6 +1553,25 @@ async function loadWorkers() {
     }
     if (SESSION.role !== "admin") { sel.value=SESSION.display_name; loadLeads(1); }
   } catch(e){}
+}
+
+// უარყოფილ ლიდებს (Unqualified / Phone Model Issue) მხოლოდ ადმინი
+// და მათი მომვლელი ხედავს — დანარჩენებს სიიდანაც ეფარება
+const REJECTED_STATUSES = ["Unqualified", "Phone Model Issue"];
+function hidesRejected() {
+  if (!SESSION) return false;
+  // მხოლოდ აგენტებს ეფარება — ხელმძღვანელები (user) და ადმინი ხედავენ
+  return SESSION.role === "agent" && !SESSION.handles_rejected;
+}
+function applyRejectedVisibility() {
+  if (!hidesRejected()) return;
+  document.querySelectorAll(".sm-chk").forEach(chk => {
+    if (REJECTED_STATUSES.includes(chk.value)) {
+      chk.checked = false;
+      const item = chk.closest(".sm-item");
+      if (item) item.style.display = "none";
+    }
+  });
 }
 
 // ── პროფესიების ჩამონათვალი ფილტრისთვის ──────────────────
