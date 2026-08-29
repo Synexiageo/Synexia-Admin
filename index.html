@@ -575,6 +575,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="yes">ტელეფონი ვარგისია</option>
             <option value="no">არაპრიორიტეტული</option>
             <option value="flag">⚠ საეჭვო — ავტო-ფილტრი</option>
+            <option value="unknown">📞 ტელეფონი დასაზუსტებელი</option>
           </select>
         </div>
         <div class="tb-group">
@@ -1292,6 +1293,7 @@ async function loadLeads(page) {
   if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
   else if (prio === "yes") filters += `&priority=is.true`;
   else if (prio === "no")  filters += `&priority=is.false`;
+  else if (prio === "unknown") filters += `&phone_unknown=is.true`;
   else if (prio === "flag") {
     // ავტო-ფილტრის საეჭვო სიტყვები — მხოლოდ ⭐ ცხელ ლიდებში
     filters += `&priority=is.true&sphere_rank=not.is.null&or=(${UNQ_SOFT.concat(UNQ_HARD).map(k=>`note.ilike.*${encodeURIComponent(k)}*`).join(",")})`;
