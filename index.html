@@ -1098,7 +1098,6 @@ function switchSegment(value) {
   document.getElementById("navUserRole").textContent = roleTxt + (SEGMENT ? " · " + (SEGMENTS[SEGMENT]||SEGMENT) : "");
   clearSelection();
   loadLeads(1);
-  applyRejectedVisibility();
   loadStats();
   loadWorkers();
   populateProfessions();
@@ -1147,7 +1146,6 @@ async function showDashboard() {
     initNotifications();
     setTimeout(loadTasksBadge, 1500);
   }
-  applyRejectedVisibility();
   loadStats();
   loadWorkers();
   populateProfessions();
@@ -1308,8 +1306,8 @@ async function loadLeads(page) {
     const next = new Date(dateTo); next.setDate(next.getDate()+1);
     filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
   }
-  // უარყოფილი ლიდები ცალკე ადამიანთანაა — აგენტს არ უჩანს
-  if (hidesRejected()) filters += `&status=not.in.("Unqualified","Phone Model Issue")`;
+  // მხოლოდ ავტომატურად უარყოფილები ეფარება — ხელით გადაყვანილი ყველას უჩანს
+  if (hidesRejected()) filters += `&auto_rejected=is.false`;
 
   const prof = document.getElementById("filterProfession")?.value || "";
   if (prof === "__none__")  filters += `&profession=is.null`;
@@ -1555,23 +1553,11 @@ async function loadWorkers() {
   } catch(e){}
 }
 
-// უარყოფილ ლიდებს (Unqualified / Phone Model Issue) მხოლოდ ადმინი
-// და მათი მომვლელი ხედავს — დანარჩენებს სიიდანაც ეფარება
-const REJECTED_STATUSES = ["Unqualified", "Phone Model Issue"];
+// ავტომატურად უარყოფილი ლიდები მათი მომვლელის საქმეა — აგენტს არ უჩანს.
+// ხელით გადაყვანილი კი საერთოა და ყველას უჩანს.
 function hidesRejected() {
   if (!SESSION) return false;
-  // მხოლოდ აგენტებს ეფარება — ხელმძღვანელები (user) და ადმინი ხედავენ
   return SESSION.role === "agent" && !SESSION.handles_rejected;
-}
-function applyRejectedVisibility() {
-  if (!hidesRejected()) return;
-  document.querySelectorAll(".sm-chk").forEach(chk => {
-    if (REJECTED_STATUSES.includes(chk.value)) {
-      chk.checked = false;
-      const item = chk.closest(".sm-item");
-      if (item) item.style.display = "none";
-    }
-  });
 }
 
 // ── პროფესიების ჩამონათვალი ფილტრისთვის ──────────────────
