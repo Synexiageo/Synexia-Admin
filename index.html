@@ -773,6 +773,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <select class="tb-select" id="calAgent" onchange="loadCalendar()"><option value="">ყველა აგენტი</option></select>
+          <select class="tb-select" id="calProfession" onchange="loadCalendar()"><option value="">ყველა პროფესია</option></select>
           <button class="cal-nav-btn" onclick="calToday()">დღეს</button>
         </div>
       </div>
@@ -1553,22 +1554,25 @@ async function loadWorkers() {
 let professionsReady = false;
 async function populateProfessions() {
   if (professionsReady) return;
-  const sel = document.getElementById("filterProfession");
-  if (!sel) return;
+  const targets = ["filterProfession", "calProfession"].map(id => document.getElementById(id)).filter(Boolean);
+  if (!targets.length) return;
   try {
     const { data } = await sbGet("leads", "select=profession&profession=not.is.null&limit=20000");
     const counts = new Map();
     (data||[]).forEach(r => counts.set(r.profession, (counts.get(r.profession)||0) + 1));
-    [...counts.entries()]
-      .sort((a,b) => b[1] - a[1])
-      .forEach(([name, n]) => {
+    const sorted = [...counts.entries()].sort((a,b) => b[1] - a[1]);
+    targets.forEach(sel => {
+      // კალენდარში რაოდენობა შეცდომაში შემყვანია — იქ სულ სხვა ჯამია
+      const withCount = sel.id === "filterProfession";
+      sorted.forEach(([name, n]) => {
         const o = document.createElement("option");
-        o.value = name; o.textContent = `${name} (${n})`;
+        o.value = name; o.textContent = withCount ? `${name} (${n})` : name;
         sel.appendChild(o);
       });
-    const none = document.createElement("option");
-    none.value = "__none__"; none.textContent = "— ვერ დაჯგუფდა —";
-    sel.appendChild(none);
+      const none = document.createElement("option");
+      none.value = "__none__"; none.textContent = "— ვერ დაჯგუფდა —";
+      sel.appendChild(none);
+    });
     professionsReady = true;
   } catch(e) {}
 }
@@ -2905,8 +2909,11 @@ async function loadCalendar() {
   const _ld = new Date(calYear, calMonth+1, 0);
   const lastDay = `${_ld.getFullYear()}-${String(_ld.getMonth()+1).padStart(2,"0")}-${String(_ld.getDate()).padStart(2,"0")}`;
   const agent = document.getElementById("calAgent")?.value || "";
-  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&status=neq.Onboarded&order=next_contact.asc&limit=500`;
+  const prof  = document.getElementById("calProfession")?.value || "";
+  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to,profession&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&status=neq.Onboarded&order=next_contact.asc&limit=500`;
   if (agent) q += `&assigned_to=eq.${encodeURIComponent(agent)}`;
+  if (prof === "__none__") q += `&profession=is.null`;
+  else if (prof)           q += `&profession=eq.${encodeURIComponent(prof)}`;
   try {
     const { data } = await sbGet("leads", q);
     calLeads = data||[];
