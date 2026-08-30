@@ -1273,7 +1273,8 @@ function refreshCurrent() {
 }
 
 // ── HELPERS ──────────────────────────────
-function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
+// +995 599 52 93 71 — "+" თან უნდა დარჩეს, თორემ ჰგონიათ ბაზაში ჭრელად წერია
+function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12&&s.startsWith("995"))return "+"+s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function statusClass(s){
   const m={"New Lead":"s-new","Potential Op.":"s-potential","Interested":"s-interested","Contacted":"s-contacted","In Negotiation":"s-negotiation","Onboarded":"s-onboarded","Declined":"s-declined","არ უპასუხა 1":"s-noreply","არ უპასუხა 2":"s-noreply2","Retired":"s-retired","Unqualified":"s-unqualified","Phone Model Issue":"s-phoneissue",
@@ -2841,17 +2842,26 @@ async function rgRunImport() {
 
   // ლიდებთან დაკავშირება — სტატუსს არ ვცვლით, ეს ისტორიული ჩანაწერებია
   try {
-    for (let i = 0; i < recs.length; i += 150) {
-      const chunk = recs.slice(i, i + 150);
-      const q = chunk.map(r => `"${r.phone}"`).join(",");
-      // sbGet-ს არ ვიყენებთ — სეგმენტის ფილტრი ორივე სეგმენტს უნდა მოიცავდეს
-      const res = await fetch(`${SB_URL}/rest/v1/leads?select=id,phone&phone=in.(${encodeURIComponent(q)})&limit=1000`,
+    // ბოლო 9 ციფრით ვამთხვევთ, რომ ხელით ჩაწერილი ფორმატიც დაიჭიროს.
+    // sbGet-ს არ ვიყენებთ — მისი სეგმენტის ფილტრი ნახევარს მოგვაჭრიდა.
+    const byPhone = {};
+    for (let off = 0; ; off += 10000) {
+      const res = await fetch(`${SB_URL}/rest/v1/leads?select=id,phone&order=created_at.desc&limit=10000&offset=${off}`,
         { headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` } });
       const data = await res.json();
-      const byPhone = {}; (Array.isArray(data) ? data : []).forEach(l => { byPhone[l.phone] = l.id; });
-      chunk.forEach(r => { if (byPhone[r.phone]) { r.lead_id = byPhone[r.phone]; r.matched = true; } });
-      msg.textContent = `მოწმდება... ${Math.min(i + 150, recs.length)}/${recs.length}`;
+      if (!Array.isArray(data) || !data.length) break;
+      // ძველი აღარ გადაწერს ახალს — order-ით ახლები პირველები მოდიან
+      data.forEach(l => {
+        const k = String(l.phone||"").replace(/\D/g, "").slice(-9);
+        if (k.length === 9 && !(k in byPhone)) byPhone[k] = l.id;
+      });
+      msg.textContent = `ლიდები იკითხება... ${off + data.length}`;
+      if (data.length < 10000) break;
     }
+    recs.forEach(r => {
+      const id = byPhone[r.phone.slice(-9)];
+      if (id) { r.lead_id = id; r.matched = true; }
+    });
 
     for (let i = 0; i < recs.length; i += 200) {
       const ok = await sbPost("registrations", recs.slice(i, i + 200));
