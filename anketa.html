@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>სარეგისტრაციო ანკეტა — Synexia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<style>
+:root{
+  --bg:#0E0D0C; --panel:#181614; --field:#211E1C; --field-on:#282320;
+  --ink:#F6F2EF; --ink-2:#B8ADA6; --muted:#8A7E77;
+  --line:#302A26; --line-on:#F04923;
+  --accent:#F04923; --accent-2:#FF6A45;
+  --ok:#22C55E; --warn:#F5A524; --err:#EF4444;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--ink); min-height:100vh;
+  font-family:'Noto Sans Georgian','Plus Jakarta Sans',-apple-system,sans-serif;
+  font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding:28px 18px 56px;
+}
+.card{width:100%; max-width:560px; display:flex; flex-direction:column; gap:22px;}
+
+.brand{display:flex; align-items:center; gap:11px; justify-content:center;}
+.mark{width:38px; height:38px; border-radius:10px; background:var(--accent); display:grid; place-items:center; flex:none;
+  box-shadow:0 6px 22px rgba(240,73,35,.35);}
+.mark svg{width:19px; height:19px; fill:#fff;}
+.brand-name{font-family:'Plus Jakarta Sans',sans-serif; font-size:19px; font-weight:800; letter-spacing:-.02em;}
+
+.head{text-align:center; display:flex; flex-direction:column; gap:7px;}
+.head h1{margin:0; font-size:25px; font-weight:700; letter-spacing:-.02em; line-height:1.2;}
+.head p{margin:0; color:var(--ink-2); font-size:14.5px;}
+
+form{display:flex; flex-direction:column; gap:15px;}
+.row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+@media(max-width:460px){ .row{grid-template-columns:1fr;} }
+
+.f{display:flex; flex-direction:column; gap:7px;}
+.f label{font-size:13.5px; font-weight:600; color:var(--ink-2); padding-left:2px;}
+.f label .req{color:var(--accent); margin-left:3px;}
+.f input{
+  background:var(--field); border:1.5px solid var(--line); border-radius:12px;
+  padding:15px 16px; font-size:16.5px; color:var(--ink);
+  font-family:inherit; outline:none; width:100%;
+  transition:border-color .16s, background .16s;
+}
+.f input::placeholder{color:var(--muted);}
+.f input:focus{border-color:var(--line-on); background:var(--field-on);}
+.f input.bad{border-color:var(--err);}
+.hint{font-size:12px; color:var(--muted); padding-left:2px;}
+
+button{
+  margin-top:6px; background:var(--accent); color:#fff; border:none; border-radius:12px;
+  padding:17px; font-size:17px; font-weight:700; font-family:inherit; cursor:pointer;
+  transition:transform .1s, background .16s, opacity .16s;
+  box-shadow:0 8px 26px rgba(240,73,35,.3);
+}
+button:hover{background:var(--accent-2);}
+button:active{transform:scale(.985);}
+button:disabled{opacity:.55; cursor:default; box-shadow:none;}
+
+.msg{border-radius:12px; padding:13px 15px; font-size:14.5px; font-weight:500; display:none; line-height:1.45;}
+.msg.show{display:block;}
+.msg.err{background:rgba(239,68,68,.13); color:#FCA5A5; border:1px solid rgba(239,68,68,.3);}
+.msg.warn{background:rgba(245,165,36,.12); color:#FCD34D; border:1px solid rgba(245,165,36,.3);}
+
+/* წარმატების ეკრანი */
+.done{display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; padding:34px 8px 12px;}
+.done.show{display:flex;}
+.tick{width:76px; height:76px; border-radius:50%; background:rgba(34,197,94,.14);
+  border:2px solid rgba(34,197,94,.45); display:grid; place-items:center;}
+.tick svg{width:34px; height:34px; stroke:var(--ok); fill:none; stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:40; stroke-dashoffset:40; animation:draw .45s .1s forwards;}
+@keyframes draw{ to{ stroke-dashoffset:0; } }
+.done h2{margin:0; font-size:23px; font-weight:700;}
+.done p{margin:0; color:var(--ink-2); font-size:15px; max-width:34ch;}
+.again{background:transparent; color:var(--ink-2); border:1.5px solid var(--line); box-shadow:none;
+  padding:13px 26px; font-size:15px; margin-top:8px;}
+.again:hover{background:var(--field); color:var(--ink);}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+    <span class="brand-name">Synexia</span>
+  </div>
+
+  <div id="formWrap">
+    <div class="head">
+      <h1>სარეგისტრაციო ანკეტა</h1>
+      <p>შეავსეთ მონაცემები — ანაზღაურება ამ ანგარიშზე ჩაირიცხება</p>
+    </div>
+
+    <form onsubmit="return false" autocomplete="off" style="margin-top:20px">
+      <div class="row">
+        <div class="f">
+          <label for="fname">სახელი<span class="req">*</span></label>
+          <input type="text" id="fname" placeholder="გიორგი" autocomplete="off">
+        </div>
+        <div class="f">
+          <label for="lname">გვარი<span class="req">*</span></label>
+          <input type="text" id="lname" placeholder="მაისურაძე" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="f">
+        <label for="phone">ტელეფონის ნომერი<span class="req">*</span></label>
+        <input type="tel" id="phone" inputmode="numeric" placeholder="5XX XX XX XX" autocomplete="off">
+        <span class="hint">იგივე ნომერი, რომლითაც დარეგისტრირდით</span>
+      </div>
+
+      <div class="f">
+        <label for="pid">პირადი ნომერი<span class="req">*</span></label>
+        <input type="text" id="pid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
+      </div>
+
+      <div class="f">
+        <label for="acc">საბანკო ანგარიშის ნომერი<span class="req">*</span></label>
+        <input type="text" id="acc" placeholder="GE00XX0000000000000000" autocomplete="off">
+      </div>
+
+      <div class="f">
+        <label for="occ">საქმიანობა</label>
+        <input type="text" id="occ" placeholder="მაგ: ავეჯის ხელოსანი" autocomplete="off">
+      </div>
+
+      <div class="msg" id="msg"></div>
+      <button id="btn" onclick="submitForm()">გაგზავნა</button>
+    </form>
+  </div>
+
+  <div class="done" id="done">
+    <div class="tick"><svg viewBox="0 0 24 24"><polyline points="4 12.5 9.5 18 20 6.5"/></svg></div>
+    <h2>მიღებულია</h2>
+    <p id="doneText">მადლობა! თქვენი მონაცემები წარმატებით დარეგისტრირდა.</p>
+    <button class="again" onclick="resetForm()">ახალი ანკეტა</button>
+  </div>
+</div>
+
+<script>
+const SB_URL = "https://tsfzuyujfcacultjexsy.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzZnp1eXVqZmNhY3VsdGpleHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDAzNjEsImV4cCI6MjA5NDYxNjM2MX0.KwxGBmZzezolz860aPbk3zZ1hYNicDai-_n8Ce5StyA";
+
+const $ = id => document.getElementById(id);
+
+function show(kind, text) {
+  const m = $("msg");
+  m.className = "msg show " + kind;
+  m.textContent = text;
+}
+function clearMsg() { $("msg").className = "msg"; }
+
+function markBad(ids) {
+  ["fname","lname","phone","pid","acc"].forEach(id => $(id).classList.remove("bad"));
+  ids.forEach(id => $(id).classList.add("bad"));
+  if (ids.length) $(ids[0]).focus();
+}
+
+async function submitForm() {
+  clearMsg();
+  const v = id => $(id).value.trim();
+  const first = v("fname"), last = v("lname"), phone = v("phone");
+  const pid = v("pid"), acc = v("acc"), occ = v("occ");
+
+  const missing = [];
+  if (!first) missing.push("fname");
+  if (!last)  missing.push("lname");
+  if (!pid)   missing.push("pid");
+  if (!acc)   missing.push("acc");
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 9) missing.push("phone");
+
+  if (missing.length) {
+    markBad(missing);
+    show("err", digits.length && digits.length < 9
+      ? "ტელეფონის ნომერი უნდა შეიცავდეს 9 ციფრს"
+      : "შეავსეთ ვარსკვლავით მონიშნული ველები");
+    return;
+  }
+  markBad([]);
+
+  const btn = $("btn");
+  btn.disabled = true;
+  btn.textContent = "იგზავნება...";
+
+  try {
+    const res = await fetch(SB_URL + "/rest/v1/rpc/submit_registration", {
+      method: "POST",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_first_name: first, p_last_name: last, p_phone: phone,
+        p_personal_id: pid, p_account_number: acc, p_occupation: occ
+      })
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+    const out = await res.json();
+
+    if (!out || out.ok === false) {
+      show("err", "ტელეფონის ნომერი არასწორია. შეამოწმეთ და სცადეთ ხელახლა.");
+      btn.disabled = false; btn.textContent = "გაგზავნა";
+      return;
+    }
+
+    // ჩანაწერი ყოველთვის ინახება — მაშინაც, თუ ნომერი ბაზაში ვერ მოიძებნა
+    $("doneText").textContent = out.matched
+      ? "მადლობა! თქვენი მონაცემები მიღებულია."
+      : "მადლობა! მონაცემები მიღებულია — ოპერატორი დაგიკავშირდებათ დასაზუსტებლად.";
+    $("formWrap").style.display = "none";
+    $("done").classList.add("show");
+    window.scrollTo(0, 0);
+
+  } catch (e) {
+    show("err", "დაფიქსირდა შეცდომა. სცადეთ ხელახლა ან მიმართეთ ოპერატორს.");
+    btn.disabled = false;
+    btn.textContent = "გაგზავნა";
+  }
+}
+
+function resetForm() {
+  ["fname","lname","phone","pid","acc","occ"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  clearMsg();
+  $("btn").disabled = false;
+  $("btn").textContent = "გაგზავნა";
+  $("done").classList.remove("show");
+  $("formWrap").style.display = "";
+  $("fname").focus();
+}
+
+// მხოლოდ ციფრები — ტელეფონსა და პირად ნომერში
+["phone","pid"].forEach(id => {
+  $(id).addEventListener("input", e => {
+    const clean = e.target.value.replace(/[^\d+ ]/g, "");
+    if (clean !== e.target.value) e.target.value = clean;
+  });
+});
+</script>
+</body>
+</html>
