@@ -1021,6 +1021,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option>ფიზიკური პირი</option><option>მცირე მეწარმე</option><option>ინდ. მეწარმე</option><option>შპს</option>
           </select>
         </div>
+        <div class="d-field" id="dAssignedWrap" style="display:none"><label class="d-label">აგენტი</label>
+          <select class="d-select" id="dAssigned"><option value="">— მიუბმელი —</option></select>
+        </div>
         <div class="d-field"><label class="d-label">ელ-ფოსტა</label><input type="email" class="d-input" id="dEmail" placeholder="email@example.com"></div>
         <div class="d-field"><label class="d-label">Onboarded თარიღი</label><input type="date" class="d-input" id="dOnboarded"></div>
         <div class="d-field"><label class="d-label">გარემო (Environment)</label>
@@ -1199,7 +1202,7 @@ async function doLogin() {
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected, can_delete_leads: !!data[0].can_delete_leads, can_edit_registrations: !!data[0].can_edit_registrations };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected, can_delete_leads: !!data[0].can_delete_leads, can_edit_registrations: !!data[0].can_edit_registrations, can_assign_leads: !!data[0].can_assign_leads };
       // admins may switch segments; everyone else is pinned to their own
       SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
@@ -1248,7 +1251,7 @@ async function showDashboard() {
     document.getElementById("addBizBtn").style.display="";
   }
   // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ჩექბოქსი დარჩება
-  document.getElementById("thSelectAll").style.display = canDeleteLeads() ? "" : "none";
+  document.getElementById("thSelectAll").style.display = (canDeleteLeads() || canAssignLeads()) ? "" : "none";
   // გუნდის სტატისტიკა — ადმინს და ცალკე უფლებამოსილს (ხელმძღვანელს).
   // აგენტს არც თავისი უჩანს, არც სხვისი.
   // ორივე მიმართულებით ვაყენებთ — თორემ სხვისი სესიის შემდეგ ჩანართი დარჩება გახსნილი
@@ -1689,6 +1692,10 @@ async function loadWorkers() {
 // ავტომატურად უარყოფილი ლიდები მათი მომვლელის საქმეა — აგენტს არ უჩანს.
 // ხელით გადაყვანილი კი საერთოა და ყველას უჩანს.
 // ლიდის წაშლა შეუქცევადია — ცალკე უფლებაა, არა როლზე მიბმული
+// ლიდის სხვა აგენტზე გადაბმა — ადმინი და ცალკე უფლებამოსილი
+function canAssignLeads() {
+  return !!SESSION && (SESSION.role === "admin" || SESSION.can_assign_leads);
+}
 function canDeleteLeads() {
   return !!SESSION && (SESSION.role === "admin" || SESSION.can_delete_leads);
 }
@@ -1788,6 +1795,7 @@ function renderLeads(leads, offset) {
   const isAdmin = SESSION&&SESSION.role==="admin";
   const isInfluencer = SESSION&&SESSION.role==="influencer";
   const canDelete = canDeleteLeads();
+  const canSelect = canDelete || canAssignLeads();
   // reset select-all checkbox state
   const saCb = document.getElementById("selectAllCb");
   if (saCb) { saCb.checked=false; saCb.indeterminate=false; }
@@ -1795,7 +1803,7 @@ function renderLeads(leads, offset) {
     const sc = statusClass(l.status);
     const dot = !l.viewed ? '<span class="new-dot"></span>' : '';
     const delBtn = canDelete ? `<button class="btn-del" onclick="confirmDelete('${l.id}')">🗑</button>` : "";
-    const chk = canDelete ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : ``;
+    const chk = canSelect ? `<td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="row-check" data-id="${l.id}" onchange="toggleSelectLead(this,'${l.id}')" onclick="event.stopPropagation()"></td>` : ``;
     const isSelected = selectedLeads.has(l.id);
     const rowClick = isInfluencer ? "" : `onclick="openModal('${l.id}')"`;
     const editBtn  = isInfluencer ? "" : `<button class="btn-edit" onclick="openModal('${l.id}')">✏️ რედაქტირება</button>`;
@@ -1849,6 +1857,21 @@ let currentLead = null;
 // A stored value that is not in a <select>'s option list silently renders
 // blank. Free-text sources (Facebook short answers) routinely produce these,
 // so surface whatever was actually saved instead of losing it.
+// ლიდის ფანჯრის აგენტების სია — იმავე წყაროდან, რაც ბულკ-მიბმას:
+// ინფლუენსერების და სხვა სეგმენტის გარეშე
+function fillAgentSelect(id) {
+  const src = document.getElementById("bulkAssignSel");
+  const dst = document.getElementById(id);
+  if (!src || !dst) return;
+  dst.innerHTML = '<option value="">— მიუბმელი —</option>';
+  const seen = new Set();
+  [...src.options].forEach(o => {
+    if (!o.value || o.value === UNASSIGNED || seen.has(o.value)) return;
+    seen.add(o.value);
+    dst.appendChild(new Option(o.textContent, o.value));
+  });
+}
+
 function setSelectValue(id, value) {
   const sel = document.getElementById(id);
   if (!sel) return;
@@ -1889,6 +1912,12 @@ async function openModal(id) {
     document.getElementById("dNextContactTime").value = l.next_contact_time||"";
     document.getElementById("dNextContactNote").value = l.next_contact_note||"";
     document.getElementById("dNote").value        = l.note||"";
+    // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ველი დარჩება
+    document.getElementById("dAssignedWrap").style.display = canAssignLeads() ? "" : "none";
+    if (canAssignLeads()) {
+      fillAgentSelect("dAssigned");
+      setSelectValue("dAssigned", l.assigned_to || "");
+    }
 
     if (l.viewed && l.viewed_by) {
       document.getElementById("dViewedWrap").style.display="";
@@ -1978,6 +2007,8 @@ async function saveAll() {
   const nextContactNote  = document.getElementById("dNextContactNote").value.trim();
   const note        = document.getElementById("dNote").value;
   const oldStatus   = savedLead?.status||"";
+  const oldAgent    = savedLead?.assigned_to || "";
+  const newAgent    = canAssignLeads() ? document.getElementById("dAssigned").value : oldAgent;
 
   // update row in DOM immediately
   const row = document.querySelector(`tr[onclick*="${savedId}"]`);
@@ -1996,10 +2027,11 @@ async function saveAll() {
     if (status === "Onboarded" && !onboarded && savedLead?.status !== "Onboarded") {
       finalOnboarded = new Date().toISOString().substring(0, 10);
     }
-    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username });
+    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username, ...(newAgent !== oldAgent ? { assigned_to: newAgent || null } : {}) });
     const changes = [];
     if (name && name !== (savedLead?.name||"")) changes.push("სახელი: "+savedLead?.name+" → "+name);
     if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
+    if (newAgent !== oldAgent) changes.push("აგენტი: "+(oldAgent||"მიუბმელი")+" → "+(newAgent||"მიუბმელი"));
     if (email && savedLead?.email !== email) changes.push("ელ-ფოსტა: "+email);
     if (note !== (savedLead?.note||"")) {
       const oldNote = (savedLead?.note||"");
@@ -2163,6 +2195,10 @@ function updateBulkBar() {
   if (selectedLeads.size === 0) { bar.classList.remove("show"); return; }
   bar.classList.add("show");
   document.getElementById("bulkCount").textContent = selectedLeads.size + " ჩანაწერი მონიშნული";
+  // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ღილაკი დარჩება
+  bar.querySelector(".btn-bulk-assign").style.display = canAssignLeads() ? "" : "none";
+  document.getElementById("bulkAssignSel").style.display = canAssignLeads() ? "" : "none";
+  bar.querySelector(".btn-bulk-del").style.display = canDeleteLeads() ? "" : "none";
 }
 
 function clearSelection() {
@@ -2175,6 +2211,7 @@ function clearSelection() {
 }
 
 async function bulkAssign() {
+  if (!canAssignLeads()) return;
   if (!selectedLeads.size) return;
   const sel = document.getElementById("bulkAssignSel");
   const val = sel ? sel.value : "";
