@@ -55,8 +55,6 @@ form{display:flex; flex-direction:column; gap:15px;}
 .f input:focus{border-color:var(--line-on); background:var(--field-on);}
 .f input.bad{border-color:var(--err);}
 .hint{font-size:12px; color:var(--muted); padding-left:2px;}
-.hint a{color:var(--accent-2); text-decoration:none; border-bottom:1px solid rgba(255,106,69,.4);}
-.hint a:hover{border-bottom-color:var(--accent-2);}
 
 /* ფიზიკური / იურიდიული */
 .seg{display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--field);
@@ -132,7 +130,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       <div class="f">
         <label for="uname">მომხმარებლის სახელი<span class="req">*</span></label>
         <input type="text" id="uname" placeholder="giorgi_m" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <span class="hint">ამ სახელით შეხვალთ სამუშაო სისტემაში — ლათინური ასოებით<span id="infoLinkWrap"></span></span>
+        <span class="hint">ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით</span>
       </div>
 
       <div class="f">
@@ -192,18 +190,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 const SB_URL = "https://tsfzuyujfcacultjexsy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzZnp1eXVqZmNhY3VsdGpleHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDAzNjEsImV4cCI6MjA5NDYxNjM2MX0.KwxGBmZzezolz860aPbk3zZ1hYNicDai-_n8Ce5StyA";
 
-// ── საინფორმაციო ბმული ──────────────────────────────────────
-// ჩასვი მისამართი და ბმული ავტომატურად გამოჩნდება იუზერნეიმის ქვეშ.
-// ცარიელი რომ იყოს, ბმული უბრალოდ არ იხატება.
-const INFO_URL   = "";
-const INFO_LABEL = "დეტალური ინსტრუქცია";
-
 const $ = id => document.getElementById(id);
-
-if (INFO_URL) {
-  $("infoLinkWrap").innerHTML =
-    ' · <a href="' + INFO_URL + '" target="_blank" rel="noopener">' + INFO_LABEL + ' ↗</a>';
-}
 
 // ── ფიზიკური / იურიდიული ────────────────────────────────────
 let ENTITY = "individual";
