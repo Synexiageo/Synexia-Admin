@@ -903,8 +903,8 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>თარიღი</th><th>სახელი გვარი</th><th>ტელეფონი</th><th>პირადი ნომერი</th><th>საბანკო ანგარიში</th><th>საქმიანობა</th><th>CRM</th></tr></thead>
-            <tbody id="rgBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+            <thead><tr><th>#</th><th>თარიღი</th><th>სახელი გვარი</th><th>ტელეფონი</th><th>პირადი ნომერი</th><th>საბანკო ანგარიში</th><th>საქმიანობა</th><th>შენიშვნა</th><th>CRM</th></tr></thead>
+            <tbody id="rgBody"><tr class="loading-row"><td colspan="9"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2656,7 +2656,7 @@ async function loadRegs() {
     document.getElementById("rgUnmatched").textContent = allRegs.length - matched;
     filterRegs();
   } catch(e) {
-    document.getElementById("rgBody").innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${esc(e.message)}</td></tr>`;
+    document.getElementById("rgBody").innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${esc(e.message)}</td></tr>`;
   }
 }
 
@@ -2671,7 +2671,8 @@ function regsFiltered() {
         || (r.phone||"").includes(q)
         || (r.personal_id||"").includes(q)
         || (r.account_number||"").toLowerCase().includes(q)
-        || (r.occupation||"").toLowerCase().includes(q);
+        || (r.occupation||"").toLowerCase().includes(q)
+        || (r.note||"").toLowerCase().includes(q);
   });
 }
 
@@ -2679,7 +2680,7 @@ function filterRegs() {
   const list = regsFiltered();
   document.getElementById("rgCount").textContent = list.length;
   if (!list.length) {
-    document.getElementById("rgBody").innerHTML = '<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>';
+    document.getElementById("rgBody").innerHTML = '<tr><td colspan="9"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>';
     return;
   }
   const dim = '<span style="color:var(--text-dim)">—</span>';
@@ -2696,6 +2697,7 @@ function filterRegs() {
       <td>${r.personal_id ? esc(r.personal_id) : dim}</td>
       <td>${r.account_number ? esc(r.account_number) : dim}</td>
       <td>${r.occupation ? esc(r.occupation) : dim}</td>
+      <td>${r.note ? `<span style="font-size:12.5px;color:var(--text-mid)">${esc(r.note)}</span>` : dim}</td>
       <td>${badge}</td>
     </tr>`;
   }).join("");
@@ -2704,10 +2706,10 @@ function filterRegs() {
 function exportRegsCSV() {
   const list = regsFiltered();
   if (!list.length) { alert("ჩანაწერი არ არის"); return; }
-  const h = ["თარიღი","სახელი","გვარი","ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","CRM"];
+  const h = ["თარიღი","სახელი","გვარი","ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"];
   const rows = list.map(r => [
     String(r.created_at||"").substring(0,10), r.first_name, r.last_name, r.phone,
-    r.personal_id, r.account_number, r.occupation, r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
+    r.personal_id, r.account_number, r.occupation, r.note, r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
   ].map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(","));
   const csv = "﻿" + [h.join(","), ...rows].join("\n");
   const a = document.createElement("a");
@@ -2724,7 +2726,8 @@ const RG_FIELDS = [
   { key:"personal_id",    label:"პირადი ნომერი",      hints:["პირად","id number","personal"] },
   { key:"account_number", label:"საბანკო ანგარიში",   hints:["ანგარიშ","ბანკ","iban","account"] },
   { key:"occupation",     label:"საქმიანობა",         hints:["საქმიან","პროფესი","სამუშაო","occupation"] },
-  { key:"created_at",     label:"თარიღი",             hints:["timestamp","დრო","თარიღ","date"] }
+  { key:"created_at",     label:"თარიღი",             hints:["timestamp","დრო","თარიღ","date"] },
+  { key:"note",           label:"შენიშვნა",           hints:["შენიშვნ","note","კომენტ"] }
 ];
 let rgParsed = null;
 
@@ -2830,6 +2833,7 @@ async function rgRunImport() {
       personal_id:    cell(r, "personal_id")    || null,
       account_number: cell(r, "account_number") || null,
       occupation:     cell(r, "occupation")     || null,
+      note:           cell(r, "note")           || null,
       matched: false,
       ...(parsedDate && !isNaN(parsedDate) ? { created_at: parsedDate.toISOString() } : {})
     });
