@@ -115,6 +115,12 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       </div>
 
       <div class="f">
+        <label for="uname">მომხმარებლის სახელი<span class="req">*</span></label>
+        <input type="text" id="uname" placeholder="giorgi_m" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <span class="hint">ამ სახელით შეხვალთ სამუშაო სისტემაში — ლათინური ასოებით</span>
+      </div>
+
+      <div class="f">
         <label for="phone">ტელეფონის ნომერი<span class="req">*</span></label>
         <input type="tel" id="phone" inputmode="numeric" placeholder="5XX XX XX XX" autocomplete="off">
         <span class="hint">იგივე ნომერი, რომლითაც დარეგისტრირდით</span>
@@ -162,7 +168,7 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","phone","pid","acc"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","uname","phone","pid","acc"].forEach(id => $(id).classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
 }
@@ -171,11 +177,12 @@ async function submitForm() {
   clearMsg();
   const v = id => $(id).value.trim();
   const first = v("fname"), last = v("lname"), phone = v("phone");
-  const pid = v("pid"), acc = v("acc"), occ = v("occ");
+  const pid = v("pid"), acc = v("acc"), occ = v("occ"), uname = v("uname");
 
   const missing = [];
   if (!first) missing.push("fname");
   if (!last)  missing.push("lname");
+  if (!uname) missing.push("uname");
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
   const digits = phone.replace(/\D/g, "");
@@ -204,7 +211,8 @@ async function submitForm() {
       },
       body: JSON.stringify({
         p_first_name: first, p_last_name: last, p_phone: phone,
-        p_personal_id: pid, p_account_number: acc, p_occupation: occ
+        p_personal_id: pid, p_account_number: acc, p_occupation: occ,
+        p_username: uname
       })
     });
 
@@ -233,7 +241,7 @@ async function submitForm() {
 }
 
 function resetForm() {
-  ["fname","lname","phone","pid","acc","occ"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  ["fname","lname","uname","phone","pid","acc","occ"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
   clearMsg();
   $("btn").disabled = false;
   $("btn").textContent = "გაგზავნა";
