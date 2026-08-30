@@ -57,12 +57,13 @@ form{display:flex; flex-direction:column; gap:15px;}
 .hint{font-size:12px; color:var(--muted); padding-left:2px;}
 
 /* ფიზიკური / იურიდიული */
-.seg{display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--field);
+.seg{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; background:var(--field);
   border:1.5px solid var(--line); border-radius:12px; padding:5px;}
 .seg button{
   margin:0; box-shadow:none; background:transparent; color:var(--ink-2);
-  border-radius:8px; padding:11px 8px; font-size:14.5px; font-weight:600;
+  border-radius:8px; padding:11px 4px; font-size:14px; font-weight:600;
 }
+@media(max-width:400px){ .seg button{font-size:13px; padding:11px 2px;} }
 .seg button:hover{background:rgba(255,255,255,.04); color:var(--ink);}
 .seg button.on{background:var(--accent); color:#fff;}
 .seg button.on:hover{background:var(--accent);}
@@ -116,6 +117,26 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
     </div>
 
     <form onsubmit="return false" autocomplete="off" style="margin-top:20px">
+      <div class="f">
+        <label>ანაზღაურება ვის სახელზე ჩაირიცხოს<span class="req">*</span></label>
+        <div class="seg">
+          <button type="button" id="segInd" class="on" onclick="setEntity('individual')">ფიზიკური პირი</button>
+          <button type="button" id="segEnt" onclick="setEntity('entrepreneur')">მეწარმე</button>
+          <button type="button" id="segLeg" onclick="setEntity('legal')">შპს</button>
+        </div>
+      </div>
+
+      <div id="legalWrap">
+        <div class="f">
+          <label for="cname">კომპანიის დასახელება<span class="req">*</span></label>
+          <input type="text" id="cname" placeholder="შპს სინექსია" autocomplete="off">
+        </div>
+        <div class="f">
+          <label for="cid">საიდენტიფიკაციო კოდი<span class="req">*</span></label>
+          <input type="text" id="cid" inputmode="numeric" maxlength="11" placeholder="405000000" autocomplete="off">
+        </div>
+      </div>
+
       <div class="row">
         <div class="f">
           <label for="fname">სახელი<span class="req">*</span></label>
@@ -142,25 +163,6 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       <div class="f">
         <label for="pid">პირადი ნომერი<span class="req">*</span></label>
         <input type="text" id="pid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
-      </div>
-
-      <div class="f">
-        <label>ანაზღაურება ვის სახელზე ჩაირიცხოს<span class="req">*</span></label>
-        <div class="seg">
-          <button type="button" id="segInd" class="on" onclick="setEntity('individual')">ფიზიკური პირი</button>
-          <button type="button" id="segLeg" onclick="setEntity('legal')">იურიდიული (შპს)</button>
-        </div>
-      </div>
-
-      <div id="legalWrap">
-        <div class="f">
-          <label for="cname">კომპანიის დასახელება<span class="req">*</span></label>
-          <input type="text" id="cname" placeholder="შპს სინექსია" autocomplete="off">
-        </div>
-        <div class="f">
-          <label for="cid">საიდენტიფიკაციო კოდი<span class="req">*</span></label>
-          <input type="text" id="cid" inputmode="numeric" maxlength="11" placeholder="405000000" autocomplete="off">
-        </div>
       </div>
 
       <div class="f">
@@ -197,12 +199,14 @@ let ENTITY = "individual";
 function setEntity(kind) {
   ENTITY = kind;
   $("segInd").classList.toggle("on", kind === "individual");
+  $("segEnt").classList.toggle("on", kind === "entrepreneur");
   $("segLeg").classList.toggle("on", kind === "legal");
+  // კომპანიის ველები მხოლოდ შპს-ს სჭირდება — მეწარმე ფიზიკურის ტოლფასია
   $("legalWrap").classList.toggle("show", kind === "legal");
-  if (kind === "individual") {
-    ["cname","cid"].forEach(id => $(id).classList.remove("bad"));
-  } else {
+  if (kind === "legal") {
     $("cname").focus();
+  } else {
+    ["cname","cid"].forEach(id => $(id).classList.remove("bad"));
   }
 }
 

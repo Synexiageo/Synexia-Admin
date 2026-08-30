@@ -233,6 +233,11 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,30,53,0.35);backdrop-filter:blur(4px);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
+.rg-sec{padding:9px 18px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text-mid);transition:.15s;display:inline-flex;align-items:center;gap:8px;}
+.rg-sec:hover{border-color:var(--blue);color:var(--blue);}
+.rg-sec.on{background:var(--blue);color:white;border-color:var(--blue);}
+.rg-sec-n{background:rgba(0,0,0,.12);border-radius:20px;padding:1px 8px;font-size:11.5px;font-weight:700;}
+.rg-sec.on .rg-sec-n{background:rgba(255,255,255,.22);}
 .f-edit{display:flex;flex-direction:column;gap:5px;}
 .f-edit label{font-size:11.5px;font-weight:600;color:var(--text-dim);}
 .f-edit input,.f-edit select{width:100%;height:36px;}
@@ -853,18 +858,19 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="stat-card red">   <div class="stat-label">ვერ მოიძებნა</div>   <div class="stat-value" id="rgUnmatched">—</div></div>
       </div>
 
+      <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
+        <button id="rgSecInd" onclick="setRegSection('individual')" class="rg-sec on">
+          ფიზიკური პირი <span class="rg-sec-n" id="rgSecIndN">0</span>
+        </button>
+        <button id="rgSecBiz" onclick="setRegSection('business')" class="rg-sec">
+          ბიზნესი <span class="rg-sec-n" id="rgSecBizN">0</span>
+        </button>
+      </div>
+
       <div class="toolbar" style="margin-bottom:14px">
         <div class="tb-group" style="flex:1;min-width:220px">
           <span class="tb-label">ძიება</span>
           <input type="text" class="tb-input" id="rgSearch" placeholder="სახელი, ტელეფონი, პირადი ნომერი..." style="width:100%;height:34px" oninput="filterRegs()">
-        </div>
-        <div class="tb-group">
-          <span class="tb-label">ტიპი</span>
-          <select class="tb-input" id="rgEntityFilter" style="height:34px" onchange="filterRegs()">
-            <option value="">ყველა</option>
-            <option value="individual">ფიზიკური</option>
-            <option value="legal">იურიდიული (შპს)</option>
-          </select>
         </div>
         <div class="tb-group">
           <span class="tb-label">დამთხვევა</span>
@@ -874,7 +880,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="no">ვერ მოიძებნა</option>
           </select>
         </div>
-        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';document.getElementById('rgEntityFilter').value='';filterRegs()">გასუფთავება</button>
+        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';filterRegs()">გასუფთავება</button>
       </div>
 
       <!-- ძველი ცხრილის გადმოტანა -->
@@ -905,7 +911,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <button class="btn btn-outline" id="rgImportToggle" onclick="rgToggleImport()" style="height:32px;padding:0 12px;font-size:12px;display:none">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 9l5-5 5 5M12 4v12"/></svg>ძველის გადმოტანა
             </button>
-            <button class="btn btn-primary" onclick="exportRegsCSV()" style="height:32px;padding:0 12px;font-size:12px">
+            <button class="btn btn-primary" onclick="exportRegsXlsx()" style="height:32px;padding:0 12px;font-size:12px">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Excel
             </button>
             <button class="btn btn-outline" onclick="loadRegs()" style="height:32px;padding:0 12px;font-size:12px">
@@ -915,7 +921,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>თარიღი</th><th>სახელი გვარი</th><th>იუზერნეიმი</th><th>ტელეფონი</th><th>პირადი ნომერი</th><th>საბანკო ანგარიში</th><th>საქმიანობა</th><th>იურიდიული პირი</th><th>შენიშვნა</th><th>CRM</th><th></th></tr></thead>
+            <thead id="rgHead"></thead>
             <tbody id="rgBody"><tr class="loading-row"><td colspan="12"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
@@ -964,9 +970,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <input type="hidden" id="regEditId">
       <div class="f-edit" style="margin-bottom:14px">
         <label>ანაზღაურება ვის სახელზე</label>
-        <select class="tb-input" id="regEditType" style="width:100%;height:38px">
+        <select class="tb-input" id="regEditType" style="width:100%;height:38px" onchange="regEditTypeChanged()">
           <option value="individual">ფიზიკური პირი</option>
-          <option value="legal">იურიდიული პირი (შპს)</option>
+          <option value="entrepreneur">მეწარმე</option>
+          <option value="legal">შპს</option>
         </select>
       </div>
       <div id="regEditFields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
@@ -1686,13 +1693,13 @@ function canDeleteLeads() {
   return !!SESSION && (SESSION.role === "admin" || SESSION.can_delete_leads);
 }
 
-// ანკეტებში პირადი ნომერი და საბანკო ანგარიშია — აგენტს არ ვაჩვენებთ
+// ანკეტებში პირადი ნომერი, საბანკო ანგარიში და საიდენტიფიკაციო კოდია —
+// ჩანართი მხოლოდ ადმინსა და ცალკე უფლებამოსილს უჩანს (can_edit_registrations)
 function seesRegistrations() {
-  return !!SESSION && (SESSION.role === "admin" || SESSION.role === "user");
-}
-// ანკეტის შესწორება — ადმინი და ცალკე უფლებამოსილი
-function editsRegistrations() {
   return !!SESSION && (SESSION.role === "admin" || SESSION.can_edit_registrations);
+}
+function editsRegistrations() {
+  return seesRegistrations();
 }
 function hidesRejected() {
   if (!SESSION) return false;
@@ -2705,14 +2712,27 @@ async function loadRegs() {
   }
 }
 
+const ENTITY_LABEL = { individual:"ფიზიკური პირი", entrepreneur:"მეწარმე", legal:"შპს" };
+let REG_SECTION = "individual";
+
+function entityOf(r) { return r.entity_type || "individual"; }
+function isBusiness(r) { return entityOf(r) !== "individual"; }
+
+function setRegSection(sec) {
+  REG_SECTION = sec;
+  document.getElementById("rgSecInd").classList.toggle("on", sec === "individual");
+  document.getElementById("rgSecBiz").classList.toggle("on", sec === "business");
+  filterRegs();
+}
+
 function regsFiltered() {
   const q = (document.getElementById("rgSearch")?.value||"").trim().toLowerCase();
   const m = document.getElementById("rgMatchFilter")?.value||"";
-  const ent = document.getElementById("rgEntityFilter")?.value||"";
   return allRegs.filter(r => {
+    if (REG_SECTION === "business"  && !isBusiness(r)) return false;
+    if (REG_SECTION === "individual" && isBusiness(r)) return false;
     if (m === "yes" && !r.matched) return false;
     if (m === "no"  &&  r.matched) return false;
-    if (ent && (r.entity_type || "individual") !== ent) return false;
     if (!q) return true;
     return ((r.first_name||"") + " " + (r.last_name||"")).toLowerCase().includes(q)
         || (r.phone||"").includes(q)
@@ -2726,59 +2746,160 @@ function regsFiltered() {
   });
 }
 
+// ორ განყოფილებას სხვადასხვა სვეტი აქვს — ბიზნესს კომპანია და ს/კ სჭირდება
+function regColumns() {
+  const cols = [
+    { h:"#",                cell:(r,i) => `<td class="td-date">${i+1}</td>` },
+    { h:"თარიღი",           cell:r => `<td class="td-date">${String(r.created_at||"").substring(0,10)}</td>` },
+    { h:"სახელი გვარი",     cell:r => `<td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>` },
+    { h:"იუზერნეიმი",       cell:r => `<td>${r.username ? `<span style="font-family:ui-monospace,monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px">${esc(r.username)}</span>` : DIM}</td>` }
+  ];
+  if (REG_SECTION === "business") {
+    cols.push(
+      { h:"ტიპი",      cell:r => `<td><span style="background:#e0e7ff;color:#3730a3;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">${ENTITY_LABEL[entityOf(r)]}</span></td>` },
+      { h:"კომპანია",  cell:r => `<td>${r.company_name ? esc(r.company_name) : DIM}</td>` },
+      { h:"ს/კ",       cell:r => `<td>${r.company_id ? esc(r.company_id) : DIM}</td>` }
+    );
+  }
+  cols.push(
+    { h:"ტელეფონი",         cell:r => `<td class="td-phone">${formatPhone(r.phone)}</td>` },
+    { h:"პირადი ნომერი",    cell:r => `<td>${r.personal_id ? esc(r.personal_id) : DIM}</td>` },
+    { h:"საბანკო ანგარიში", cell:r => `<td>${r.account_number ? esc(r.account_number) : DIM}</td>` },
+    { h:"საქმიანობა",       cell:r => `<td>${r.occupation ? esc(r.occupation) : DIM}</td>` },
+    { h:"შენიშვნა",         cell:r => `<td>${r.note ? `<span style="font-size:12.5px;color:var(--text-mid)">${esc(r.note)}</span>` : DIM}</td>` },
+    { h:"CRM",              cell:r => `<td>${r.matched
+        ? `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">✓ დაემთხვა</span>`
+        : `<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">ვერ მოიძებნა</span>`}</td>` },
+    { h:"",                 cell:r => `<td>${editsRegistrations()
+        ? `<button class="btn-del" title="შესწორება" onclick="event.stopPropagation();openRegEdit(${r.id})" style="color:var(--blue)">✎</button>`
+        : ""}</td>` }
+  );
+  return cols;
+}
+
+const DIM = '<span style="color:var(--text-dim)">—</span>';
+
 function filterRegs() {
+  document.getElementById("rgSecIndN").textContent = allRegs.filter(r => !isBusiness(r)).length;
+  document.getElementById("rgSecBizN").textContent = allRegs.filter(isBusiness).length;
+
+  const cols = regColumns();
+  document.getElementById("rgHead").innerHTML =
+    "<tr>" + cols.map(c => `<th>${c.h}</th>`).join("") + "</tr>";
+
   const list = regsFiltered();
   document.getElementById("rgCount").textContent = list.length;
   if (!list.length) {
-    document.getElementById("rgBody").innerHTML = '<tr><td colspan="12"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>';
+    document.getElementById("rgBody").innerHTML = `<tr><td colspan="${cols.length}"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>`;
     return;
   }
-  const dim = '<span style="color:var(--text-dim)">—</span>';
   document.getElementById("rgBody").innerHTML = list.map((r, i) => {
-    const badge = r.matched
-      ? `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">✓ დაემთხვა</span>`
-      : `<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">ვერ მოიძებნა</span>`;
+    // მწკრივზე დაჭერით ლიდი იხსნება — ✎ ღილაკი მას აჩერებს
     const click = r.lead_id ? ` onclick="openModal('${esc(r.lead_id)}')" style="cursor:pointer"` : "";
-    const company = r.entity_type === "legal"
-      ? `<div style="font-weight:600;font-size:13px">${esc(r.company_name)}</div>
-         <div style="font-size:11.5px;color:var(--text-dim)">ს/კ ${esc(r.company_id)}</div>`
-      : dim;
-    // stopPropagation — თორემ მწკრივის onclick ლიდის ფანჯარას გახსნიდა
-    const editBtn = editsRegistrations()
-      ? `<button class="btn-del" title="შესწორება" onclick="event.stopPropagation();openRegEdit(${r.id})" style="color:var(--blue)">✎</button>`
-      : "";
-    return `<tr${click}>
-      <td class="td-date">${i+1}</td>
-      <td class="td-date">${String(r.created_at||"").substring(0,10)}</td>
-      <td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>
-      <td>${r.username ? `<span style="font-family:ui-monospace,monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px">${esc(r.username)}</span>` : dim}</td>
-      <td class="td-phone">${formatPhone(r.phone)}</td>
-      <td>${r.personal_id ? esc(r.personal_id) : dim}</td>
-      <td>${r.account_number ? esc(r.account_number) : dim}</td>
-      <td>${r.occupation ? esc(r.occupation) : dim}</td>
-      <td>${company}</td>
-      <td>${r.note ? `<span style="font-size:12.5px;color:var(--text-mid)">${esc(r.note)}</span>` : dim}</td>
-      <td>${badge}</td>
-      <td>${editBtn}</td>
-    </tr>`;
+    return `<tr${click}>` + cols.map(c => c.cell(r, i)).join("") + `</tr>`;
   }).join("");
 }
 
-function exportRegsCSV() {
+// ── Excel ────────────────────────────────────
+// .xlsx არის zip არქივი XML-ებით. ბიბლიოთეკის გარეშე ვწერთ:
+// შეკუმშვის გარეშე (stored), inline ტექსტით — sharedStrings არ გვჭირდება.
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipFile(files) {
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255];
+  const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+
+  files.forEach(f => {
+    const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+    const head = [ ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+                   ...u32(crc), ...u32(data.length), ...u32(data.length),
+                   ...u16(name.length), ...u16(0) ];
+    chunks.push(new Uint8Array(head), name, data);
+    central.push([ ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+                   ...u32(crc), ...u32(data.length), ...u32(data.length),
+                   ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0),
+                   ...u32(offset), ...Array.from(name) ]);
+    offset += head.length + name.length + data.length;
+  });
+
+  const dir = central.flat();
+  chunks.push(new Uint8Array(dir));
+  chunks.push(new Uint8Array([ ...u32(0x06054b50), ...u16(0), ...u16(0),
+                               ...u16(files.length), ...u16(files.length),
+                               ...u32(dir.length), ...u32(offset), ...u16(0) ]));
+  return new Blob(chunks, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+function xmlEsc(v) {
+  return String(v == null ? "" : v)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function colRef(i) {
+  let s = "";
+  for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s;
+  return s;
+}
+function downloadXlsx(filename, sheetName, header, rows) {
+  const cell = (v, c, r) => {
+    // ყველაფერს ტექსტად ვწერთ — თორემ Excel ტელეფონსა და ს/კ-ს რიცხვად აქცევს და ნულებს ჭამს
+    return `<c r="${colRef(c)}${r}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+  };
+  const body = [header, ...rows].map((row, ri) =>
+    `<row r="${ri + 1}">` + row.map((v, ci) => cell(v, ci, ri + 1)).join("") + `</row>`).join("");
+
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${body}</sheetData></worksheet>`;
+
+  zipFileDownload(filename, [
+    { name:"[Content_Types].xml", data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>` },
+    { name:"_rels/.rels", data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name:"xl/workbook.xml", data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xmlEsc(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name:"xl/_rels/workbook.xml.rels", data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>` },
+    { name:"xl/worksheets/sheet1.xml", data:sheet }
+  ]);
+}
+function zipFileDownload(filename, files) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(zipFile(files));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+function exportRegsXlsx() {
   const list = regsFiltered();
   if (!list.length) { alert("ჩანაწერი არ არის"); return; }
-  const h = ["თარიღი","სახელი","გვარი","იუზერნეიმი","ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","ტიპი","კომპანია","ს/კ","შენიშვნა","CRM"];
+  const biz = REG_SECTION === "business";
+  const header = ["თარიღი","სახელი","გვარი","იუზერნეიმი"]
+    .concat(biz ? ["ტიპი","კომპანია","ს/კ"] : [])
+    .concat(["ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"]);
   const rows = list.map(r => [
-    String(r.created_at||"").substring(0,10), r.first_name, r.last_name, r.username, r.phone,
-    r.personal_id, r.account_number, r.occupation,
-    r.entity_type === "legal" ? "იურიდიული" : "ფიზიკური", r.company_name, r.company_id,
-    r.note, r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
-  ].map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(","));
-  const csv = "﻿" + [h.join(","), ...rows].join("\n");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8;" }));
-  a.download = "Synexia_ანკეტები_" + new Date().toISOString().slice(0,10) + ".csv";
-  a.click();
+      String(r.created_at||"").substring(0,10), r.first_name, r.last_name, r.username
+    ].concat(biz ? [ENTITY_LABEL[entityOf(r)], r.company_name, r.company_id] : [])
+     .concat([ r.phone, r.personal_id, r.account_number, r.occupation, r.note,
+               r.matched ? "დაემთხვა" : "ვერ მოიძებნა" ]));
+  const name = (biz ? "ბიზნესი" : "ფიზიკური") + "_" + new Date().toISOString().slice(0,10);
+  downloadXlsx("Synexia_ანკეტები_" + name + ".xlsx", biz ? "ბიზნესი" : "ფიზიკური პირი", header, rows);
 }
 
 // ── ანკეტის შესწორება ────────────────────
@@ -2801,13 +2922,23 @@ function openRegEdit(id) {
   if (!r) return;
   document.getElementById("regEditId").value = id;
   document.getElementById("regEditErr").style.display = "none";
-  document.getElementById("regEditType").value = r.entity_type === "legal" ? "legal" : "individual";
+  document.getElementById("regEditType").value = entityOf(r);
   document.getElementById("regEditFields").innerHTML = RG_EDIT.map(f => `
     <div class="f-edit">
       <label>${f.label}</label>
       <input type="text" class="tb-input rg-edit" data-key="${f.key}" value="${esc(r[f.key]||"")}">
     </div>`).join("");
+  regEditTypeChanged();
   document.getElementById("regEditOverlay").classList.add("open");
+}
+// კომპანიის ველები მხოლოდ შპს-ს სჭირდება
+function regEditTypeChanged() {
+  const legal = document.getElementById("regEditType").value === "legal";
+  document.querySelectorAll(".rg-edit").forEach(i => {
+    if (i.dataset.key === "company_name" || i.dataset.key === "company_id") {
+      i.closest(".f-edit").style.display = legal ? "" : "none";
+    }
+  });
 }
 function closeRegEdit() {
   document.getElementById("regEditOverlay").classList.remove("open");
@@ -2828,6 +2959,7 @@ async function saveRegEdit() {
     err.textContent = "ტელეფონის ნომერი უნდა შეიცავდეს 9 ციფრს"; err.style.display = "block"; return;
   }
   body.phone = "+995" + digits.slice(-9);
+  // მეწარმე ფიზიკურის ტოლფასია — კომპანიის ველები მხოლოდ შპს-ს რჩება
   if (body.entity_type !== "legal") { body.company_name = null; body.company_id = null; }
 
   const btn = document.getElementById("regEditSave");
