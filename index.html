@@ -2753,6 +2753,7 @@ const ENTITY_LABEL = { individual:"ფიზიკური პირი", entre
 let REG_SECTION = "individual";
 
 function entityOf(r) { return r.entity_type || "individual"; }
+function usernamesOf(r) { return Array.isArray(r.usernames) ? r.usernames.filter(Boolean) : []; }
 function isBusiness(r) { return entityOf(r) !== "individual"; }
 
 function setRegSection(sec) {
@@ -2773,7 +2774,7 @@ function regsFiltered() {
     if (!q) return true;
     return ((r.first_name||"") + " " + (r.last_name||"")).toLowerCase().includes(q)
         || (r.phone||"").includes(q)
-        || (r.username||"").toLowerCase().includes(q)
+        || usernamesOf(r).some(n => n.toLowerCase().includes(q))
         || (r.personal_id||"").includes(q)
         || (r.account_number||"").toLowerCase().includes(q)
         || (r.occupation||"").toLowerCase().includes(q)
@@ -2789,7 +2790,10 @@ function regColumns() {
     { h:"#",                cell:(r,i) => `<td class="td-date">${i+1}</td>` },
     { h:"თარიღი",           cell:r => `<td class="td-date">${String(r.created_at||"").substring(0,10)}</td>` },
     { h:"სახელი გვარი",     cell:r => `<td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>` },
-    { h:"იუზერნეიმი",       cell:r => `<td>${r.username ? `<span style="font-family:ui-monospace,monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px">${esc(r.username)}</span>` : DIM}</td>` }
+    { h:"იუზერნეიმი",       cell:r => { const u = usernamesOf(r); return `<td>${u.length
+        ? `<span style="display:flex;flex-wrap:wrap;gap:4px">` + u.map(n =>
+            `<span style="font-family:ui-monospace,monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px">${esc(n)}</span>`).join("") + `</span>`
+        : DIM}</td>`; } }
   ];
   if (REG_SECTION === "business") {
     cols.push(
@@ -2931,7 +2935,7 @@ function exportRegsXlsx() {
     .concat(biz ? ["ტიპი","კომპანია","ს/კ"] : [])
     .concat(["ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"]);
   const rows = list.map(r => [
-      String(r.created_at||"").substring(0,10), r.first_name, r.last_name, r.username
+      String(r.created_at||"").substring(0,10), r.first_name, r.last_name, usernamesOf(r).join(", ")
     ].concat(biz ? [ENTITY_LABEL[entityOf(r)], r.company_name, r.company_id] : [])
      .concat([ r.phone, r.personal_id, r.account_number, r.occupation, r.note,
                r.matched ? "დაემთხვა" : "ვერ მოიძებნა" ]));
@@ -2943,7 +2947,7 @@ function exportRegsXlsx() {
 const RG_EDIT = [
   { key:"first_name",     label:"სახელი" },
   { key:"last_name",      label:"გვარი" },
-  { key:"username",       label:"იუზერნეიმი" },
+  { key:"usernames",      label:"იუზერნეიმები (მძიმით)" },
   { key:"phone",          label:"ტელეფონი" },
   { key:"personal_id",    label:"პირადი ნომერი" },
   { key:"account_number", label:"საბანკო ანგარიში" },
@@ -2963,7 +2967,7 @@ function openRegEdit(id) {
   document.getElementById("regEditFields").innerHTML = RG_EDIT.map(f => `
     <div class="f-edit">
       <label>${f.label}</label>
-      <input type="text" class="tb-input rg-edit" data-key="${f.key}" value="${esc(r[f.key]||"")}">
+      <input type="text" class="tb-input rg-edit" data-key="${f.key}" value="${esc(f.key === "usernames" ? usernamesOf(r).join(", ") : (r[f.key]||""))}">
     </div>`).join("");
   regEditTypeChanged();
   document.getElementById("regEditOverlay").classList.add("open");
@@ -2985,7 +2989,16 @@ async function saveRegEdit() {
   const err = document.getElementById("regEditErr");
   const body = { entity_type: document.getElementById("regEditType").value };
   document.querySelectorAll(".rg-edit").forEach(i => {
-    body[i.dataset.key] = i.value.trim() || null;
+    if (i.dataset.key === "usernames") {
+      const seen = new Set(), list = [];
+      i.value.split(/[,\s]+/).forEach(n => {
+        const v = n.trim();
+        if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); list.push(v); }
+      });
+      body.usernames = list.length ? list : null;
+    } else {
+      body[i.dataset.key] = i.value.trim() || null;
+    }
   });
 
   if (!body.first_name || !body.last_name) {
@@ -3018,7 +3031,7 @@ const RG_FIELDS = [
   { key:"account_number", label:"საბანკო ანგარიში",   hints:["ანგარიშ","ბანკ","iban","account"] },
   { key:"occupation",     label:"საქმიანობა",         hints:["საქმიან","პროფესი","სამუშაო","occupation"] },
   { key:"created_at",     label:"თარიღი",             hints:["timestamp","დრო","თარიღ","date"] },
-  { key:"username",       label:"იუზერნეიმი",         hints:["იუზერ","მომხმარებ","username","user"] },
+  { key:"usernames",      label:"იუზერნეიმი",         hints:["იუზერ","მომხმარებ","username","user"] },
   { key:"note",           label:"შენიშვნა",           hints:["შენიშვნ","note","კომენტ"] }
 ];
 let rgParsed = null;
@@ -3125,7 +3138,7 @@ async function rgRunImport() {
       personal_id:    cell(r, "personal_id")    || null,
       account_number: cell(r, "account_number") || null,
       occupation:     cell(r, "occupation")     || null,
-      username:       cell(r, "username")       || null,
+      usernames:      cell(r, "usernames") ? cell(r, "usernames").split(/[,;]+/).map(v => v.trim()).filter(Boolean) : null,
       note:           cell(r, "note")           || null,
       matched: false,
       ...(parsedDate && !isNaN(parsedDate) ? { created_at: parsedDate.toISOString() } : {})

@@ -67,6 +67,19 @@ form{display:flex; flex-direction:column; gap:15px;}
 .seg button:hover{background:rgba(255,255,255,.04); color:var(--ink);}
 .seg button.on{background:var(--accent); color:#fff;}
 .seg button.on:hover{background:var(--accent);}
+.uname-row{display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
+.uname-row:last-child{margin-bottom:0;}
+.uname-row input{flex:1;}
+.uname-del{
+  margin:0; box-shadow:none; flex:none; width:44px; padding:0; align-self:stretch;
+  background:transparent; border:1.5px solid var(--line); color:var(--muted); font-size:19px; font-weight:400;
+}
+.uname-del:hover{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.45); color:#FCA5A5;}
+.add-more{
+  margin:9px 0 0; box-shadow:none; background:transparent; color:var(--accent-2);
+  border:1.5px dashed var(--line); padding:10px; font-size:13.5px; font-weight:600; width:100%;
+}
+.add-more:hover{background:rgba(240,73,35,.07); border-color:var(--accent); color:var(--accent-2);}
 #legalWrap{display:none; flex-direction:column; gap:15px;}
 #legalWrap.show{display:flex;}
 
@@ -149,9 +162,10 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       </div>
 
       <div class="f">
-        <label for="uname">მომხმარებლის სახელი<span class="req">*</span></label>
-        <input type="text" id="uname" placeholder="giorgi_m" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <span class="hint">ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით</span>
+        <label id="unameLabel">მომხმარებლის სახელი<span class="req">*</span></label>
+        <div id="unameList"></div>
+        <button type="button" id="unameAdd" class="add-more" onclick="addUsername()" style="display:none">+ კიდევ ერთი იუზერნეიმი</button>
+        <span class="hint" id="unameHint">ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით</span>
       </div>
 
       <div class="f">
@@ -208,7 +222,58 @@ function setEntity(kind) {
   } else {
     ["cname","cid"].forEach(id => $(id).classList.remove("bad"));
   }
+  // შპს-სა და მეწარმეს რამდენიმე ადამიანი შეიძლება ჰყავდეს
+  const many = kind !== "individual";
+  $("unameAdd").style.display = many ? "" : "none";
+  $("unameLabel").innerHTML = (many ? "მომხმარებლის სახელები" : "მომხმარებლის სახელი") + '<span class="req">*</span>';
+  $("unameHint").textContent = many
+    ? "ყველა ადამიანის იუზერნეიმი, ვინც ამ ანგარიშზე იმუშავებს — ლათინური ასოებით"
+    : "ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით";
+  if (!many) trimUsernames();
 }
+
+// ── იუზერნეიმების სია ───────────────────────────────────────
+function usernameRow(value) {
+  const row = document.createElement("div");
+  row.className = "uname-row";
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.className = "uname"; inp.placeholder = "giorgi_m";
+  inp.autocomplete = "off"; inp.autocapitalize = "off"; inp.spellcheck = false;
+  inp.value = value || "";
+  const del = document.createElement("button");
+  del.type = "button"; del.className = "uname-del"; del.textContent = "✕";
+  del.title = "წაშლა";
+  del.onclick = () => { row.remove(); refreshUsernameRows(); };
+  row.append(inp, del);
+  return row;
+}
+function refreshUsernameRows() {
+  const rows = [...document.querySelectorAll(".uname-row")];
+  if (!rows.length) { $("unameList").appendChild(usernameRow("")); return refreshUsernameRows(); }
+  // ერთადერთ ველს წაშლის ღილაკი არ სჭირდება
+  rows.forEach(r => { r.querySelector(".uname-del").style.display = rows.length > 1 ? "" : "none"; });
+}
+function addUsername() {
+  $("unameList").appendChild(usernameRow(""));
+  refreshUsernameRows();
+  [...document.querySelectorAll(".uname")].pop().focus();
+}
+/** ფიზიკურ პირს მხოლოდ ერთი რჩება */
+function trimUsernames() {
+  const rows = [...document.querySelectorAll(".uname-row")];
+  rows.slice(1).forEach(r => r.remove());
+  refreshUsernameRows();
+}
+function readUsernames() {
+  const seen = new Set(), out = [];
+  document.querySelectorAll(".uname").forEach(i => {
+    const v = i.value.trim();
+    if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
+  });
+  return out;
+}
+$("unameList").appendChild(usernameRow(""));
+refreshUsernameRows();
 
 function show(kind, text) {
   const m = $("msg");
@@ -218,7 +283,8 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","uname","phone","pid","acc","cname","cid"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","phone","pid","acc","cname","cid"].forEach(id => $(id).classList.remove("bad"));
+  document.querySelectorAll(".uname").forEach(i => i.classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
 }
@@ -227,13 +293,14 @@ async function submitForm() {
   clearMsg();
   const v = id => $(id).value.trim();
   const first = v("fname"), last = v("lname"), phone = v("phone");
-  const pid = v("pid"), acc = v("acc"), occ = v("occ"), uname = v("uname");
+  const pid = v("pid"), acc = v("acc"), occ = v("occ");
   const cname = v("cname"), cid = v("cid");
+  const usernames = readUsernames();
 
   const missing = [];
   if (!first) missing.push("fname");
   if (!last)  missing.push("lname");
-  if (!uname) missing.push("uname");
+
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
   if (ENTITY === "legal") {
@@ -242,6 +309,13 @@ async function submitForm() {
   }
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 9) missing.push("phone");
+
+  if (!usernames.length) {
+    const first = document.querySelector(".uname");
+    if (first) { first.classList.add("bad"); first.focus(); }
+    show("err", "მიუთითეთ მინიმუმ ერთი მომხმარებლის სახელი");
+    return;
+  }
 
   if (missing.length) {
     markBad(missing);
@@ -267,7 +341,7 @@ async function submitForm() {
       body: JSON.stringify({
         p_first_name: first, p_last_name: last, p_phone: phone,
         p_personal_id: pid, p_account_number: acc, p_occupation: occ,
-        p_username: uname,
+        p_usernames: usernames,
         p_entity_type: ENTITY,
         p_company_name: ENTITY === "legal" ? cname : null,
         p_company_id:   ENTITY === "legal" ? cid   : null
@@ -299,7 +373,10 @@ async function submitForm() {
 }
 
 function resetForm() {
-  ["fname","lname","uname","phone","pid","acc","occ","cname","cid"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  ["fname","lname","phone","pid","acc","occ","cname","cid"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  $("unameList").innerHTML = "";
+  $("unameList").appendChild(usernameRow(""));
+  refreshUsernameRows();
   setEntity("individual");
   clearMsg();
   $("btn").disabled = false;
