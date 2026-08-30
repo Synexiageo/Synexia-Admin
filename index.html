@@ -448,6 +448,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <button class="nav-tab" id="onboardedTabBtn" onclick="switchTab('onboarded',this)">
         <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Onboarded <span id="obNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px"></span>
       </button>
+      <button class="nav-tab" id="regsTabBtn" onclick="switchTab('regs',this)" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>ანკეტები <span id="regsNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
+      </button>
       <button class="nav-tab" onclick="switchTab('retired',this)">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Retired
       </button>
@@ -834,6 +837,76 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       </div>
     </div>
 
+    <!-- ანკეტები (სარეგისტრაციო ფორმა) -->
+    <div class="tab-panel" id="tabRegs">
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);max-width:760px;margin-bottom:16px">
+        <div class="stat-card blue">  <div class="stat-label">სულ ანკეტა</div>     <div class="stat-value" id="rgTotal">—</div></div>
+        <div class="stat-card green"> <div class="stat-label">დღეს</div>            <div class="stat-value" id="rgToday">—</div></div>
+        <div class="stat-card">       <div class="stat-label">დაემთხვა CRM-ს</div> <div class="stat-value" id="rgMatched">—</div></div>
+        <div class="stat-card red">   <div class="stat-label">ვერ მოიძებნა</div>   <div class="stat-value" id="rgUnmatched">—</div></div>
+      </div>
+
+      <div class="toolbar" style="margin-bottom:14px">
+        <div class="tb-group" style="flex:1;min-width:220px">
+          <span class="tb-label">ძიება</span>
+          <input type="text" class="tb-input" id="rgSearch" placeholder="სახელი, ტელეფონი, პირადი ნომერი..." style="width:100%;height:34px" oninput="filterRegs()">
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">დამთხვევა</span>
+          <select class="tb-input" id="rgMatchFilter" style="height:34px" onchange="filterRegs()">
+            <option value="">ყველა</option>
+            <option value="yes">დაემთხვა</option>
+            <option value="no">ვერ მოიძებნა</option>
+          </select>
+        </div>
+        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';filterRegs()">გასუფთავება</button>
+      </div>
+
+      <!-- ძველი ცხრილის გადმოტანა -->
+      <div id="rgImportBox" style="display:none;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">ძველი ცხრილის გადმოტანა</div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px">
+          Google Sheets → File → Download → Comma-separated values (.csv). შემდეგ აირჩიე ფაილი აქ.
+        </div>
+        <input type="file" id="rgFile" accept=".csv,text/csv" onchange="rgFilePicked(this)"
+               style="font-size:13px;font-family:inherit;margin-bottom:10px">
+        <div id="rgMapWrap" style="display:none">
+          <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px">
+            მიუთითე რომელი სვეტია რომელი — <b id="rgRowCount">0</b> სტრიქონი
+          </div>
+          <div id="rgMapFields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:12px"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="rgRunImport()" id="rgImportBtn" style="height:34px">გადმოტანა</button>
+            <button class="btn btn-outline" onclick="rgCancelImport()" style="height:34px">გაუქმება</button>
+            <span id="rgImportMsg" style="font-size:13px;color:var(--text-mid)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count">ანკეტები: <span id="rgCount">0</span></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline" id="rgImportToggle" onclick="rgToggleImport()" style="height:32px;padding:0 12px;font-size:12px;display:none">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 9l5-5 5 5M12 4v12"/></svg>ძველის გადმოტანა
+            </button>
+            <button class="btn btn-primary" onclick="exportRegsCSV()" style="height:32px;padding:0 12px;font-size:12px">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Excel
+            </button>
+            <button class="btn btn-outline" onclick="loadRegs()" style="height:32px;padding:0 12px;font-size:12px">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
+            </button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>თარიღი</th><th>სახელი გვარი</th><th>ტელეფონი</th><th>პირადი ნომერი</th><th>საბანკო ანგარიში</th><th>საქმიანობა</th><th>CRM</th></tr></thead>
+            <tbody id="rgBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- აქტივობა -->
     <div class="tab-panel" id="tabLog">
       <div class="section-head">
@@ -1130,6 +1203,8 @@ async function showDashboard() {
   // ორივე მიმართულებით ვაყენებთ — თორემ სხვისი სესიის შემდეგ ჩანართი დარჩება გახსნილი
   document.getElementById("teamStatsTabBtn").style.display =
     (SESSION.role === "admin" || SESSION.sees_team_stats) ? "" : "none";
+  document.getElementById("regsTabBtn").style.display = seesRegistrations() ? "" : "none";
+  document.getElementById("rgImportToggle").style.display = (SESSION.role === "admin") ? "" : "none";
   if (SESSION.role === "influencer") {
     // hide everything except the leads tab
     document.querySelectorAll(".nav-tab").forEach((btn, i) => {
@@ -1169,6 +1244,7 @@ if (saved) { try { SESSION=JSON.parse(saved); showDashboard(); } catch(e){} }
 function switchTab(name, btn) {
   // დამალული ჩანართი პირდაპირაც არ უნდა გაიხსნას
   if (name === "teamStats" && !(SESSION && (SESSION.role === "admin" || SESSION.sees_team_stats))) return;
+  if (name === "regs" && !seesRegistrations()) return;
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active"));
   document.getElementById("tab"+name.charAt(0).toUpperCase()+name.slice(1)).classList.add("active");
@@ -1180,6 +1256,7 @@ function switchTab(name, btn) {
   if (name==="onboarded")  loadOnboardedTab();
   if (name==="retired")    loadRetiredTab();
   if (name==="tasks")      loadTasks();
+  if (name==="regs")       loadRegs();
 }
 function refreshCurrent() {
   if (currentTab==="leads")           loadLeads(currentPage);
@@ -1189,6 +1266,7 @@ function refreshCurrent() {
   else if (currentTab==="onboarded")  loadOnboardedTab();
   else if (currentTab==="retired")    loadRetiredTab();
   else if (currentTab==="tasks")      loadTasks();
+  else if (currentTab==="regs")       loadRegs();
 }
 
 // ── HELPERS ──────────────────────────────
@@ -1563,6 +1641,10 @@ function canDeleteLeads() {
   return !!SESSION && (SESSION.role === "admin" || SESSION.can_delete_leads);
 }
 
+// ანკეტებში პირადი ნომერი და საბანკო ანგარიშია — აგენტს არ ვაჩვენებთ
+function seesRegistrations() {
+  return !!SESSION && (SESSION.role === "admin" || SESSION.role === "user");
+}
 function hidesRejected() {
   if (!SESSION) return false;
   return SESSION.role === "agent" && !SESSION.handles_rejected;
@@ -2549,6 +2631,242 @@ async function exportCSV(){
     a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
     a.download="Synexia_CRM_"+new Date().toISOString().slice(0,10)+".csv";a.click();
   }catch(e){alert("შეცდომა: "+e.message);}
+}
+
+// ── ანკეტები ─────────────────────────────
+// სარეგისტრაციო ფორმა (anketa.html) წერს registrations ცხრილში.
+// აქ მხოლოდ ვკითხულობთ — ლიდის სტატუსს ფორმა თვითონ ცვლის.
+let allRegs = [];
+
+async function loadRegs() {
+  if (!seesRegistrations()) return;
+  document.getElementById("rgBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  try {
+    const { data } = await sbGet("registrations", "select=*&order=created_at.desc&limit=5000");
+    allRegs = data || [];
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
+    const matched = allRegs.filter(r => r.matched).length;
+    document.getElementById("rgTotal").textContent     = allRegs.length;
+    document.getElementById("rgToday").textContent     = allRegs.filter(r => String(r.created_at||"").substring(0,10) === today).length;
+    document.getElementById("rgMatched").textContent   = matched;
+    document.getElementById("rgUnmatched").textContent = allRegs.length - matched;
+    filterRegs();
+  } catch(e) {
+    document.getElementById("rgBody").innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function regsFiltered() {
+  const q = (document.getElementById("rgSearch")?.value||"").trim().toLowerCase();
+  const m = document.getElementById("rgMatchFilter")?.value||"";
+  return allRegs.filter(r => {
+    if (m === "yes" && !r.matched) return false;
+    if (m === "no"  &&  r.matched) return false;
+    if (!q) return true;
+    return ((r.first_name||"") + " " + (r.last_name||"")).toLowerCase().includes(q)
+        || (r.phone||"").includes(q)
+        || (r.personal_id||"").includes(q)
+        || (r.account_number||"").toLowerCase().includes(q)
+        || (r.occupation||"").toLowerCase().includes(q);
+  });
+}
+
+function filterRegs() {
+  const list = regsFiltered();
+  document.getElementById("rgCount").textContent = list.length;
+  if (!list.length) {
+    document.getElementById("rgBody").innerHTML = '<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>';
+    return;
+  }
+  const dim = '<span style="color:var(--text-dim)">—</span>';
+  document.getElementById("rgBody").innerHTML = list.map((r, i) => {
+    const badge = r.matched
+      ? `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">✓ დაემთხვა</span>`
+      : `<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">ვერ მოიძებნა</span>`;
+    const click = r.lead_id ? ` onclick="openModal('${esc(r.lead_id)}')" style="cursor:pointer"` : "";
+    return `<tr${click}>
+      <td class="td-date">${i+1}</td>
+      <td class="td-date">${String(r.created_at||"").substring(0,10)}</td>
+      <td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>
+      <td class="td-phone">${formatPhone(r.phone)}</td>
+      <td>${r.personal_id ? esc(r.personal_id) : dim}</td>
+      <td>${r.account_number ? esc(r.account_number) : dim}</td>
+      <td>${r.occupation ? esc(r.occupation) : dim}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join("");
+}
+
+function exportRegsCSV() {
+  const list = regsFiltered();
+  if (!list.length) { alert("ჩანაწერი არ არის"); return; }
+  const h = ["თარიღი","სახელი","გვარი","ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","CRM"];
+  const rows = list.map(r => [
+    String(r.created_at||"").substring(0,10), r.first_name, r.last_name, r.phone,
+    r.personal_id, r.account_number, r.occupation, r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
+  ].map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(","));
+  const csv = "﻿" + [h.join(","), ...rows].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8;" }));
+  a.download = "Synexia_ანკეტები_" + new Date().toISOString().slice(0,10) + ".csv";
+  a.click();
+}
+
+// ── ძველი Google ცხრილის გადმოტანა ───────
+const RG_FIELDS = [
+  { key:"first_name",     label:"სახელი",             hints:["სახელი","first","name"] },
+  { key:"last_name",      label:"გვარი",              hints:["გვარი","last","surname"] },
+  { key:"phone",          label:"ტელეფონი *",         hints:["ტელეფონ","phone","mobile","ნომერი"] },
+  { key:"personal_id",    label:"პირადი ნომერი",      hints:["პირად","id number","personal"] },
+  { key:"account_number", label:"საბანკო ანგარიში",   hints:["ანგარიშ","ბანკ","iban","account"] },
+  { key:"occupation",     label:"საქმიანობა",         hints:["საქმიან","პროფესი","სამუშაო","occupation"] },
+  { key:"created_at",     label:"თარიღი",             hints:["timestamp","დრო","თარიღ","date"] }
+];
+let rgParsed = null;
+
+function rgToggleImport() {
+  const box = document.getElementById("rgImportBox");
+  box.style.display = box.style.display === "none" ? "" : "none";
+}
+function rgCancelImport() {
+  rgParsed = null;
+  document.getElementById("rgFile").value = "";
+  document.getElementById("rgMapWrap").style.display = "none";
+  document.getElementById("rgImportMsg").textContent = "";
+  document.getElementById("rgImportBox").style.display = "none";
+}
+
+/** CSV → სტრიქონების მასივი. ბრჭყალებში მოქცეულ მძიმეს და ხაზის გადატანას ითვალისწინებს. */
+function rgParseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i+1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (c !== "\r") cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ""));
+}
+
+function rgFilePicked(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const rows = rgParseCSV(String(reader.result));
+    if (rows.length < 2) { alert("ფაილში მონაცემები ვერ მოიძებნა"); return; }
+    rgParsed = { headers: rows[0].map(h => h.trim()), rows: rows.slice(1) };
+    document.getElementById("rgRowCount").textContent = rgParsed.rows.length;
+    // ერთი სვეტი მხოლოდ ერთხელ — თორემ "სახელი და გვარი" ორივე ველს მოხვდება
+    const used = new Set();
+    document.getElementById("rgMapFields").innerHTML = RG_FIELDS.map(f => {
+      const guess = rgParsed.headers.findIndex((h, i) =>
+        !used.has(i) && f.hints.some(hint => h.toLowerCase().includes(hint.toLowerCase())));
+      if (guess !== -1) used.add(guess);
+      const opts = rgParsed.headers.map((h, i) =>
+        `<option value="${i}" ${i === guess ? "selected" : ""}>${esc(h.substring(0,60))}</option>`).join("");
+      return `<div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">${f.label}</div>
+        <select class="tb-input rg-map" data-key="${f.key}" style="width:100%;height:32px">
+          <option value="" ${guess === -1 ? "selected" : ""}>— არ არის —</option>${opts}
+        </select>
+      </div>`;
+    }).join("");
+    document.getElementById("rgMapWrap").style.display = "";
+    document.getElementById("rgImportMsg").textContent = "";
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+function rgNormPhone(raw) {
+  const d = String(raw||"").replace(/\D/g, "");
+  return d.length >= 9 ? "+995" + d.slice(-9) : null;
+}
+
+async function rgRunImport() {
+  if (!rgParsed) return;
+  const map = {};
+  document.querySelectorAll(".rg-map").forEach(s => { if (s.value !== "") map[s.dataset.key] = +s.value; });
+  if (map.phone === undefined) { alert("ტელეფონის სვეტი აუცილებელია"); return; }
+  // ერთი და იგივე სვეტი სახელზეც და გვარზეც — ესე იგი სრული სახელია, გავყოფთ
+  if (map.last_name !== undefined && map.last_name === map.first_name) delete map.last_name;
+
+  const btn = document.getElementById("rgImportBtn");
+  const msg = document.getElementById("rgImportMsg");
+  btn.disabled = true; msg.textContent = "მუშავდება...";
+
+  const cell = (r, key) => map[key] === undefined ? "" : String(r[map[key]] || "").trim();
+  const existing = new Set(allRegs.map(r => r.phone));
+  const seen = new Set();
+  let bad = 0, dup = 0;
+  const recs = [];
+
+  rgParsed.rows.forEach(r => {
+    const phone = rgNormPhone(cell(r, "phone"));
+    if (!phone) { bad++; return; }
+    if (existing.has(phone) || seen.has(phone)) { dup++; return; }
+    seen.add(phone);
+
+    let first = cell(r, "first_name"), last = cell(r, "last_name");
+    // ერთ სვეტში სახელიც და გვარიც
+    if (first && !last && map.last_name === undefined && first.includes(" ")) {
+      const p = first.split(/\s+/); first = p.shift(); last = p.join(" ");
+    }
+    const d = cell(r, "created_at");
+    const parsedDate = d ? new Date(d.replace(/\./g, "/")) : null;
+
+    recs.push({
+      first_name: first || "—", last_name: last || "—", phone,
+      personal_id:    cell(r, "personal_id")    || null,
+      account_number: cell(r, "account_number") || null,
+      occupation:     cell(r, "occupation")     || null,
+      matched: false,
+      ...(parsedDate && !isNaN(parsedDate) ? { created_at: parsedDate.toISOString() } : {})
+    });
+  });
+
+  if (!recs.length) {
+    msg.textContent = `ახალი ჩანაწერი არ არის (${dup} დუბლი, ${bad} უნომრო)`;
+    btn.disabled = false; return;
+  }
+
+  // ლიდებთან დაკავშირება — სტატუსს არ ვცვლით, ეს ისტორიული ჩანაწერებია
+  try {
+    for (let i = 0; i < recs.length; i += 150) {
+      const chunk = recs.slice(i, i + 150);
+      const q = chunk.map(r => `"${r.phone}"`).join(",");
+      // sbGet-ს არ ვიყენებთ — სეგმენტის ფილტრი ორივე სეგმენტს უნდა მოიცავდეს
+      const res = await fetch(`${SB_URL}/rest/v1/leads?select=id,phone&phone=in.(${encodeURIComponent(q)})&limit=1000`,
+        { headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` } });
+      const data = await res.json();
+      const byPhone = {}; (Array.isArray(data) ? data : []).forEach(l => { byPhone[l.phone] = l.id; });
+      chunk.forEach(r => { if (byPhone[r.phone]) { r.lead_id = byPhone[r.phone]; r.matched = true; } });
+      msg.textContent = `მოწმდება... ${Math.min(i + 150, recs.length)}/${recs.length}`;
+    }
+
+    for (let i = 0; i < recs.length; i += 200) {
+      const ok = await sbPost("registrations", recs.slice(i, i + 200));
+      if (!ok) throw new Error("ჩაწერა ვერ მოხერხდა");
+      msg.textContent = `იწერება... ${Math.min(i + 200, recs.length)}/${recs.length}`;
+    }
+
+    const hit = recs.filter(r => r.matched).length;
+    msg.textContent = `✅ გადმოვიდა ${recs.length} — ${hit} დაემთხვა CRM-ს` +
+      (dup ? `, ${dup} დუბლი გამოტოვდა` : "") + (bad ? `, ${bad} უნომრო` : "");
+    document.getElementById("rgFile").value = "";
+    document.getElementById("rgMapWrap").style.display = "none";
+    rgParsed = null;
+    await loadRegs();
+  } catch(e) {
+    msg.textContent = "⚠ " + e.message;
+  }
+  btn.disabled = false;
 }
 
 // ── FORM SUBMIT (სარეგისტრაციო ფორმიდან) ──
