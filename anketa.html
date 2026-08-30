@@ -55,6 +55,21 @@ form{display:flex; flex-direction:column; gap:15px;}
 .f input:focus{border-color:var(--line-on); background:var(--field-on);}
 .f input.bad{border-color:var(--err);}
 .hint{font-size:12px; color:var(--muted); padding-left:2px;}
+.hint a{color:var(--accent-2); text-decoration:none; border-bottom:1px solid rgba(255,106,69,.4);}
+.hint a:hover{border-bottom-color:var(--accent-2);}
+
+/* ფიზიკური / იურიდიული */
+.seg{display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--field);
+  border:1.5px solid var(--line); border-radius:12px; padding:5px;}
+.seg button{
+  margin:0; box-shadow:none; background:transparent; color:var(--ink-2);
+  border-radius:8px; padding:11px 8px; font-size:14.5px; font-weight:600;
+}
+.seg button:hover{background:rgba(255,255,255,.04); color:var(--ink);}
+.seg button.on{background:var(--accent); color:#fff;}
+.seg button.on:hover{background:var(--accent);}
+#legalWrap{display:none; flex-direction:column; gap:15px;}
+#legalWrap.show{display:flex;}
 
 button{
   margin-top:6px; background:var(--accent); color:#fff; border:none; border-radius:12px;
@@ -117,7 +132,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       <div class="f">
         <label for="uname">მომხმარებლის სახელი<span class="req">*</span></label>
         <input type="text" id="uname" placeholder="giorgi_m" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <span class="hint">ამ სახელით შეხვალთ სამუშაო სისტემაში — ლათინური ასოებით</span>
+        <span class="hint">ამ სახელით შეხვალთ სამუშაო სისტემაში — ლათინური ასოებით<span id="infoLinkWrap"></span></span>
       </div>
 
       <div class="f">
@@ -129,6 +144,25 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       <div class="f">
         <label for="pid">პირადი ნომერი<span class="req">*</span></label>
         <input type="text" id="pid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
+      </div>
+
+      <div class="f">
+        <label>ანაზღაურება ვის სახელზე ჩაირიცხოს<span class="req">*</span></label>
+        <div class="seg">
+          <button type="button" id="segInd" class="on" onclick="setEntity('individual')">ფიზიკური პირი</button>
+          <button type="button" id="segLeg" onclick="setEntity('legal')">იურიდიული (შპს)</button>
+        </div>
+      </div>
+
+      <div id="legalWrap">
+        <div class="f">
+          <label for="cname">კომპანიის დასახელება<span class="req">*</span></label>
+          <input type="text" id="cname" placeholder="შპს სინექსია" autocomplete="off">
+        </div>
+        <div class="f">
+          <label for="cid">საიდენტიფიკაციო კოდი<span class="req">*</span></label>
+          <input type="text" id="cid" inputmode="numeric" maxlength="11" placeholder="405000000" autocomplete="off">
+        </div>
       </div>
 
       <div class="f">
@@ -158,7 +192,32 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 const SB_URL = "https://tsfzuyujfcacultjexsy.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzZnp1eXVqZmNhY3VsdGpleHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDAzNjEsImV4cCI6MjA5NDYxNjM2MX0.KwxGBmZzezolz860aPbk3zZ1hYNicDai-_n8Ce5StyA";
 
+// ── საინფორმაციო ბმული ──────────────────────────────────────
+// ჩასვი მისამართი და ბმული ავტომატურად გამოჩნდება იუზერნეიმის ქვეშ.
+// ცარიელი რომ იყოს, ბმული უბრალოდ არ იხატება.
+const INFO_URL   = "";
+const INFO_LABEL = "დეტალური ინსტრუქცია";
+
 const $ = id => document.getElementById(id);
+
+if (INFO_URL) {
+  $("infoLinkWrap").innerHTML =
+    ' · <a href="' + INFO_URL + '" target="_blank" rel="noopener">' + INFO_LABEL + ' ↗</a>';
+}
+
+// ── ფიზიკური / იურიდიული ────────────────────────────────────
+let ENTITY = "individual";
+function setEntity(kind) {
+  ENTITY = kind;
+  $("segInd").classList.toggle("on", kind === "individual");
+  $("segLeg").classList.toggle("on", kind === "legal");
+  $("legalWrap").classList.toggle("show", kind === "legal");
+  if (kind === "individual") {
+    ["cname","cid"].forEach(id => $(id).classList.remove("bad"));
+  } else {
+    $("cname").focus();
+  }
+}
 
 function show(kind, text) {
   const m = $("msg");
@@ -168,7 +227,7 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","uname","phone","pid","acc"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","uname","phone","pid","acc","cname","cid"].forEach(id => $(id).classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
 }
@@ -178,6 +237,7 @@ async function submitForm() {
   const v = id => $(id).value.trim();
   const first = v("fname"), last = v("lname"), phone = v("phone");
   const pid = v("pid"), acc = v("acc"), occ = v("occ"), uname = v("uname");
+  const cname = v("cname"), cid = v("cid");
 
   const missing = [];
   if (!first) missing.push("fname");
@@ -185,6 +245,10 @@ async function submitForm() {
   if (!uname) missing.push("uname");
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
+  if (ENTITY === "legal") {
+    if (!cname) missing.push("cname");
+    if (!cid)   missing.push("cid");
+  }
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 9) missing.push("phone");
 
@@ -212,7 +276,10 @@ async function submitForm() {
       body: JSON.stringify({
         p_first_name: first, p_last_name: last, p_phone: phone,
         p_personal_id: pid, p_account_number: acc, p_occupation: occ,
-        p_username: uname
+        p_username: uname,
+        p_entity_type: ENTITY,
+        p_company_name: ENTITY === "legal" ? cname : null,
+        p_company_id:   ENTITY === "legal" ? cid   : null
       })
     });
 
@@ -241,7 +308,8 @@ async function submitForm() {
 }
 
 function resetForm() {
-  ["fname","lname","uname","phone","pid","acc","occ"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  ["fname","lname","uname","phone","pid","acc","occ","cname","cid"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  setEntity("individual");
   clearMsg();
   $("btn").disabled = false;
   $("btn").textContent = "გაგზავნა";
@@ -251,7 +319,7 @@ function resetForm() {
 }
 
 // მხოლოდ ციფრები — ტელეფონსა და პირად ნომერში
-["phone","pid"].forEach(id => {
+["phone","pid","cid"].forEach(id => {
   $(id).addEventListener("input", e => {
     const clean = e.target.value.replace(/[^\d+ ]/g, "");
     if (clean !== e.target.value) e.target.value = clean;

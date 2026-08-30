@@ -233,6 +233,10 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,30,53,0.35);backdrop-filter:blur(4px);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
+.f-edit{display:flex;flex-direction:column;gap:5px;}
+.f-edit label{font-size:11.5px;font-weight:600;color:var(--text-dim);}
+.f-edit input,.f-edit select{width:100%;height:36px;}
+@media(max-width:560px){ #regEditFields{grid-template-columns:1fr!important;} }
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);transform:scale(0.95) translateY(12px);transition:transform .28s cubic-bezier(0.34,1.2,0.64,1),opacity .25s;opacity:0;}
 .modal-overlay.open .modal{transform:scale(1) translateY(0);opacity:1;}
 .modal-head{padding:22px 28px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:var(--surface2);border-radius:20px 20px 0 0;}
@@ -855,6 +859,14 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <input type="text" class="tb-input" id="rgSearch" placeholder="სახელი, ტელეფონი, პირადი ნომერი..." style="width:100%;height:34px" oninput="filterRegs()">
         </div>
         <div class="tb-group">
+          <span class="tb-label">ტიპი</span>
+          <select class="tb-input" id="rgEntityFilter" style="height:34px" onchange="filterRegs()">
+            <option value="">ყველა</option>
+            <option value="individual">ფიზიკური</option>
+            <option value="legal">იურიდიული (შპს)</option>
+          </select>
+        </div>
+        <div class="tb-group">
           <span class="tb-label">დამთხვევა</span>
           <select class="tb-input" id="rgMatchFilter" style="height:34px" onchange="filterRegs()">
             <option value="">ყველა</option>
@@ -862,7 +874,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="no">ვერ მოიძებნა</option>
           </select>
         </div>
-        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';filterRegs()">გასუფთავება</button>
+        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';document.getElementById('rgEntityFilter').value='';filterRegs()">გასუფთავება</button>
       </div>
 
       <!-- ძველი ცხრილის გადმოტანა -->
@@ -903,8 +915,8 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>თარიღი</th><th>სახელი გვარი</th><th>იუზერნეიმი</th><th>ტელეფონი</th><th>პირადი ნომერი</th><th>საბანკო ანგარიში</th><th>საქმიანობა</th><th>შენიშვნა</th><th>CRM</th></tr></thead>
-            <tbody id="rgBody"><tr class="loading-row"><td colspan="10"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+            <thead><tr><th>#</th><th>თარიღი</th><th>სახელი გვარი</th><th>იუზერნეიმი</th><th>ტელეფონი</th><th>პირადი ნომერი</th><th>საბანკო ანგარიში</th><th>საქმიანობა</th><th>იურიდიული პირი</th><th>შენიშვნა</th><th>CRM</th><th></th></tr></thead>
+            <tbody id="rgBody"><tr class="loading-row"><td colspan="12"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -938,6 +950,35 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
 </div>
 
 <!-- MODAL ოპერატორი -->
+<!-- ანკეტის შესწორება -->
+<div class="modal-overlay" id="regEditOverlay" onclick="if(event.target===this)closeRegEdit()">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-name">ანკეტის შესწორება</div>
+        <div class="modal-meta">ლიდის სტატუსს არ ცვლის — მხოლოდ ანკეტის ჩანაწერს</div>
+      </div>
+      <button class="btn-del" onclick="closeRegEdit()" style="font-size:18px">✕</button>
+    </div>
+    <div style="padding:20px 28px;overflow-y:auto">
+      <input type="hidden" id="regEditId">
+      <div class="f-edit" style="margin-bottom:14px">
+        <label>ანაზღაურება ვის სახელზე</label>
+        <select class="tb-input" id="regEditType" style="width:100%;height:38px">
+          <option value="individual">ფიზიკური პირი</option>
+          <option value="legal">იურიდიული პირი (შპს)</option>
+        </select>
+      </div>
+      <div id="regEditFields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
+      <div id="regEditErr" style="display:none;margin-top:14px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:8px;padding:10px 13px;font-size:13px;font-weight:600"></div>
+    </div>
+    <div style="padding:14px 28px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeRegEdit()">გაუქმება</button>
+      <button class="btn btn-primary" id="regEditSave" onclick="saveRegEdit()">შენახვა</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
   <div class="modal" id="modal">
     <div class="modal-head">
@@ -1151,7 +1192,7 @@ async function doLogin() {
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected, can_delete_leads: !!data[0].can_delete_leads };
+      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected, can_delete_leads: !!data[0].can_delete_leads, can_edit_registrations: !!data[0].can_edit_registrations };
       // admins may switch segments; everyone else is pinned to their own
       SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
@@ -1648,6 +1689,10 @@ function canDeleteLeads() {
 // ანკეტებში პირადი ნომერი და საბანკო ანგარიშია — აგენტს არ ვაჩვენებთ
 function seesRegistrations() {
   return !!SESSION && (SESSION.role === "admin" || SESSION.role === "user");
+}
+// ანკეტის შესწორება — ადმინი და ცალკე უფლებამოსილი
+function editsRegistrations() {
+  return !!SESSION && (SESSION.role === "admin" || SESSION.can_edit_registrations);
 }
 function hidesRejected() {
   if (!SESSION) return false;
@@ -2656,16 +2701,18 @@ async function loadRegs() {
     document.getElementById("rgUnmatched").textContent = allRegs.length - matched;
     filterRegs();
   } catch(e) {
-    document.getElementById("rgBody").innerHTML = `<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${esc(e.message)}</td></tr>`;
+    document.getElementById("rgBody").innerHTML = `<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${esc(e.message)}</td></tr>`;
   }
 }
 
 function regsFiltered() {
   const q = (document.getElementById("rgSearch")?.value||"").trim().toLowerCase();
   const m = document.getElementById("rgMatchFilter")?.value||"";
+  const ent = document.getElementById("rgEntityFilter")?.value||"";
   return allRegs.filter(r => {
     if (m === "yes" && !r.matched) return false;
     if (m === "no"  &&  r.matched) return false;
+    if (ent && (r.entity_type || "individual") !== ent) return false;
     if (!q) return true;
     return ((r.first_name||"") + " " + (r.last_name||"")).toLowerCase().includes(q)
         || (r.phone||"").includes(q)
@@ -2673,6 +2720,8 @@ function regsFiltered() {
         || (r.personal_id||"").includes(q)
         || (r.account_number||"").toLowerCase().includes(q)
         || (r.occupation||"").toLowerCase().includes(q)
+        || (r.company_name||"").toLowerCase().includes(q)
+        || (r.company_id||"").includes(q)
         || (r.note||"").toLowerCase().includes(q);
   });
 }
@@ -2681,7 +2730,7 @@ function filterRegs() {
   const list = regsFiltered();
   document.getElementById("rgCount").textContent = list.length;
   if (!list.length) {
-    document.getElementById("rgBody").innerHTML = '<tr><td colspan="10"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>';
+    document.getElementById("rgBody").innerHTML = '<tr><td colspan="12"><div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><p>ანკეტა ვერ მოიძებნა</p></div></td></tr>';
     return;
   }
   const dim = '<span style="color:var(--text-dim)">—</span>';
@@ -2690,6 +2739,14 @@ function filterRegs() {
       ? `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">✓ დაემთხვა</span>`
       : `<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">ვერ მოიძებნა</span>`;
     const click = r.lead_id ? ` onclick="openModal('${esc(r.lead_id)}')" style="cursor:pointer"` : "";
+    const company = r.entity_type === "legal"
+      ? `<div style="font-weight:600;font-size:13px">${esc(r.company_name)}</div>
+         <div style="font-size:11.5px;color:var(--text-dim)">ს/კ ${esc(r.company_id)}</div>`
+      : dim;
+    // stopPropagation — თორემ მწკრივის onclick ლიდის ფანჯარას გახსნიდა
+    const editBtn = editsRegistrations()
+      ? `<button class="btn-del" title="შესწორება" onclick="event.stopPropagation();openRegEdit(${r.id})" style="color:var(--blue)">✎</button>`
+      : "";
     return `<tr${click}>
       <td class="td-date">${i+1}</td>
       <td class="td-date">${String(r.created_at||"").substring(0,10)}</td>
@@ -2699,8 +2756,10 @@ function filterRegs() {
       <td>${r.personal_id ? esc(r.personal_id) : dim}</td>
       <td>${r.account_number ? esc(r.account_number) : dim}</td>
       <td>${r.occupation ? esc(r.occupation) : dim}</td>
+      <td>${company}</td>
       <td>${r.note ? `<span style="font-size:12.5px;color:var(--text-mid)">${esc(r.note)}</span>` : dim}</td>
       <td>${badge}</td>
+      <td>${editBtn}</td>
     </tr>`;
   }).join("");
 }
@@ -2708,16 +2767,77 @@ function filterRegs() {
 function exportRegsCSV() {
   const list = regsFiltered();
   if (!list.length) { alert("ჩანაწერი არ არის"); return; }
-  const h = ["თარიღი","სახელი","გვარი","იუზერნეიმი","ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"];
+  const h = ["თარიღი","სახელი","გვარი","იუზერნეიმი","ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","ტიპი","კომპანია","ს/კ","შენიშვნა","CRM"];
   const rows = list.map(r => [
     String(r.created_at||"").substring(0,10), r.first_name, r.last_name, r.username, r.phone,
-    r.personal_id, r.account_number, r.occupation, r.note, r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
+    r.personal_id, r.account_number, r.occupation,
+    r.entity_type === "legal" ? "იურიდიული" : "ფიზიკური", r.company_name, r.company_id,
+    r.note, r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
   ].map(v => `"${String(v||"").replace(/"/g,'""')}"`).join(","));
   const csv = "﻿" + [h.join(","), ...rows].join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8;" }));
   a.download = "Synexia_ანკეტები_" + new Date().toISOString().slice(0,10) + ".csv";
   a.click();
+}
+
+// ── ანკეტის შესწორება ────────────────────
+const RG_EDIT = [
+  { key:"first_name",     label:"სახელი" },
+  { key:"last_name",      label:"გვარი" },
+  { key:"username",       label:"იუზერნეიმი" },
+  { key:"phone",          label:"ტელეფონი" },
+  { key:"personal_id",    label:"პირადი ნომერი" },
+  { key:"account_number", label:"საბანკო ანგარიში" },
+  { key:"occupation",     label:"საქმიანობა" },
+  { key:"company_name",   label:"კომპანიის დასახელება" },
+  { key:"company_id",     label:"საიდენტიფიკაციო კოდი" },
+  { key:"note",           label:"შენიშვნა" }
+];
+
+function openRegEdit(id) {
+  if (!editsRegistrations()) return;
+  const r = allRegs.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById("regEditId").value = id;
+  document.getElementById("regEditErr").style.display = "none";
+  document.getElementById("regEditType").value = r.entity_type === "legal" ? "legal" : "individual";
+  document.getElementById("regEditFields").innerHTML = RG_EDIT.map(f => `
+    <div class="f-edit">
+      <label>${f.label}</label>
+      <input type="text" class="tb-input rg-edit" data-key="${f.key}" value="${esc(r[f.key]||"")}">
+    </div>`).join("");
+  document.getElementById("regEditOverlay").classList.add("open");
+}
+function closeRegEdit() {
+  document.getElementById("regEditOverlay").classList.remove("open");
+}
+async function saveRegEdit() {
+  const id  = +document.getElementById("regEditId").value;
+  const err = document.getElementById("regEditErr");
+  const body = { entity_type: document.getElementById("regEditType").value };
+  document.querySelectorAll(".rg-edit").forEach(i => {
+    body[i.dataset.key] = i.value.trim() || null;
+  });
+
+  if (!body.first_name || !body.last_name) {
+    err.textContent = "სახელი და გვარი აუცილებელია"; err.style.display = "block"; return;
+  }
+  const digits = String(body.phone||"").replace(/\D/g, "");
+  if (digits.length < 9) {
+    err.textContent = "ტელეფონის ნომერი უნდა შეიცავდეს 9 ციფრს"; err.style.display = "block"; return;
+  }
+  body.phone = "+995" + digits.slice(-9);
+  if (body.entity_type !== "legal") { body.company_name = null; body.company_id = null; }
+
+  const btn = document.getElementById("regEditSave");
+  btn.disabled = true; btn.textContent = "ინახება...";
+  const ok = await sbPatch("registrations", `id=eq.${id}`, body);
+  btn.disabled = false; btn.textContent = "შენახვა";
+
+  if (!ok) { err.textContent = "შენახვა ვერ მოხერხდა"; err.style.display = "block"; return; }
+  closeRegEdit();
+  await loadRegs();
 }
 
 // ── ძველი Google ცხრილის გადმოტანა ───────
@@ -2895,7 +3015,7 @@ async function submitLeadFromForm(data) {
   return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false, ...(SEGMENT_READY ? { segment: SEGMENT || "general" } : {}) });
 }
 
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();closeRegEdit();}});
 document.addEventListener("click",e=>{if(!e.target.closest("#statusMultiBtn")&&!e.target.closest("#statusMultiDrop"))closeStatusDrop();});
 
 function toggleStatusDrop(e){e.stopPropagation();const d=document.getElementById("statusMultiDrop");const b=document.getElementById("statusMultiBtn");const open=d.classList.toggle("open");b.classList.toggle("open",open);}
