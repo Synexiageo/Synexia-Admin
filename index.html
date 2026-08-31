@@ -66,8 +66,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .btn-outline{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);border:1.5px solid rgba(255,255,255,0.2);box-shadow:none;}
 .btn-outline:hover{border-color:rgba(240,73,35,0.6);color:#F47050;background:rgba(240,73,35,0.1);}
 /* .btn-outline მუქ ნავიგაციაზეა გათვლილი — ღია ფონზე თეთრი ტექსტი არ ჩანს */
-.main .btn-outline{background:white;color:var(--text-mid);border-color:var(--border);}
-.main .btn-outline:hover{background:rgba(240,73,35,0.07);color:var(--blue);border-color:var(--blue);}
+.main .btn-outline,.modal .btn-outline{background:white;color:var(--text-mid);border-color:var(--border);}
+.main .btn-outline:hover,.modal .btn-outline:hover{background:rgba(240,73,35,0.07);color:var(--blue);border-color:var(--blue);}
+.btn-danger{background:white;color:var(--danger);border:1.5px solid #fecaca;box-shadow:none;}
+.btn-danger:hover{background:#fee2e2;border-color:var(--danger);}
 .btn-logout{background:none;border:1.5px solid rgba(255,100,100,0.35);color:#ff8080;padding:7px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:.18s;display:inline-flex;align-items:center;gap:6px;}
 .btn-logout:hover{background:rgba(220,38,38,0.15);}
 .btn-logout svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
@@ -979,7 +981,8 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <div id="regEditFields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
       <div id="regEditErr" style="display:none;margin-top:14px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:8px;padding:10px 13px;font-size:13px;font-weight:600"></div>
     </div>
-    <div style="padding:14px 28px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+    <div style="padding:14px 28px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;align-items:center">
+      <button class="btn btn-danger" id="regEditDel" onclick="deleteReg()" style="margin-right:auto">🗑 წაშლა</button>
       <button class="btn btn-outline" onclick="closeRegEdit()">გაუქმება</button>
       <button class="btn btn-primary" id="regEditSave" onclick="saveRegEdit()">შენახვა</button>
     </div>
@@ -2984,6 +2987,30 @@ function regEditTypeChanged() {
 function closeRegEdit() {
   document.getElementById("regEditOverlay").classList.remove("open");
 }
+async function deleteReg() {
+  if (!editsRegistrations()) return;
+  const id = +document.getElementById("regEditId").value;
+  const r  = allRegs.find(x => x.id === id);
+  const who = r ? `${r.first_name} ${r.last_name}` : "";
+  if (!confirm(`ანკეტა წაიშლება: ${who}\n\nლიდი და მისი სტატუსი ხელუხლებელი რჩება.\nეს მოქმედება შეუქცევადია.`)) return;
+
+  const btn = document.getElementById("regEditDel");
+  btn.disabled = true; btn.textContent = "იშლება...";
+  const ok = await sbDelete("registrations", `id=eq.${id}`);
+  btn.disabled = false; btn.textContent = "🗑 წაშლა";
+
+  if (!ok) {
+    const err = document.getElementById("regEditErr");
+    err.textContent = "წაშლა ვერ მოხერხდა"; err.style.display = "block";
+    return;
+  }
+  await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username,
+    display_name: SESSION.display_name, lead_id: r?.lead_id || null,
+    action: "ანკეტის წაშლა", detail: `${who} · ${r?.phone || ""}` });
+  closeRegEdit();
+  await loadRegs();
+}
+
 async function saveRegEdit() {
   const id  = +document.getElementById("regEditId").value;
   const err = document.getElementById("regEditErr");
