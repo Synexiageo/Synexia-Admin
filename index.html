@@ -1267,9 +1267,8 @@ async function sbRpc(fn, args) {
     headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Cache-Control": "no-cache" },
     body: JSON.stringify(args || {})
   });
-  if (!res.ok) { console.error("RPC error:", await res.text()); return { data: [], ok: false }; }
-  const data = await res.json();
-  return { data: Array.isArray(data) ? data : [], ok: true };
+  if (!res.ok) { console.error("RPC error:", await res.text()); return null; }
+  return await res.json();
 }
 async function sbDelete(table, match) {
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${match}`, {
@@ -3668,7 +3667,7 @@ async function loadTeamStatsCards() {
     const { data: users } = await sbGet("users", "select=username,display_name,role&order=display_name");
     // get activity logs
     // დათვლა ბაზაშია — იხ. team_stats(); ადრე 5000 ჩანაწერზე იჭრებოდა
-    const { data: rows } = await sbRpc("team_stats", { p_from: rpcFrom, p_to: null });
+    const rows = (await sbRpc("team_stats", { p_from: rpcFrom, p_to: null })) || [];
 
     const statsMap = {};
     (users||[]).forEach(u => {
@@ -3777,10 +3776,11 @@ async function loadTeamStats() {
 
     // დათვლა ბაზაშია — ადრე 5000 უახლეს ჩანაწერს ვიღებდით და
     // ბრაუზერში ვთვლიდით, ამიტომ "ყველა დრო" სინამდვილეში რამდენიმე დღე იყო
-    const [{ data: rows }, { data: users }] = await Promise.all([
+    const [rpcRows, { data: users }] = await Promise.all([
       sbRpc("team_stats", { p_from: pFrom, p_to: pTo }),
       sbGet("users", "select=display_name,username&order=display_name")
     ]);
+    const rows = rpcRows || [];
 
     const STATUSES = ["New Lead","Potential Op.","Interested","Contacted","In Negotiation","Onboarded","Declined","არ უპასუხა 1","არ უპასუხა 2","Retired","Unqualified","Phone Model Issue"];
     const blank = () => { const o = { total:0, auto:0 }; STATUSES.forEach(s => o[s] = 0); return o; };
