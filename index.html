@@ -577,12 +577,19 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option>Other</option><option>Healthcare</option><option>Construction</option><option>Laboratory</option>
           </select>
         </div>
-        <div class="tb-group">
+        <div class="tb-group" style="position:relative">
           <span class="tb-label">ქალაქი</span>
-          <select class="tb-select" id="filterCity" onchange="applyFilters()">
-            <option value="">ყველა</option>
-            <option>თბილისი</option><option>ბათუმი</option><option>რუსთავი</option><option>ქუთაისი</option><option>გორი</option><option>ფოთი</option><option>ზუგდიდი</option><option>ხაშური</option><option>სამტრედია</option><option>მარნეული</option><option>ზესტაფონი</option><option>სიღნაღი</option><option>თელავი</option><option>ქობულეთი</option><option>ახალციხე</option><option>ოზურგეთი</option><option>კასპი</option><option>ჭიათურა</option><option>გარდაბანი</option><option>ბორჯომი</option><option>საგარეჯო</option><option>ყვარელი</option><option>ბოლნისი</option><option>ტყიბული</option><option>წყალტუბო</option><option>ახალქალაქი</option><option>მცხეთა</option><option>გურჯაანი</option><option>დუშეთი</option><option>ქარელი</option><option>ლანჩხუთი</option><option>ახმეტა</option><option>ლაგოდეხი</option><option>საჩხერე</option><option>დედოფლისწყარო</option><option>თერჯოლა</option><option>სენაკი</option><option>თეთრიწყარო</option><option>აბაშა</option><option>მარტვილი</option><option>ნინოწმინდა</option><option>წალკა</option><option>ვალე</option><option>ვანი</option><option>ხობი</option><option>დმანისი</option><option>წალენჯიხა</option><option>ბაღდათი</option><option>ონი</option><option>ჩხოროწყუ</option><option>ამბროლაური</option><option>ქვარი</option><option>ცაგერი</option><option>ჩოხატაური</option><option>ხონი</option><option>მესტია</option><option>სურამი</option><option>ადიგენი</option><option>ხულო</option><option>თიანეთი</option><option>ყაზბეგი</option><option>ჟინვალი</option><option>კაზრეთი</option><option>წეროვანი</option><option>მარტყოფი</option><option>რუისი</option><option>საგურამო</option><option>ვაზიანი</option><option>ბაკურიანი</option><option>ახალგორი</option>
-          </select>
+          <div id="cityMultiBtn" class="status-multi-btn" onclick="toggleCityDrop(event)">
+            <span id="cityMultiLabel">ყველა</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="cityMultiDrop" class="status-multi-drop">
+            <input type="text" id="cityMultiSearch" class="tb-input" placeholder="ძებნა..." oninput="cmSearch(this.value)"
+                   onclick="event.stopPropagation()" style="width:100%;height:30px;margin-bottom:5px">
+            <label class="sm-item"><input type="checkbox" id="cmChkAll" onchange="cmCheckAll(this)"> <span>ყველა</span></label>
+            <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+            <div id="cityMultiList"></div>
+          </div>
         </div>
         <div class="tb-group">
           <span class="tb-label">პრიორიტეტი</span>
@@ -1453,11 +1460,10 @@ async function loadLeads(page) {
   if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
-  const city        = document.getElementById("filterCity")?.value||"";
   const dateFrom = document.getElementById("filterDateFrom")?.value||"";
   const dateTo   = document.getElementById("filterDateTo")?.value||"";
   if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
-  if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+  filters += cityFilterParam();
   const prio = document.getElementById("filterPriority")?.value||"";
   if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
   else if (prio === "yes") filters += `&priority=is.true`;
@@ -1519,8 +1525,12 @@ async function loadLeads(page) {
 
 function applyFilters(page){ loadLeads(page||1); }
 function resetFilters(){
-  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterCity","filterPriority","filterProfession","filterFavorite","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["filterSearch","filterLegal","refSearchInput","filterAssigned","filterEnvironment","filterPriority","filterProfession","filterFavorite","filterDateFrom","filterDateTo"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
   document.querySelectorAll(".sm-chk").forEach(c=>c.checked=false);
+  document.querySelectorAll(".cm-chk").forEach(c=>c.checked=false);
+  const cmAll=document.getElementById("cmChkAll"); if(cmAll){cmAll.checked=false;cmAll.indeterminate=false;}
+  const cmS=document.getElementById("cityMultiSearch"); if(cmS){cmS.value="";cmSearch("");}
+  cmUpdateLabel();
   const all=document.getElementById("smChkAll"); if(all) all.checked=false;
   document.getElementById("statusMultiLabel").textContent="ყველა";
   loadLeads(1);
@@ -2720,7 +2730,6 @@ async function exportCSV(){
     const legal       = document.getElementById("filterLegal")?.value||"";
     const refCode     = document.getElementById("refSearchInput")?.value.trim()||"";
     const environment = document.getElementById("filterEnvironment")?.value||"";
-    const city        = document.getElementById("filterCity")?.value||"";
     const dateFrom    = document.getElementById("filterDateFrom")?.value||"";
     const dateTo      = document.getElementById("filterDateTo")?.value||"";
 
@@ -2731,7 +2740,7 @@ async function exportCSV(){
     if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
     if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
     if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
-    if (city)        filters += `&city=eq.${encodeURIComponent(city)}`;
+    filters += cityFilterParam();
     if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
     if (dateTo) {
       const next = new Date(dateTo); next.setDate(next.getDate()+1);
@@ -3256,8 +3265,73 @@ async function submitLeadFromForm(data) {
   return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false, ...(SEGMENT_READY ? { segment: SEGMENT || "general" } : {}) });
 }
 
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();closeRegEdit();}});
-document.addEventListener("click",e=>{if(!e.target.closest("#statusMultiBtn")&&!e.target.closest("#statusMultiDrop"))closeStatusDrop();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();closeCityDrop();closeRegEdit();}});
+document.addEventListener("click",e=>{if(!e.target.closest("#statusMultiBtn")&&!e.target.closest("#statusMultiDrop"))closeStatusDrop();if(!e.target.closest("#cityMultiBtn")&&!e.target.closest("#cityMultiDrop"))closeCityDrop();});
+
+// ── ქალაქები: რამდენიმეს ერთდროულად მონიშვნა ──
+// სია მოდალის dCity-დან — ერთ ადგილას რომ იყოს შესანახი
+function buildCityFilter() {
+  const src = document.getElementById("dCity");
+  const list = document.getElementById("cityMultiList");
+  if (!src || !list || list.children.length) return;
+  list.innerHTML = [...src.options]
+    .map(o => o.value.trim())
+    .filter(Boolean)
+    .map(c => `<label class="sm-item cm-row"><input type="checkbox" class="cm-chk" value="${esc(c)}" onchange="cmChange()"> <span>${esc(c)}</span></label>`)
+    .join("");
+}
+function toggleCityDrop(e) {
+  e.stopPropagation();
+  buildCityFilter();
+  const d = document.getElementById("cityMultiDrop");
+  const b = document.getElementById("cityMultiBtn");
+  const open = d.classList.toggle("open");
+  b.classList.toggle("open", open);
+  if (open) document.getElementById("cityMultiSearch").focus();
+}
+function closeCityDrop() {
+  document.getElementById("cityMultiDrop")?.classList.remove("open");
+  document.getElementById("cityMultiBtn")?.classList.remove("open");
+}
+function cmSearch(q) {
+  const t = (q||"").trim().toLowerCase();
+  document.querySelectorAll(".cm-row").forEach(r => {
+    r.style.display = !t || r.textContent.toLowerCase().includes(t) ? "" : "none";
+  });
+}
+function cmCheckAll(cb) {
+  // მხოლოდ ხილულებს — ძებნის დროს რომ არ აირჩეს ყველა 70
+  document.querySelectorAll(".cm-row").forEach(r => {
+    if (r.style.display !== "none") r.querySelector(".cm-chk").checked = cb.checked;
+  });
+  cmUpdateLabel(); applyFilters();
+}
+function cmChange() {
+  const chks = document.querySelectorAll(".cm-chk");
+  const all  = document.getElementById("cmChkAll");
+  const checked = [...chks].filter(c => c.checked);
+  all.checked = checked.length === chks.length && chks.length > 0;
+  all.indeterminate = checked.length > 0 && checked.length < chks.length;
+  cmUpdateLabel(); applyFilters();
+}
+function cmUpdateLabel() {
+  const vals = selectedCities();
+  const lbl = document.getElementById("cityMultiLabel");
+  if (!lbl) return;
+  if (!vals.length)           lbl.textContent = "ყველა";
+  else if (vals.length === 1) lbl.textContent = vals[0];
+  else                        lbl.textContent = vals.length + " ქალაქი";
+}
+function selectedCities() {
+  return [...document.querySelectorAll(".cm-chk:checked")].map(c => c.value);
+}
+/** PostgREST-ის ფილტრი — ერთი ან რამდენიმე ქალაქი */
+function cityFilterParam() {
+  const c = selectedCities();
+  if (!c.length) return "";
+  if (c.length === 1) return `&city=eq.${encodeURIComponent(c[0])}`;
+  return `&city=in.(${c.map(v => encodeURIComponent(`"${v}"`)).join(",")})`;
+}
 
 function toggleStatusDrop(e){e.stopPropagation();const d=document.getElementById("statusMultiDrop");const b=document.getElementById("statusMultiBtn");const open=d.classList.toggle("open");b.classList.toggle("open",open);}
 function closeStatusDrop(){document.getElementById("statusMultiDrop")?.classList.remove("open");document.getElementById("statusMultiBtn")?.classList.remove("open");}
