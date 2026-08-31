@@ -1205,7 +1205,7 @@ async function doLogin() {
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0) {
-      SESSION = { username: data[0].username, role: data[0].role, display_name: data[0].display_name, ref_code: data[0].ref_code||"", segment: data[0].segment||"", sees_all_calendars: !!data[0].sees_all_calendars, sees_team_stats: !!data[0].sees_team_stats, handles_rejected: !!data[0].handles_rejected, can_delete_leads: !!data[0].can_delete_leads, can_edit_registrations: !!data[0].can_edit_registrations, can_assign_leads: !!data[0].can_assign_leads };
+      SESSION = sessionFromUser(data[0]);
       // admins may switch segments; everyone else is pinned to their own
       SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
         ? (localStorage.getItem("sx_segment") || "general")
@@ -1294,8 +1294,40 @@ function doLogout() {
   document.getElementById("loginPassword").value="";
   document.getElementById("loginErr").style.display="none";
 }
-const saved = sessionStorage.getItem("sx_session");
-if (saved) { try { SESSION=JSON.parse(saved); showDashboard(); } catch(e){} }
+function sessionFromUser(u) {
+  return {
+    username: u.username, role: u.role, display_name: u.display_name,
+    ref_code: u.ref_code || "", segment: u.segment || "",
+    sees_all_calendars:     !!u.sees_all_calendars,
+    sees_team_stats:        !!u.sees_team_stats,
+    handles_rejected:       !!u.handles_rejected,
+    can_delete_leads:       !!u.can_delete_leads,
+    can_edit_registrations: !!u.can_edit_registrations,
+    can_assign_leads:       !!u.can_assign_leads
+  };
+}
+
+/** შენახული სესია ძველ უფლებებს ინახავს — ბაზიდან ვანახლებთ,
+ *  თორემ ახლად მინიჭებული უფლება თავიდან შესვლამდე არ ჩანს. */
+async function restoreSession() {
+  const saved = sessionStorage.getItem("sx_session");
+  if (!saved) return;
+  let s;
+  try { s = JSON.parse(saved); } catch(e) { return; }
+  if (!s || !s.username) return;
+  SESSION = s;
+  showDashboard();
+  try {
+    const { data } = await sbGet("users", `username=eq.${encodeURIComponent(s.username)}&select=*`);
+    if (!data || !data.length) return;
+    const fresh = sessionFromUser(data[0]);
+    if (JSON.stringify(fresh) === JSON.stringify(SESSION)) return;
+    SESSION = fresh;
+    sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
+    showDashboard();
+  } catch(e) { /* ოფლაინი — ძველი სესიით ვაგრძელებთ */ }
+}
+restoreSession();
 
 // ── TABS ──────────────────────────────────
 function switchTab(name, btn) {
