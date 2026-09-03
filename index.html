@@ -235,6 +235,18 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,30,53,0.35);backdrop-filter:blur(4px);z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
+/* ✎ სვეტი მარჯვენა კიდეს მიკრული — ცხრილი განიერია და ღილაკი სხვაგვარად ეკრანს გარეთ რჩება */
+/* collapse-ის დროს sticky უჯრები ზოგ ბრაუზერში არ იჭერს — separate საიმედოა */
+#tabRegs table{border-collapse:separate;border-spacing:0;}
+#tabRegs th,#tabRegs td{border-bottom:1px solid var(--line);}
+#tabRegs tbody tr:last-child td{border-bottom:none;}
+#tabRegs th.col-act,#tabRegs td.col-act{position:sticky;right:0;z-index:2;width:52px;text-align:center;padding-left:8px;padding-right:12px;}
+#tabRegs td.col-act{background:var(--surface);box-shadow:-7px 0 9px -7px rgba(0,0,0,.16);}
+#tabRegs th.col-act{background:var(--surface2);box-shadow:-7px 0 9px -7px rgba(0,0,0,.16);}
+#tabRegs tr:hover td.col-act{background:var(--bg);}
+.btn-edit-sm{background:#eef4ff;color:var(--blue);border:1px solid #cfe0ff;border-radius:7px;
+  padding:4px 9px;font-size:13px;cursor:pointer;transition:.18s;}
+.btn-edit-sm:hover{background:#dbe8ff;}
 .rg-sec{padding:9px 18px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text-mid);transition:.15s;display:inline-flex;align-items:center;gap:8px;}
 .rg-sec:hover{border-color:var(--blue);color:var(--blue);}
 .rg-sec.on{background:var(--blue);color:white;border-color:var(--blue);}
@@ -3051,8 +3063,8 @@ function regColumns() {
     { h:"CRM",              cell:r => `<td>${r.matched
         ? `<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">✓ დაემთხვა</span>`
         : `<span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">ვერ მოიძებნა</span>`}</td>` },
-    { h:"",                 cell:r => `<td>${editsRegistrations()
-        ? `<button class="btn-del" title="შესწორება" onclick="event.stopPropagation();openRegEdit(${r.id})" style="color:var(--blue)">✎</button>`
+    { h:"", act:true, cell:r => `<td class="col-act">${editsRegistrations()
+        ? `<button class="btn-edit-sm" title="შესწორება" onclick="event.stopPropagation();openRegEdit(${r.id})">✎</button>`
         : ""}</td>` }
   );
   return cols;
@@ -3066,7 +3078,7 @@ function filterRegs() {
 
   const cols = regColumns();
   document.getElementById("rgHead").innerHTML =
-    "<tr>" + cols.map(c => `<th>${c.h}</th>`).join("") + "</tr>";
+    "<tr>" + cols.map(c => `<th${c.act ? ' class="col-act"' : ""}>${c.h}</th>`).join("") + "</tr>";
 
   const list = regsFiltered();
   document.getElementById("rgCount").textContent = list.length;
