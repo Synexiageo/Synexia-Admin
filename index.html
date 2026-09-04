@@ -3183,11 +3183,13 @@ function exportRegsXlsx() {
   const list = regsFiltered();
   if (!list.length) { alert("ჩანაწერი არ არის"); return; }
   const biz = REG_SECTION === "business";
-  const header = ["თარიღი","სახელი","გვარი","იუზერნეიმი"]
+  const header = ["თარიღი","სახელი გვარი","იუზერნეიმი"]
     .concat(biz ? ["ტიპი","კომპანია","ს/კ"] : [])
     .concat(["ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"]);
   const rows = list.map(r => [
-      String(r.created_at||"").substring(0,10), r.first_name, r.last_name, usernamesOf(r).join(", ")
+      String(r.created_at||"").substring(0,10),
+      [r.first_name, r.last_name].filter(Boolean).join(" ").trim(),
+      usernamesOf(r).join(", ")
     ].concat(biz ? [ENTITY_LABEL[entityOf(r)], r.company_name, r.company_id] : [])
      .concat([ r.phone, r.personal_id, r.account_number, r.occupation, r.note,
                r.matched ? "დაემთხვა" : "ვერ მოიძებნა" ]));
