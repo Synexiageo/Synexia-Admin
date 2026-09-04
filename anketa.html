@@ -170,18 +170,20 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div class="f">
         <label for="phone">ტელეფონის ნომერი<span class="req">*</span></label>
-        <input type="tel" id="phone" inputmode="numeric" placeholder="5XX XX XX XX" autocomplete="off">
-        <span class="hint">იგივე ნომერი, რომლითაც დარეგისტრირდით</span>
+        <input type="tel" id="phone" inputmode="numeric" maxlength="13" placeholder="5XX XX XX XX" autocomplete="off">
+        <span class="hint">9 ციფრი, +995-ის გარეშე — იგივე, რომლითაც დარეგისტრირდით</span>
       </div>
 
       <div class="f">
         <label for="pid">პირადი ნომერი<span class="req">*</span></label>
         <input type="text" id="pid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
+        <span class="hint">11 ციფრი</span>
       </div>
 
       <div class="f">
         <label for="acc">საბანკო ანგარიშის ნომერი<span class="req">*</span></label>
-        <input type="text" id="acc" placeholder="GE00XX0000000000000000" autocomplete="off">
+        <input type="text" id="acc" maxlength="22" placeholder="GE00XX0000000000000000" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <span class="hint">22 სიმბოლო, GE-ით იწყება</span>
       </div>
 
       <div class="f">
@@ -297,33 +299,57 @@ async function submitForm() {
   const cname = v("cname"), cid = v("cid");
   const usernames = readUsernames();
 
+  // ── ცარიელი ველები ──
   const missing = [];
   if (!first) missing.push("fname");
   if (!last)  missing.push("lname");
-
+  if (!phone) missing.push("phone");
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
   if (ENTITY === "legal") {
     if (!cname) missing.push("cname");
     if (!cid)   missing.push("cid");
   }
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 9) missing.push("phone");
-
   if (!usernames.length) {
-    const first = document.querySelector(".uname");
-    if (first) { first.classList.add("bad"); first.focus(); }
-    show("err", "მიუთითეთ მინიმუმ ერთი მომხმარებლის სახელი");
+    markBad(missing);
+    const u = document.querySelector(".uname");
+    if (u && !missing.length) { u.classList.add("bad"); u.focus(); }
+    show("err", missing.length
+      ? "შეავსეთ ვარსკვლავით მონიშნული ველები"
+      : "მიუთითეთ მინიმუმ ერთი მომხმარებლის სახელი");
     return;
   }
-
   if (missing.length) {
     markBad(missing);
-    show("err", digits.length && digits.length < 9
-      ? "ტელეფონის ნომერი უნდა შეიცავდეს 9 ციფრს"
-      : "შეავსეთ ვარსკვლავით მონიშნული ველები");
+    show("err", "შეავსეთ ვარსკვლავით მონიშნული ველები");
     return;
   }
+
+  // ── სიგრძეები ──
+  // ტელეფონი: 9 ციფრი. თუ ქვეყნის კოდით აკრიფეს, ვაცილებთ.
+  let digits = phone.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("995")) digits = digits.slice(3);
+  const pidDigits = pid.replace(/\D/g, "");
+  const accClean  = acc.replace(/\s/g, "").toUpperCase();
+
+  const wrong =
+    digits.length !== 9
+      ? ["phone", `ტელეფონის ნომერი უნდა იყოს 9 ციფრი (+995-ის გარეშე) — თქვენ ${digits.length} შეიყვანეთ`]
+    : pidDigits.length !== 11
+      ? ["pid", `პირადი ნომერი უნდა იყოს 11 ციფრი — თქვენ ${pidDigits.length} შეიყვანეთ`]
+    : accClean.length !== 22
+      ? ["acc", `საბანკო ანგარიში უნდა იყოს 22 სიმბოლო — თქვენ ${accClean.length} შეიყვანეთ`]
+    : null;
+
+  if (wrong) {
+    markBad([wrong[0]]);
+    show("err", wrong[1]);
+    return;
+  }
+  // ველებშიც გასუფთავებული ჩავწეროთ, რომ ადამიანმა დაინახოს რა იგზავნება
+  $("acc").value   = accClean;
+  $("pid").value   = pidDigits;
+  $("phone").value = digits;
   markBad([]);
 
   const btn = $("btn");
@@ -339,8 +365,8 @@ async function submitForm() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        p_first_name: first, p_last_name: last, p_phone: phone,
-        p_personal_id: pid, p_account_number: acc, p_occupation: occ,
+        p_first_name: first, p_last_name: last, p_phone: digits,
+        p_personal_id: pidDigits, p_account_number: accClean, p_occupation: occ,
         p_usernames: usernames,
         p_entity_type: ENTITY,
         p_company_name: ENTITY === "legal" ? cname : null,
@@ -387,6 +413,11 @@ function resetForm() {
 }
 
 // მხოლოდ ციფრები — ტელეფონსა და პირად ნომერში
+$("acc").addEventListener("input", e => {
+  const clean = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (clean !== e.target.value) e.target.value = clean;
+});
+
 ["phone","pid","cid"].forEach(id => {
   $(id).addEventListener("input", e => {
     const clean = e.target.value.replace(/[^\d+ ]/g, "");
