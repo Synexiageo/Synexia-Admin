@@ -1586,7 +1586,12 @@ async function loadLeads(page) {
   if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
   else if (prio === "yes") filters += `&priority=is.true`;
   else if (prio === "no")  filters += `&priority=is.false`;
-  else if (prio === "unknown") filters += `&phone_unknown=is.true`;
+  else if (prio === "unknown") {
+    // ცალკე სვეტი არ არსებობს — ტექსტით ვეძებთ: ცარიელი, „არ ვიცი" ან მარტო ბრენდი
+    const pats = ["არ ვიცი","ar vici","ანდროიდი","android","უცნობი","სხვა",
+                  "samsung","სამსუნგი","სამსუნგ","galaxy","გალაქსი","xiaomi","ქსიაომი"];
+    filters += `&or=(phone_model.is.null,${pats.map(k=>`phone_model.ilike.${encodeURIComponent(k)}`).join(",")})`;
+  }
   else if (prio === "flag") {
     // ავტო-ფილტრის საეჭვო სიტყვები — მხოლოდ ⭐ ცხელ ლიდებში
     filters += `&priority=is.true&sphere_rank=not.is.null&or=(${UNQ_SOFT.concat(UNQ_HARD).map(k=>`note.ilike.*${encodeURIComponent(k)}*`).join(",")})`;
@@ -1694,12 +1699,91 @@ const UNQ_ABS = {
     exc: ["ხელოსან","რემონტ","მშენებლ","ავეჯ","სანტექნიკ","ელექტრიკ"] }
 };
 
-// ტელეფონი → Phone Model Issue
-const PH_BAD = ["redmi","რედმი","honor","ჰონორ","poco","პოკო","realme","infinix","tecno","nokia","oppo","vivo"];        // ბაზაში 1,378 ასეთი — მხოლოდ 1% priority
-const PH_UNK = ["არ ვიცი","ar vici","ანდროიდი","android","უცნობი"];
+// ── ტელეფონის სტანდარტი (2026-09-15) → Phone Model Issue ──────────────────────
+// ანდროიდიდან მხოლოდ დამტკიცებული მოდელები მიიღება. iPhone-ის წესი უცვლელია: 11-დან ზემოთ.
+// phone_model თავისუფალი ტექსტია — ქართულადაც წერენ და შეცდომებითაც („სამსუგი ა16",
+// „lphone 13") — ამიტომ ჯერ ტრანსლიტერაცია, მერე ბრენდის ამოცნობა და მხოლოდ
+// შემდეგ მოდელის შემოწმება. ბრენდის გარეშე მოდელს არ ვამოწმებთ, თორემ
+// „Redmi Note 20"-ს Galaxy Note 20-ის წესი დაიჭერდა.
+
+const PH_TR = {ა:"a",ბ:"b",გ:"g",დ:"d",ე:"e",ვ:"v",ზ:"z",თ:"t",ი:"i",კ:"k",ლ:"l",მ:"m",
+  ნ:"n",ო:"o",პ:"p",ჟ:"j",რ:"r",ს:"s",ტ:"t",უ:"u",ფ:"p",ქ:"q",ღ:"g",ყ:"k",
+  შ:"sh",ჩ:"ch",ც:"c",ძ:"dz",წ:"w",ჭ:"ch",ხ:"x",ჯ:"j",ჰ:"h"};
+function phNorm(m) {
+  return String(m||"").trim().toLowerCase().replace(/i̇/g,"i")
+    .split("").map(c => PH_TR[c] ?? c).join("")
+    .replace(/[^a-z0-9+]+/g," ").replace(/\s+/g," ").trim();
+}
+
+// ბრენდის ამოცნობა — ჩაწერის ყველა გავრცელებული შეცდომით
+const PH_BRAND_KW = [
+  ["iphone",  ["iphone","ipone","iphon","ifon","ipon","aipon","aipin","ajfon","iohone","lphone","ipome","aigon","aifon","ifhone","apple","i phone","iponi","aiponi","ipoun","ifoni","aphone","apon","ippne","iopne"]],
+  ["xiaomi",  ["xiaomi","xiami","xiamo","xiamon","xiamen","xsiaomi","ksiaom","qsiaom","qsiaum","qsaom","siaom","shaom","redmi","redme","redmy","redmo","redni","remi","poco","poko","pocco","pako","proko","redmagic","edemi"]],
+  ["samsung", ["samsung","samsun","samsu","sams","samsyng","samsund","samsudg","sansung","damsung","samsub","samsum","samsul","samaung","aamaung","samung","samsng","galax","galaqs","galaqc","galags","galasy","galaksi","galsk","galqs","galxy"]],
+  ["pixel",   ["pixel","pixsel","piqsel","fiqsel","google","gogle","gugl"]],
+  ["honor",   ["honor","honir","hinor","nohor","onor"]],
+  ["huawei",  ["huawei","huavei","huwei"]],
+  ["realme",  ["realme","realmi","realmy","really","real me","realm "]],
+  ["oppo",    ["oppo"]],
+  ["vivo",    ["vivo"]],
+  ["nokia",   ["nokia","nokya"]],
+  ["infinix", ["infinix","infiniks","inpiniq","inpiniks"]],
+  ["tecno",   ["tecno","teqno","texno"]],
+  ["motorola",["motorola","motorika","moto "]],
+  ["oneplus", ["oneplus","one plus","one plius","vanplus"]],
+  ["nothing", ["nothing","noting"]],
+  // დანარჩენი ბრენდები სიაში საერთოდ არ არის — ერთ კალათაში
+  ["other",   ["oukitel","oukit","aukitel","itel","zte","ulefon","doogee","blackview","alcatel","olkatel","umidigi","cubot","meizu","asus","soni","sony","htc","leeco","wiko","hotwav","tank ","cat","hundai"]],
+];
+const PH_UNK = ["არ ვიცი","ar vici","ანდროიდი","android","უცნობი","ar maqvs","არ მაქვს","არ მახსოვს"];
 const PH_NOMODEL = /^\s*(samsung|samsungi|სამსუნგი?|galaxy|გალაქსი?|xiaomi|ქსიაომი|სამსუნგ\s+გალაქსი?)[\s.]*$/i;
-// თუ ჩანაწერში ვარგისი მოდელიც არის (მაგ. „Poco X3 / Galaxy s22 +"), ტელეფონის წესი არ მუშაობს
-const PH_GOOD = /(?:iphone|ipone|iphon|ifon|ifoni|aipon|აიფონ|იფონ|იპონე)\s*(?:1[1-7]\b|pro|პრო|max|მაქს)|(?:iphone|ipone|aipon|აიფონ|იპონე)\s*1[1-7]\b|\b(?:galaxy|samsung|სამსუნგ|გალაქს)\D{0,10}s\s?(?:10|2[0-6])\b|\b[სs]\s?(?:10|2[0-6])\b|pixel\s*[7-9]|(?:^|[^\d])1[1-7]\s*(pro|პრო|max|მაქს|plus|mini)/i;         // ბრენდი კი, მოდელი არა — 0% priority
+const PH_JUNK = /^(|x|ki|diax|ok|ara|sxva[a-z ]*|androidi?|ucnobi|telefoni|ubralo telefoni|smarti|smartponi|tbilisi|diasaxlisi|[0-9 +]{6,})$/;
+
+function phBrand(t) {
+  for (const [b, kws] of PH_BRAND_KW) if (kws.some(k => t.includes(k))) return b;
+  // ბრენდის გარეშე დაწერილი აიფონი — „13 pro", „17 პრო მაქსი", „11"
+  if (/^1[0-7]\b/.test(t) && /pro|max|maqs|mini|plus|pliu|^1[0-7]$/.test(t)) return "iphone";
+  if (/^1[0-7](pro|max|maqs|mini|plus)/.test(t)) return "iphone";
+  if (/^ip\s?1[0-7]\b/.test(t)) return "iphone";                    // „Ip13"
+  if (/^(x|xr|xs|se|[5-9])\s*(s|plus|max|mini)?$/.test(t)) return "iphone";
+  // ბრენდის გარეშე დაწერილი სამსუნგი — „s23 ultra", „a16", „note 20"
+  if (/^(s|a|m|j|z)\s?\d/.test(t) || /^note\s?\d/.test(t)) return "samsung";
+  return null;
+}
+
+// დამტკიცებული მოდელები. ცვლილება აქ ერთ ხაზში ხდება.
+const PH_ALLOW = {
+  // iPhone — ახალი სტანდარტი მხოლოდ ანდროიდს ეხება, ამიტომ ძველი ქცევა უცვლელია:
+  // 11-დან ზემოთ ვარგისია, ძველებს (X, XR, 8, SE) ავტომატურად არ ვჭრით — ოპერატორი წყვეტს.
+  iphone: t => /1[1-7]/.test(t) ? true : null,
+  // Galaxy S20–S25 (FE / Ultra / + / Active / Slim), Note 20, A51–A57, A72, M31(s), Z Flip3/5/6/7, Z Fold4/5/6/7
+  samsung: t => !/\d/.test(t) ? null : (
+       /note\s?20(?!\d)/.test(t)
+    || /flip\s?[3567](?!\d)/.test(t)
+    || /fold\s?[4567](?!\d)/.test(t)
+    || /(?<!\d)s\s?2[0-5](?!\d)/.test(t)
+    || /(?<!\d)a\s?(5[1-7]|72)(?!\d)/.test(t)
+    || /(?<!\d)m\s?31(?!\d)/.test(t)),
+  // Pixel 7a, 7 Pro, 8/8a/8 Pro, 9/9a/9 Pro/9 Pro XL, 10/10 Pro — უბრალო Pixel 7 სიაში არ არის
+  pixel: t => !/\d/.test(t) ? null : (
+       /(?<!\d)7\s?a(?!\d)/.test(t)
+    || (/(?<!\d)7(?!\d)/.test(t) && /pro/.test(t))
+    || /(?<!\d)(8|9|10)(?!\d)/.test(t)),
+  infinix:  t => /hot\s?30/.test(t),          // Infinix Hot 30i
+  motorola: t => /razr/.test(t) && /ultra/.test(t),   // Motorola Razr Ultra (2025)
+  nothing:  t => /2\s?a/.test(t) && /plus/.test(t),   // Nothing Phone (2a) Plus
+  oneplus:  t => /open/.test(t),              // OnePlus Open
+};
+
+// true = ვარგისი · false = სტანდარტს არ აკმაყოფილებს · null = ვერ ვცნობთ, ოპერატორმა უნდა იკითხოს
+function phCheck(raw) {
+  const t = phNorm(raw);
+  if (!t || PH_JUNK.test(t)) return null;
+  const b = phBrand(t);
+  if (!b) return null;                        // უცნობი ჩანაწერი — არ ვჭრით
+  const rule = PH_ALLOW[b];
+  return rule ? rule(t) : false;              // ბრენდი ცნობილია, სიაში არ არის → უარი
+}
 
 // ⭐ ცხელ ლიდებზე დამატებითი სფერო-ფილტრი
 const UNQ_HARD = ["იუველირ","საიუველირო","ოქრომჭედელ","სამკაულ","მინანქარ","სუვენირ","iuvelir","oqromch","ტატუ","tatu","მაკიაჟ","მანიკურ","პედიკურ","სილამაზ","ხატმწერ","სტომატოლოგ","კბილის","რადიოლოგ","სამედიცინო","თერაპევტ","მრტ","ტაქსი","taqsi","taxi","კურიერ","curier","courier","delivery","ფოსტა","მძღოლ","დისპეჩ","დისპეჩინგ","მერჩენდაიზ","შემფასებელ","დაზღვევ","სიგორტა","იმპორტიორ","უძრავი","საქმისწარმოება","trading","ბეტონმზიდ","მანიპულატორ","ავტოპარკ","კოშკურ","jcb"];
@@ -1738,15 +1822,18 @@ function unqCheck(l) {
 
   // 1. ტელეფონი — ყველა ლიდზე
   const pm = String(l.phone_model||"").trim();
-  if (pm && !PH_GOOD.test(pm)) {
-    const p = pm.toLowerCase();
-    const b = PH_BAD.find(k => p.includes(k));
-    if (b) return { level:"phone", status:"Phone Model Issue", cat:"ტელეფონი უვარგისია", kw:b };
-    // მოდელი უცნობია — ეს ინფორმაციის ნაკლებობაა და არა უვარგისობა.
-    // სტატუსს არ ვცვლით: ოპერატორმა ზარზე უნდა იკითხოს მოდელი.
-    const un = PH_UNK.find(k => p.includes(k));
-    if (un) pending = { level:"soft", status:null, cat:"მოდელი დასაზუსტებელია", kw:un };
-    else if (PH_NOMODEL.test(pm)) pending = { level:"soft", status:null, cat:"მოდელი დასაზუსტებელია", kw:pm };
+  if (pm) {
+    const ok = phCheck(pm);
+    if (ok === false)
+      return { level:"phone", status:"Phone Model Issue", cat:"ტელეფონი სტანდარტს არ აკმაყოფილებს", kw:phNorm(pm) };
+    if (ok === null) {
+      // მოდელი უცნობია — ეს ინფორმაციის ნაკლებობაა და არა უვარგისობა.
+      // სტატუსს არ ვცვლით: ოპერატორმა ზარზე უნდა იკითხოს მოდელი.
+      const p = pm.toLowerCase();
+      const un = PH_UNK.find(k => p.includes(k));
+      if (un) pending = { level:"soft", status:null, cat:"მოდელი დასაზუსტებელია", kw:un };
+      else if (PH_NOMODEL.test(pm)) pending = { level:"soft", status:null, cat:"მოდელი დასაზუსტებელია", kw:pm };
+    }
   }
 
   // 2. საქმიანობა — ყველა ლიდზე, სადაც ტექსტი არსებობს
