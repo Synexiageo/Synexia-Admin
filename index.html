@@ -572,6 +572,8 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="stat-card red">    <div class="stat-label">უარი</div>         <div class="stat-value" id="stDeclined">—</div></div>
         <div class="stat-card purple"> <div class="stat-label">არ უპასუხა 1</div>  <div class="stat-value" id="stNoReply">—</div></div>
         <div class="stat-card" style="border-color:#d1d5db"> <div class="stat-label">არ უპასუხა 2</div>  <div class="stat-value" id="stNoReply2" style="color:#374151">—</div></div>
+        <div class="stat-card" id="cardReturned" style="border-color:#fecaca;cursor:pointer" onclick="toggleReturned()"
+             title="განმეორებით შეავსეს ანკეტა. სტატუსი შენარჩუნებულია — დააჭირე სიის სანახავად."><div class="stat-label">🔁 დაბრუნებული</div>  <div class="stat-value" id="stReturned" style="color:#dc2626">—</div></div>
       </div>
       <!-- რემაინდერები -->
       <div id="remindersBox" style="display:none;background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(234,179,8,0.1)">
@@ -1486,7 +1488,7 @@ async function loadStats() {
   try {
     const enc = encodeURIComponent;
     const refFilter = (SESSION.role==="influencer"&&SESSION.ref_code) ? `&ref_code=eq.${enc(SESSION.ref_code)}` : "";
-    const [tot,nw,inte,co,neg,ob,de,nr1,nr2] = await Promise.all([
+    const [tot,nw,inte,co,neg,ob,de,nr1,nr2,ret] = await Promise.all([
       sbGet("leads","select=id&limit=1"+refFilter),
       sbGet("leads","select=id&status=eq."+enc("New Lead")+"&limit=1"+refFilter),
       sbGet("leads","select=id&status=eq.Interested&limit=1"+refFilter),
@@ -1496,6 +1498,7 @@ async function loadStats() {
       sbGet("leads","select=id&status=eq.Declined&limit=1"+refFilter),
       sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 1")+"&limit=1"+refFilter),
       sbGet("leads","select=id&status=eq."+enc("არ უპასუხა 2")+"&limit=1"+refFilter),
+      sbGet("leads","select=id&limit=1"+refFilter+returnedParam()),
     ]);
     document.getElementById("stTotal").textContent     = tot.count||0;
     document.getElementById("stNew").textContent       = nw.count||0;
@@ -1504,7 +1507,27 @@ async function loadStats() {
     document.getElementById("stDeclined").textContent  = de.count||0;
     document.getElementById("stNoReply").textContent   = nr1.count||0;
     document.getElementById("stNoReply2").textContent  = nr2.count||0;
+    document.getElementById("stReturned").textContent  = ret.count||0;
   } catch(e){ console.error("stats error:",e); }
+}
+
+// ── 🔁 დაბრუნებულები ───────────────────────────────────────────────────────
+// ვინც ანკეტა ხელახლა შეავსო. სტატუსს არ ვცვლით — ის ნამუშევარია — ამიტომ
+// ცალკე ნიშნით ამოგვაქვს. Onboarded უკვე მუშაობს, Unqualified და Phone Model
+// Issue კი უარყოფილები არიან: მათი დაბრუნება ოპერატორს არ უნდა შეაწუხოს.
+// ტელეფონი ვარგისი უნდა იყოს, თორემ ისედაც არ გამოგვადგება.
+let RETURNED_ONLY = false;
+const RETURNED_SKIP = ["Onboarded", "Unqualified", "Phone Model Issue"];
+function returnedParam() {
+  return `&submission_count=gt.1&priority=is.true`
+       + `&status=not.in.(${RETURNED_SKIP.map(s => `"${encodeURIComponent(s)}"`).join(",")})`;
+}
+function toggleReturned() {
+  RETURNED_ONLY = !RETURNED_ONLY;
+  currentPage = 1;
+  const c = document.getElementById("cardReturned");
+  if (c) c.style.boxShadow = RETURNED_ONLY ? "0 0 0 2px #dc2626" : "";
+  loadLeads();
 }
 
 // reg_date-ში სამი ფორმატი ცხოვრობს: ISO UTC ("2026-09-14T20:08:28.000Z" — Meta/Make),
@@ -1564,9 +1587,12 @@ async function loadLeads(page) {
 
   const prioSort = (document.getElementById("filterPriority")?.value||"") !== "";
   // in the priority views the sphere ranking decides the order — logistics first
-  let filters = prioSort
-    ? `select=*&order=sphere_rank.asc.nullslast,created_at.${leadsSort}`
-    : `select=*&order=created_at.${leadsSort}`;
+  let filters = RETURNED_ONLY
+    ? `select=*&order=last_submission_at.desc.nullslast`
+    : prioSort
+      ? `select=*&order=sphere_rank.asc.nullslast,created_at.${leadsSort}`
+      : `select=*&order=created_at.${leadsSort}`;
+  if (RETURNED_ONLY) filters += returnedParam();
   if (SESSION.role === "influencer" && SESSION.ref_code) {
     filters += `&ref_code=eq.${encodeURIComponent(SESSION.ref_code)}`;
   } else {
@@ -2072,7 +2098,7 @@ function renderLeads(leads, offset) {
         return sph
           ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>` + flg
           : `<span class="prio-phone" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span>`;
-      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">×${l.submission_count}</span>`:""}${isInfluencer?"":favBtn(l.id)}</span>${FAVS.get(l.id)?`<div class="fav-hint">🔖 ${esc(FAVS.get(l.id))}</div>`:""}</td>
+      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span title="ანკეტა ${l.submission_count}-ჯერ შეავსო${l.last_submission_at?" · ბოლოს "+fmtTime(l.last_submission_at):""}" style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0;cursor:help">🔁 ${l.submission_count}×</span>`:""}${isInfluencer?"":favBtn(l.id)}</span>${FAVS.get(l.id)?`<div class="fav-hint">🔖 ${esc(FAVS.get(l.id))}</div>`:""}</td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${esc(l.status)}</span></td>
