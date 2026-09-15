@@ -1507,6 +1507,24 @@ async function loadStats() {
   } catch(e){ console.error("stats error:",e); }
 }
 
+// reg_date-ში სამი ფორმატი ცხოვრობს: ISO UTC ("2026-09-14T20:08:28.000Z" — Meta/Make),
+// ლოკალური ტექსტი ("2026-09-15 14:30" — nowStr()) და უბრალო თარიღი ("2026-09-15" — იმპორტი).
+// სამივე ქრონოლოგიურად ლაგდება, ამიტომ ტექსტური შედარება მუშაობს — ოღონდ საზღვარი
+// თბილისის შუაღამეს უნდა შეესაბამებოდეს და არა UTC-სას. საქართველო = UTC+4, ზაფხულის
+// დროზე არ გადადის, ამიტომ დღე D იწყება UTC-ს წინა დღის 20:00-ზე.
+// ამის გარეშე 00:00–04:00-ში შემოსული ლიდები წინა დღეში ჯდებოდა.
+function geDayStart(day) {            // "2026-09-15" → "2026-09-14T20:00:00"
+  const d = new Date(day + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().substring(0,10) + "T20:00:00";
+}
+function regDateParam(dateFrom, dateTo) {
+  let p = "";
+  if (dateFrom) p += `&reg_date=gte.${geDayStart(dateFrom)}`;
+  if (dateTo)   p += `&reg_date=lt.${dateTo}T20:00:00`;   // dateTo-ს მომდევნო თბილისური შუაღამე
+  return p;
+}
+
 // ── LEADS ────────────────────────────────
 function fmtTime(ts) {
   if (!ts) return '—';
@@ -1576,13 +1594,7 @@ async function loadLeads(page) {
   }
   if (assigned === UNASSIGNED) filters += `&assigned_to=is.null`;
   else if (assigned)           filters += `&assigned_to=eq.${encodeURIComponent(assigned)}`;
-  // reg_date stored as "YYYY-MM-DD HH:MM" text — text comparison works for this format
-  if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
-  if (dateTo) {
-    // include full last day: "2026-06-07 23:59" < "2026-06-08"
-    const next = new Date(dateTo); next.setDate(next.getDate()+1);
-    filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
-  }
+  filters += regDateParam(dateFrom, dateTo);
   // მხოლოდ ავტომატურად უარყოფილები ეფარება — ხელით გადაყვანილი ყველას უჩანს
   if (hidesRejected()) filters += `&auto_rejected=is.false`;
 
@@ -2850,11 +2862,7 @@ async function exportCSV(){
     if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
     if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
     filters += cityFilterParam();
-    if (dateFrom) filters += `&reg_date=gte.${dateFrom}`;
-    if (dateTo) {
-      const next = new Date(dateTo); next.setDate(next.getDate()+1);
-      filters += `&reg_date=lt.${next.toISOString().substring(0,10)}`;
-    }
+    filters += regDateParam(dateFrom, dateTo);
     // ცხელი/priority ფილტრი (ისევე როგორც ლიდების გვერდზე)
     const prio = document.getElementById("filterPriority")?.value||"";
     if (prio === "hot")      filters += `&priority=is.true&sphere_rank=not.is.null`;
