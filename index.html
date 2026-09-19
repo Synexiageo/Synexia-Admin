@@ -146,6 +146,22 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .s-phoneissue  {color:#5b21b6;background:#ede9fe;border-color:#c4b5fd;}
 .s-duplicate   {color:#b45309;background:#fffbeb;border-color:#fcd34d;font-weight:700;}
 .prev-status{font-size:10px;color:var(--text-dim);font-weight:500;margin-top:2px;white-space:nowrap;}
+/* თავსამაგრი */
+.mt-in{height:30px;border:1.5px solid var(--border);border-radius:7px;padding:0 8px;font-family:inherit;font-size:12.5px;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s,background .3s;}
+.mt-in:focus{border-color:var(--blue);}
+.mt-in.ok{background:#ecfdf5;border-color:#6ee7b7;}
+.mt-in.err{background:#fef2f2;border-color:#fca5a5;}
+select.mt-in.brought{color:#047857;font-weight:700;}
+select.mt-in.not_brought{color:#b45309;font-weight:700;}
+.mt-note{width:100%;min-width:180px;}
+tr.mt-overdue td{background:#fff7ed;}
+.mt-by{font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
+.mt-card{cursor:pointer;}
+.stats-grid.mt-stats{grid-template-columns:repeat(5,1fr);}
+@media(max-width:900px){.stats-grid.mt-stats{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.stats-grid.mt-stats{grid-template-columns:repeat(2,1fr);}}
+.mt-card.on{box-shadow:0 0 0 2px var(--blue);}
+.mt-notice{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:14px;}
 
 .btn-edit{background:var(--blue-dim2);color:var(--blue);border:1px solid rgba(29,110,245,.2);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;transition:.18s;}
 .btn-edit:hover{background:rgba(29,110,245,.2);}
@@ -525,6 +541,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <button class="nav-tab" id="onboardedTabBtn" onclick="switchTab('onboarded',this)">
         <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Onboarded <span id="obNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px"></span>
       </button>
+      <button class="nav-tab" id="mountTabBtn" onclick="switchTab('mount',this)">
+        <svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 0116 0"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/></svg>თავსამაგრი <span id="mountNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
+      </button>
       <button class="nav-tab" id="regsTabBtn" onclick="switchTab('regs',this)" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>ანკეტები <span id="regsNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
       </button>
@@ -895,6 +914,59 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       </div>
     </div>
 
+    <!-- თავსამაგრი -->
+    <div class="tab-panel" id="tabMount">
+      <div id="mtNotice" class="mt-notice" style="display:none"></div>
+      <div class="stats-grid mt-stats">
+        <div class="stat-card green mt-card"  data-mf="brought"     onclick="mountCard(this)"><div class="stat-label">✅ მოიტანა</div><div class="stat-value" id="mtBrought">—</div></div>
+        <div class="stat-card yellow mt-card" data-mf="not_brought" onclick="mountCard(this)"><div class="stat-label">⏳ არ მოუტანია</div><div class="stat-value" id="mtNot">—</div></div>
+        <div class="stat-card blue mt-card"   data-mf="today"       onclick="mountCard(this)"><div class="stat-label">📅 დღეს მოაქვს</div><div class="stat-value" id="mtToday">—</div></div>
+        <div class="stat-card red mt-card"    data-mf="overdue"     onclick="mountCard(this)"><div class="stat-label">⚠ ვადა გადაცილდა</div><div class="stat-value" id="mtOverdue">—</div></div>
+        <div class="stat-card mt-card"        data-mf="none"        onclick="mountCard(this)"><div class="stat-label">— მითითებული არ არის</div><div class="stat-value" id="mtNone" style="color:#374151">—</div></div>
+      </div>
+      <div class="toolbar" style="margin-bottom:14px">
+        <div class="tb-group" style="flex:1;min-width:200px">
+          <span class="tb-label">ძიება</span>
+          <input class="tb-input" id="mtSearch" placeholder="სახელი, ტელეფონი…" onkeydown="if(event.key==='Enter')loadMountTab(1)">
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">თავსამაგრი</span>
+          <select class="tb-select" id="mtFilter" onchange="loadMountTab(1)">
+            <option value="">ყველა</option>
+            <option value="brought">✅ მოიტანა</option>
+            <option value="not_brought">⏳ არ მოუტანია</option>
+            <option value="today">📅 დღეს მოაქვს</option>
+            <option value="overdue">⚠ ვადა გადაცილდა</option>
+            <option value="none">— მითითებული არ არის</option>
+          </select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">სტატუსი</span>
+          <select class="tb-select" id="mtStatus" onchange="loadMountTab(1)"><option value="">ყველა</option></select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">აგენტი</span>
+          <select class="tb-select" id="mtAgent" onchange="loadMountTab(1)"><option value="">ყველა</option></select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">&nbsp;</span>
+          <button class="btn btn-outline" onclick="loadMountTab(1)" style="height:34px;padding:0 14px">🔍 ძიება</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count">ლიდი: <span id="mtCount">0</span></div>
+          <div id="mtPager" style="display:flex;gap:6px;align-items:center"></div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>სახელი</th><th>ტელეფონი</th><th>სტატუსი</th><th>აგენტი</th><th>თავსამაგრი</th><th>როდის მოიტანს</th><th>კომენტარი</th><th>ბოლოს შეცვალა</th></tr></thead>
+            <tbody id="mtBody"><tr class="loading-row"><td colspan="9"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- Retired კლიენტები -->
     <div class="tab-panel" id="tabRetired">
       <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);max-width:300px;margin-bottom:16px">
@@ -1150,6 +1222,20 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="d-field"><label class="d-label">თარიღი და დრო</label><div style="display:flex;gap:6px"><input type="date" class="d-input" id="dNextContact" style="flex:1"><input type="time" class="d-input" id="dNextContactTime" style="width:110px"></div></div>
         <div class="d-field"><label class="d-label">შენიშვნა</label><input type="text" class="d-input" id="dNextContactNote" placeholder="მაგ. დარეკვა შეთანხმებაზე"></div>
       </div>
+      <div id="dMountSection" style="display:none">
+        <div class="d-section-title" style="margin-top:14px">🎧 თავსამაგრი</div>
+        <div class="d-grid">
+          <div class="d-field"><label class="d-label">მოიტანა?</label>
+            <select class="d-select" id="dMountStatus">
+              <option value="">— მითითებული არ არის —</option>
+              <option value="brought">✅ მოიტანა</option>
+              <option value="not_brought">⏳ არ მოუტანია</option>
+            </select>
+          </div>
+          <div class="d-field"><label class="d-label">როდის მოიტანს</label><input type="date" class="d-input" id="dMountDue"></div>
+        </div>
+        <div class="d-grid full"><div class="d-field"><label class="d-label">კომენტარი</label><input type="text" class="d-input" id="dMountNote" placeholder="მაგ. ხვალ ოფისში მოიტანს"></div></div>
+      </div>
       <div class="history-section">
         <div class="d-section-title" style="margin-top:8px">კომენტარები და ცვლილებები</div>
         <div class="comment-input-wrap">
@@ -1332,6 +1418,8 @@ function switchSegment(value) {
   loadStats();
   loadWorkers();
   populateProfessions();
+  mountBadge();
+  if (currentTab === "mount") loadMountTab(1);
 }
 
 async function showDashboard() {
@@ -1389,6 +1477,7 @@ async function showDashboard() {
   loadStats();
   loadWorkers();
   populateProfessions();
+  probeMount().then(ok => { if (ok) mountBadge(); });
   setTimeout(autoUnqualifySweep, 1200);
 }
 
@@ -1441,6 +1530,166 @@ async function restoreSession() {
 restoreSession();
 
 // ── TABS ──────────────────────────────────
+// ── 🎧 თავსამაგრი ──────────────────────────────────────────────────────────
+// ლიდზე სამი ველი: მოიტანა / არ მოუტანია, როდის მოიტანს, კომენტარი. ტაბში
+// ყველა ლიდი ჩანს და ველები პირდაპირ ცხრილში იცვლება — ცვლილება მაშინვე ინახება.
+// MOUNT_READY: ბაზაში სვეტები არსებობს თუ არა. სანამ mount.sql არ გაეშვება,
+// ამ ველებს არ ვაგზავნით, თორემ ლიდის ფანჯრის შენახვა მთლიანად ჩავარდებოდა.
+let MOUNT_READY = false, mountPage = 1;
+const MOUNT_PAGE = 50;
+const MOUNT_LABEL = { brought: "✅ მოიტანა", not_brought: "⏳ არ მოუტანია" };
+const MT_ROWS = new Map();
+
+function geToday() { return new Date(Date.now() + 4*60*60*1000).toISOString().substring(0,10); }
+
+async function probeMount() {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/leads?select=mount_status&limit=1`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+    MOUNT_READY = res.ok;
+  } catch (e) { MOUNT_READY = false; }
+  const sec = document.getElementById("dMountSection");
+  if (sec) sec.style.display = MOUNT_READY ? "" : "none";
+  return MOUNT_READY;
+}
+
+function mountParam(f) {
+  const t = geToday();
+  if (f === "brought")     return `&mount_status=eq.brought`;
+  if (f === "not_brought") return `&mount_status=eq.not_brought`;
+  if (f === "today")       return `&mount_status=eq.not_brought&mount_due=eq.${t}`;
+  if (f === "overdue")     return `&mount_status=eq.not_brought&mount_due=lt.${t}`;
+  if (f === "none")        return `&mount_status=is.null`;
+  return "";
+}
+
+// ნავიგაციის წითელი ციფრი — ვისაც მოტანის ვადა გაუვიდა
+async function mountBadge() {
+  if (!MOUNT_READY) return;
+  const { count } = await sbGet("leads", "select=id&limit=1" + mountParam("overdue"));
+  const b = document.getElementById("mountNavBadge");
+  if (b) { b.textContent = count; b.style.display = count ? "" : "none"; }
+}
+
+async function mountStats() {
+  const keys = [["brought","mtBrought"],["not_brought","mtNot"],["today","mtToday"],["overdue","mtOverdue"],["none","mtNone"]];
+  const res = await Promise.all(keys.map(([f]) => sbGet("leads", "select=id&limit=1" + mountParam(f))));
+  keys.forEach(([, id], i) => { const e = document.getElementById(id); if (e) e.textContent = res[i].count || 0; });
+  const b = document.getElementById("mountNavBadge"), o = res[3].count || 0;
+  if (b) { b.textContent = o; b.style.display = o ? "" : "none"; }
+}
+
+function mountCard(el) {
+  const sel = document.getElementById("mtFilter");
+  sel.value = sel.value === el.dataset.mf ? "" : el.dataset.mf;
+  loadMountTab(1);
+}
+
+function mountFillSelects() {
+  const st = document.getElementById("mtStatus");
+  if (st.options.length <= 1)
+    document.querySelectorAll(".sm-chk").forEach(c => st.add(new Option(c.value, c.value)));
+  const ag = document.getElementById("mtAgent"), src = document.getElementById("filterAssigned");
+  if (ag.options.length <= 1 && src)
+    [...src.options].slice(1).forEach(o => ag.add(new Option(o.textContent, o.value)));
+}
+
+async function loadMountTab(page) {
+  mountPage = page || 1;
+  const body = document.getElementById("mtBody");
+  const notice = document.getElementById("mtNotice");
+  if (!(await probeMount())) {
+    notice.style.display = "";
+    notice.innerHTML = "ბაზაში თავსამაგრის ველები ჯერ არ არის — Supabase-ში <b>mount.sql</b> უნდა გაეშვას.";
+    body.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:28px">—</td></tr>`;
+    return;
+  }
+  notice.style.display = "none";
+  mountFillSelects();
+
+  const f  = document.getElementById("mtFilter").value;
+  const st = document.getElementById("mtStatus").value;
+  const ag = document.getElementById("mtAgent").value;
+  const q  = document.getElementById("mtSearch").value.trim();
+  document.querySelectorAll(".mt-card").forEach(c => c.classList.toggle("on", !!f && c.dataset.mf === f));
+
+  // „არ მოუტანია"-ს სიებში ვინც ყველაზე ადრე უნდა მოიტანოს, ის ზემოთ
+  const byDue = ["not_brought", "today", "overdue"].includes(f);
+  let p = "select=id,name,phone,status,assigned_to,mount_status,mount_due,mount_note,mount_updated_at,mount_updated_by"
+        + `&order=${byDue ? "mount_due.asc.nullslast,created_at.desc" : "created_at.desc"}`
+        + mountParam(f);
+  if (st) p += `&status=eq.${encodeURIComponent(st)}`;
+  if (ag === UNASSIGNED) p += `&assigned_to=is.null`;
+  else if (ag)           p += `&assigned_to=eq.${encodeURIComponent(ag)}`;
+  if (q) {
+    const d = q.replace(/\D/g, "");
+    p += `&or=(name.ilike.*${encodeURIComponent(q)}*${d.length >= 4 ? `,phone.ilike.*${d}*` : ""})`;
+  }
+  p += `&limit=${MOUNT_PAGE}&offset=${(mountPage - 1) * MOUNT_PAGE}`;
+
+  const [{ data, count }] = await Promise.all([sbGet("leads", p), mountStats()]);
+  MT_ROWS.clear();
+  (data || []).forEach(l => MT_ROWS.set(l.id, l));
+  document.getElementById("mtCount").textContent = count || 0;
+  body.innerHTML = (data && data.length)
+    ? data.map(mountRow).join("")
+    : `<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:28px">ლიდი არ მოიძებნა</td></tr>`;
+
+  const pages = Math.max(1, Math.ceil((count || 0) / MOUNT_PAGE));
+  const btn = (to, txt, off) => `<button class="btn btn-outline" ${off ? "disabled" : ""} onclick="loadMountTab(${to})" style="height:30px;padding:0 10px">${txt}</button>`;
+  document.getElementById("mtPager").innerHTML = pages > 1
+    ? btn(mountPage - 1, "←", mountPage <= 1) + `<span style="font-size:12px;color:var(--text-mid)">${mountPage} / ${pages}</span>` + btn(mountPage + 1, "→", mountPage >= pages)
+    : "";
+}
+
+function mountRow(l, i) {
+  const over = l.mount_status === "not_brought" && l.mount_due && l.mount_due < geToday();
+  const id = esc(l.id);
+  const opt = (v, t) => `<option value="${v}" ${l.mount_status === v ? "selected" : ""}>${t}</option>`;
+  return `<tr class="${over ? "mt-overdue" : ""}">
+    <td class="td-date">${(mountPage - 1) * MOUNT_PAGE + i + 1}</td>
+    <td><span class="td-name" style="cursor:pointer" onclick="openModal('${id}')">${esc(l.name)}</span></td>
+    <td class="td-phone">${formatPhone(l.phone)}</td>
+    <td><span class="status-badge ${statusClass(l.status)}">${esc(l.status)}</span></td>
+    <td style="font-size:12px;color:var(--text-mid);font-weight:500">${esc(l.assigned_to || "—")}</td>
+    <td><select class="mt-in ${l.mount_status || ""}" onchange="mountSave('${id}','mount_status',this.value,this)">
+      <option value="">—</option>${opt("brought", MOUNT_LABEL.brought)}${opt("not_brought", MOUNT_LABEL.not_brought)}</select></td>
+    <td><input type="date" class="mt-in" value="${esc(l.mount_due || "")}" onchange="mountSave('${id}','mount_due',this.value,this)"></td>
+    <td><input type="text" class="mt-in mt-note" value="${esc(l.mount_note || "")}" placeholder="კომენტარი…" onchange="mountSave('${id}','mount_note',this.value.trim(),this)"></td>
+    <td class="mt-by">${l.mount_updated_by ? esc(l.mount_updated_by) + "<br>" + fmtTime(l.mount_updated_at) : ""}</td>
+  </tr>`;
+}
+
+async function mountSave(id, field, value, el) {
+  const row = MT_ROWS.get(id) || {};
+  const old = row[field] ?? null;
+  const body = { [field]: value || null,
+                 mount_updated_at: new Date().toISOString(),
+                 mount_updated_by: SESSION.display_name || SESSION.username };
+  // თარიღი ჩაწერეს, სტატუსი კი ცარიელია — ე.ი. ჯერ არ მოუტანია
+  if (field === "mount_due" && value && !row.mount_status) body.mount_status = "not_brought";
+
+  const ok = await sbPatch("leads", `id=eq.${encodeURIComponent(id)}`, body);
+  el.classList.remove("ok", "err"); void el.offsetWidth;
+  el.classList.add(ok ? "ok" : "err");
+  if (ok) setTimeout(() => el.classList.remove("ok"), 1200);
+  if (!ok) return;
+
+  Object.assign(row, body); MT_ROWS.set(id, row);
+  const tr = el.closest("tr");
+  const sel = tr?.querySelector("select.mt-in");
+  if (sel) { sel.value = row.mount_status || ""; sel.className = "mt-in " + (row.mount_status || ""); }
+  tr?.classList.toggle("mt-overdue", row.mount_status === "not_brought" && !!row.mount_due && row.mount_due < geToday());
+  const by = tr?.querySelector(".mt-by");
+  if (by) by.innerHTML = esc(body.mount_updated_by) + "<br>" + fmtTime(body.mount_updated_at);
+
+  const label = { mount_status: "სტატუსი", mount_due: "მოტანის თარიღი", mount_note: "კომენტარი" }[field];
+  const show  = v => field === "mount_status" ? (MOUNT_LABEL[v] || "—") : (v || "—");
+  sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name,
+                           action: "თავსამაგრი", lead_id: id, detail: `${label}: ${show(old)} → ${show(value || null)}` });
+  mountStats();
+}
+
 function switchTab(name, btn) {
   // დამალული ჩანართი პირდაპირაც არ უნდა გაიხსნას
   if (name === "teamStats" && !seesOwnStats()) return;
@@ -1458,6 +1707,7 @@ function switchTab(name, btn) {
   if (name==="retired")    loadRetiredTab();
   if (name==="tasks")      loadTasks();
   if (name==="regs")       loadRegs();
+  if (name==="mount")      loadMountTab(1);
 }
 function refreshCurrent() {
   if (currentTab==="leads")           loadLeads(currentPage);
@@ -1468,6 +1718,7 @@ function refreshCurrent() {
   else if (currentTab==="retired")    loadRetiredTab();
   else if (currentTab==="tasks")      loadTasks();
   else if (currentTab==="regs")       loadRegs();
+  else if (currentTab==="mount")      loadMountTab(mountPage);
 }
 
 // ── HELPERS ──────────────────────────────
@@ -2195,6 +2446,10 @@ async function openModal(id) {
     document.getElementById("dNextContact").value     = l.next_contact?String(l.next_contact).substring(0,10):"";
     document.getElementById("dNextContactTime").value = l.next_contact_time||"";
     document.getElementById("dNextContactNote").value = l.next_contact_note||"";
+    document.getElementById("dMountStatus").value = l.mount_status||"";
+    document.getElementById("dMountDue").value    = l.mount_due||"";
+    document.getElementById("dMountNote").value   = l.mount_note||"";
+    document.getElementById("dMountSection").style.display = MOUNT_READY ? "" : "none";
     document.getElementById("dNote").value        = l.note||"";
     // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ველი დარჩება
     document.getElementById("dAssignedWrap").style.display = canAssignLeads() ? "" : "none";
@@ -2293,6 +2548,15 @@ async function saveAll() {
   const oldStatus   = savedLead?.status||"";
   const oldAgent    = savedLead?.assigned_to || "";
   const newAgent    = canAssignLeads() ? document.getElementById("dAssigned").value : oldAgent;
+  // თავსამაგრი — მხოლოდ თუ რამე შეიცვალა, რომ ჩვეულებრივ შენახვას „ბოლოს შეცვალა" არ გადაეწეროს
+  const mSt   = document.getElementById("dMountStatus").value;
+  const mDue  = document.getElementById("dMountDue").value;
+  const mNote = document.getElementById("dMountNote").value.trim();
+  const mountChanged = MOUNT_READY && (mSt !== (savedLead?.mount_status||"") || mDue !== (savedLead?.mount_due||"") || mNote !== (savedLead?.mount_note||""));
+  const mountBody = mountChanged ? {
+    mount_status: mSt || (mDue ? "not_brought" : null), mount_due: mDue || null, mount_note: mNote || null,
+    mount_updated_at: new Date().toISOString(), mount_updated_by: SESSION.display_name || SESSION.username
+  } : {};
 
   // update row in DOM immediately
   const row = document.querySelector(`tr[onclick*="${savedId}"]`);
@@ -2311,11 +2575,17 @@ async function saveAll() {
     if (status === "Onboarded" && !onboarded && savedLead?.status !== "Onboarded") {
       finalOnboarded = new Date().toISOString().substring(0, 10);
     }
-    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username, ...(newAgent !== oldAgent ? { assigned_to: newAgent || null } : {}) });
+    await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username, ...(newAgent !== oldAgent ? { assigned_to: newAgent || null } : {}), ...mountBody });
     const changes = [];
     if (name && name !== (savedLead?.name||"")) changes.push("სახელი: "+savedLead?.name+" → "+name);
     if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
     if (newAgent !== oldAgent) changes.push("აგენტი: "+(oldAgent||"მიუბმელი")+" → "+(newAgent||"მიუბმელი"));
+    if (mountChanged) {
+      const ms = v => MOUNT_LABEL[v] || "—";
+      if (mountBody.mount_status !== (savedLead?.mount_status||null)) changes.push("თავსამაგრი: "+ms(savedLead?.mount_status)+" → "+ms(mountBody.mount_status));
+      if (mDue !== (savedLead?.mount_due||""))   changes.push("თავსამაგრის თარიღი: "+(savedLead?.mount_due||"—")+" → "+(mDue||"—"));
+      if (mNote !== (savedLead?.mount_note||"")) changes.push("თავსამაგრის კომენტარი: "+(mNote||"—"));
+    }
     if (email && savedLead?.email !== email) changes.push("ელ-ფოსტა: "+email);
     if (note !== (savedLead?.note||"")) {
       const oldNote = (savedLead?.note||"");
@@ -2326,6 +2596,7 @@ async function saveAll() {
       await sbPost("activity_log", { timestamp:nowStr(), username:SESSION.username, display_name:SESSION.display_name, action:"განახლება", lead_id:savedId, detail:changes.join(" | ") });
     }
     loadStats(); loadReminders();
+    if (mountChanged) { if (currentTab === "mount") loadMountTab(mountPage); else mountBadge(); }
   } catch(e) { console.error("save error:", e); }
 }
 
