@@ -1355,6 +1355,18 @@ async function sbGet(table, params = "") {
   const data  = await res.json();
   return { data: Array.isArray(data) ? data : [], count: parseInt(count) || 0 };
 }
+// Supabase ერთ პასუხში მაქსიმუმ 1000 სტრიქონს აბრუნებს, limit-ის მიუხედავად.
+// ამიტომ ვინც სრული სია სჭირდება, ამით უნდა იღებდეს — თორემ ჩუმად იჭრება.
+async function sbGetAll(table, params, cap = 25000) {
+  const out = [];
+  for (let off = 0; off < cap; off += 1000) {
+    const { data } = await sbGet(table, `${params}&limit=1000&offset=${off}`);
+    if (!data || !data.length) break;
+    out.push(...data);
+    if (data.length < 1000) break;
+  }
+  return out;
+}
 async function sbPost(table, body) {
   const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
     method: "POST",
@@ -2896,8 +2908,7 @@ async function loadOnboardedTab() {
   document.getElementById("obBody").innerHTML = '<tr class="loading-row"><td colspan="7"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   document.getElementById("obAlertBox").style.display = "none";
   try {
-    const { data } = await sbGet("leads", "status=eq.Onboarded&select=id,name,phone,onboarded_date&order=onboarded_date.asc&limit=500");
-    const leads = data || [];
+    const leads = await sbGetAll("leads", "status=eq.Onboarded&select=id,name,phone,onboarded_date&order=onboarded_date.asc");
 
     const today = new Date(); today.setHours(0,0,0,0);
 
@@ -2923,8 +2934,9 @@ async function loadOnboardedTab() {
     }
 
     // Reload remaining onboarded leads after retiring expired ones
-    const { data: fresh } = await sbGet("leads", "status=eq.Onboarded&select=id,name,phone,onboarded_date&order=onboarded_date.asc&limit=500");
-    const active = fresh || [];
+    const active = expiredIds.length
+      ? await sbGetAll("leads", "status=eq.Onboarded&select=id,name,phone,onboarded_date&order=onboarded_date.asc")
+      : leads;
 
     let soon = 0;
     document.getElementById("obTotal").textContent = active.length;
@@ -2989,12 +3001,11 @@ async function loadRetiredTab() {
   document.getElementById("retBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   try {
     // Load retired leads
-    const { data } = await sbGet("leads", "status=eq.Retired&select=id,name,phone,ref_code,onboarded_date,reg_date&order=onboarded_date.desc.nullslast&limit=1000");
-    allRetired = data || [];
+    allRetired = await sbGetAll("leads", "status=eq.Retired&select=id,name,phone,ref_code,onboarded_date,reg_date&order=onboarded_date.desc.nullslast");
 
     // Load retired dates from activity_log (auto-retire or manual → Retired)
-    const { data: logs } = await sbGet("activity_log",
-      "or=(action.eq.ავტო-Retired,detail.ilike.*→ Retired*)&select=lead_id,timestamp&order=timestamp.desc&limit=5000");
+    const logs = await sbGetAll("activity_log",
+      "or=(action.eq.ავტო-Retired,detail.ilike.*→ Retired*)&select=lead_id,timestamp&order=timestamp.desc", 6000);
     retiredDateMap = {};
     (logs||[]).forEach(r => {
       if (r.lead_id && !retiredDateMap[r.lead_id]) {
@@ -3062,8 +3073,7 @@ let allBiz = [];
 async function loadBusinesses() {
   document.getElementById("bizBody").innerHTML='<tr class="loading-row"><td colspan="10"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   try {
-    const { data } = await sbGet("businesses", "select=*&order=added_date.desc&limit=1000");
-    allBiz = data||[];
+    allBiz = await sbGetAll("businesses", "select=*&order=added_date.desc");
     updateBizStats();
     applyBizFilters();
   } catch(e) { document.getElementById("bizBody").innerHTML=`<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${e.message}</td></tr>`; }
@@ -3292,7 +3302,7 @@ async function exportCSV(){
     const dateFrom    = document.getElementById("filterDateFrom")?.value||"";
     const dateTo      = document.getElementById("filterDateTo")?.value||"";
 
-    let filters = `select=*&order=created_at.desc&limit=10000`;
+    let filters = `select=*&order=created_at.desc`;
     if (statuses.length === 1) filters += `&status=eq.${encodeURIComponent(statuses[0])}`;
     else if (statuses.length > 1) filters += `&status=in.(${statuses.map(s=>encodeURIComponent(s)).join(",")})`;
     if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
@@ -3307,7 +3317,7 @@ async function exportCSV(){
     else if (prio === "yes") filters += `&priority=is.true`;
     else if (prio === "no")  filters += `&priority=is.false`;
 
-    const {data}=await sbGet("leads", filters);
+    const data = await sbGetAll("leads", filters);
     if(!data||!data.length){alert("ჩანაწერი არ არის");return;}
     const SPH={1:"ლოგისტიკა",2:"საცალო ვაჭრობა",3:"სასტუმრო და კვება",4:"საწარმო",5:"მშენებლობა",6:"სოფლის მეურნეობა",7:"დიასახლისი"};
     const h=["ID","სახელი","ტელეფონი","რეფ.კოდი","ელ-ფოსტა","იურ.სტატუსი","სტატუსი","ქალაქი","გარემო","ტელეფონის მოდელი","ცხელი","საქმიანობა","აგენტი","სეგმენტი","შემდეგი კონტაქტი","რეგ.თარიღი","Onboarded","შენიშვნა"];
@@ -3449,8 +3459,7 @@ async function loadRegs() {
   if (!seesRegistrations()) return;
   document.getElementById("rgBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   try {
-    const { data } = await sbGet("registrations", "select=*&order=created_at.desc&limit=5000");
-    allRegs = data || [];
+    allRegs = await sbGetAll("registrations", "select=*&order=created_at.desc");
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
     const matched = allRegs.filter(r => r.matched).length;
     document.getElementById("rgTotal").textContent     = allRegs.length;
