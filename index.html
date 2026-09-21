@@ -1412,6 +1412,10 @@ async function doLogin() {
   if (!username || !password) { err.style.display="block"; err.textContent="⚠ შეიყვანეთ სახელი და პაროლი"; return; }
   try {
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
+    if (data && data.length > 0 && data[0].disabled) {
+      err.style.display="block"; err.textContent="⚠ ანგარიში გამორთულია";
+      return;
+    }
     if (data && data.length > 0) {
       SESSION = sessionFromUser(data[0]);
       // admins may switch segments; everyone else is pinned to their own
@@ -1549,8 +1553,30 @@ async function restoreSession() {
     sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
     showDashboard();
   } catch(e) { /* ოფლაინი — ძველი სესიით ვაგრძელებთ */ }
+  checkAccount();
 }
 restoreSession();
+
+// გამორთული ან წაშლილი ანგარიში ღია სესიასაც ხურავს — პაროლის შეცვლა
+// ამას ვერ აკეთებს, რადგან სესია ბრაუზერშია და პაროლს აღარ ამოწმებს.
+// მხოლოდ მაშინ ვაგდებთ, როცა ბაზამ ნამდვილად უპასუხა: ქსელის შეცდომაზე
+// ან თუ disabled სვეტი ჯერ არ არსებობს, არავის ვაგდებთ.
+async function checkAccount() {
+  if (!SESSION || !SESSION.username) return;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/users?username=eq.${encodeURIComponent(SESSION.username)}&select=username,disabled`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Cache-Control": "no-cache" } });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!Array.isArray(d)) return;
+    if (!d.length || d[0].disabled) {
+      doLogout();
+      const err = document.getElementById("loginErr");
+      err.style.display = "block"; err.textContent = "⚠ ანგარიში გამორთულია";
+    }
+  } catch (e) { /* ოფლაინი */ }
+}
+setInterval(checkAccount, 5 * 60 * 1000);
 
 // ── TABS ──────────────────────────────────
 // ── 🎧 თავსამაგრი ──────────────────────────────────────────────────────────
