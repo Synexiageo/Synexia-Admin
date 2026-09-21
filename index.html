@@ -153,6 +153,7 @@ td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .mt-in.err{background:#fef2f2;border-color:#fca5a5;}
 select.mt-in.brought{color:#047857;font-weight:700;}
 select.mt-in.not_brought{color:#b45309;font-weight:700;}
+select.mt-in.no_answer{color:#be123c;font-weight:700;}
 .mt-note{width:100%;min-width:180px;}
 tr.mt-overdue td{background:#fff7ed;}
 .mt-by{font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
@@ -926,6 +927,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="stat-card red mt-card"    data-mf="retired_new" onclick="mountCard(this)" id="mtRetNewCard" style="display:none"><div class="stat-label">🔔 ახლად Retired</div><div class="stat-value" id="mtRetNew">—</div></div>
         <div class="stat-card green mt-card"  data-mf="brought"     onclick="mountCard(this)"><div class="stat-label">✅ მოიტანა</div><div class="stat-value" id="mtBrought">—</div></div>
         <div class="stat-card yellow mt-card" data-mf="not_brought" onclick="mountCard(this)"><div class="stat-label">⏳ არ მოუტანია</div><div class="stat-value" id="mtNot">—</div></div>
+        <div class="stat-card mt-card"        data-mf="no_answer"   onclick="mountCard(this)"><div class="stat-label">📵 არ უპასუხა</div><div class="stat-value" id="mtNoAns" style="color:#be123c">—</div></div>
         <div class="stat-card blue mt-card"   data-mf="today"       onclick="mountCard(this)"><div class="stat-label">📅 დღეს მოაქვს</div><div class="stat-value" id="mtToday">—</div></div>
         <div class="stat-card red mt-card"    data-mf="overdue"     onclick="mountCard(this)"><div class="stat-label">⚠ ვადა გადაცილდა</div><div class="stat-value" id="mtOverdue">—</div></div>
         <div class="stat-card mt-card"        data-mf="none"        onclick="mountCard(this)"><div class="stat-label">— მითითებული არ არის</div><div class="stat-value" id="mtNone" style="color:#374151">—</div></div>
@@ -942,6 +944,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="retired_new">🔔 ახლად Retired</option>
             <option value="brought">✅ მოიტანა</option>
             <option value="not_brought">⏳ არ მოუტანია</option>
+            <option value="no_answer">📵 არ უპასუხა</option>
             <option value="today">📅 დღეს მოაქვს</option>
             <option value="overdue">⚠ ვადა გადაცილდა</option>
             <option value="none">— მითითებული არ არის</option>
@@ -1241,6 +1244,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
               <option value="">— მითითებული არ არის —</option>
               <option value="brought">✅ მოიტანა</option>
               <option value="not_brought">⏳ არ მოუტანია</option>
+              <option value="no_answer">📵 არ უპასუხა</option>
             </select>
           </div>
           <div class="d-field"><label class="d-label">როდის მოიტანს</label><input type="date" class="d-input" id="dMountDue"></div>
@@ -1589,7 +1593,9 @@ setInterval(checkAccount, 5 * 60 * 1000);
 let MOUNT_READY = false, RETIRE_READY = false, mountPage = 1;
 const MOUNT_PAGE  = 50;
 const MOUNT_SCOPE = `&status=in.(Onboarded,Retired)`;
-const MOUNT_LABEL = { brought: "✅ მოიტანა", not_brought: "⏳ არ მოუტანია" };
+const MOUNT_LABEL = { brought: "✅ მოიტანა", not_brought: "⏳ არ მოუტანია", no_answer: "📵 არ უპასუხა" };
+// „ჯერ არ დაუბრუნებია" — ორივე სტატუსი: ვადები და „ახლად Retired" ორივეს ითვლის
+const MOUNT_PENDING = "(not_brought,no_answer)";
 const MT_ROWS = new Map();
 
 function geToday() { return new Date(Date.now() + 4*60*60*1000).toISOString().substring(0,10); }
@@ -1613,12 +1619,13 @@ function mountParam(f) {
   const t = geToday();
   if (f === "brought")     return `&mount_status=eq.brought`;
   if (f === "not_brought") return `&mount_status=eq.not_brought`;
-  if (f === "today")       return `&mount_status=eq.not_brought&mount_due=eq.${t}`;
-  if (f === "overdue")     return `&mount_status=eq.not_brought&mount_due=lt.${t}`;
+  if (f === "no_answer")   return `&mount_status=eq.no_answer`;
+  if (f === "today")       return `&mount_status=in.${MOUNT_PENDING}&mount_due=eq.${t}`;
+  if (f === "overdue")     return `&mount_status=in.${MOUNT_PENDING}&mount_due=lt.${t}`;
   if (f === "none")        return `&mount_status=is.null`;
   // Retired გახდა ტრიგერის ამოქმედების შემდეგ და თავსამაგრი ჯერ არ მოუტანია
   if (f === "retired_new") return RETIRE_READY
-    ? `&status=eq.Retired&retired_at=not.is.null&and=(or(mount_status.is.null,mount_status.eq.not_brought))`
+    ? `&status=eq.Retired&retired_at=not.is.null&and=(or(mount_status.is.null,mount_status.in.${MOUNT_PENDING}))`
     : `&id=eq.__none__`;
   return "";
 }
@@ -1639,7 +1646,8 @@ async function mountBadge() {
 }
 
 async function mountStats() {
-  const keys = [["retired_new","mtRetNew"],["brought","mtBrought"],["not_brought","mtNot"],["today","mtToday"],["overdue","mtOverdue"],["none","mtNone"]];
+  // ინდექსები 0 (retired_new) და 4 (overdue) ქვემოთ ბეჯისთვისაა — ახალი გასაღები მხოლოდ ბოლოში
+  const keys = [["retired_new","mtRetNew"],["brought","mtBrought"],["not_brought","mtNot"],["today","mtToday"],["overdue","mtOverdue"],["none","mtNone"],["no_answer","mtNoAns"]];
   const res = await Promise.all(keys.map(([f]) => mountCount(f)));
   keys.forEach(([, id], i) => { const e = document.getElementById(id); if (e) e.textContent = res[i]; });
   document.getElementById("mtRetNewCard").style.display = RETIRE_READY ? "" : "none";
@@ -1694,7 +1702,7 @@ async function loadMountTab(page) {
   // ახლად Retired — ბოლოს Retired ქვემოთ არა, ზემოთ; „არ მოუტანია"-ს სიებში —
   // ვისაც ყველაზე ადრე უნდა მოეტანა
   const order = f === "retired_new" ? "retired_at.desc"
-              : ["not_brought", "today", "overdue"].includes(f) ? "mount_due.asc.nullslast,created_at.desc"
+              : ["not_brought", "no_answer", "today", "overdue"].includes(f) ? "mount_due.asc.nullslast,created_at.desc"
               : "created_at.desc";
   let p = "select=id,name,phone,status,assigned_to,mount_status,mount_due,mount_note,mount_updated_at,mount_updated_by"
         + (RETIRE_READY ? ",retired_at" : "")
@@ -1724,7 +1732,7 @@ async function loadMountTab(page) {
 }
 
 const mtIsRetNew  = l => l.status === "Retired" && !!l.retired_at && l.mount_status !== "brought";
-const mtIsOverdue = l => l.mount_status === "not_brought" && !!l.mount_due && l.mount_due < geToday();
+const mtIsOverdue = l => (l.mount_status === "not_brought" || l.mount_status === "no_answer") && !!l.mount_due && l.mount_due < geToday();
 
 function mountRow(l, i) {
   const id = esc(l.id);
@@ -1738,7 +1746,7 @@ function mountRow(l, i) {
     <td><span class="status-badge ${statusClass(l.status)}">${esc(l.status)}</span></td>
     <td style="font-size:12px;color:var(--text-mid);font-weight:500">${esc(l.assigned_to || "—")}</td>
     <td><select class="mt-in ${l.mount_status || ""}" onchange="mountSave('${id}','mount_status',this.value,this)">
-      <option value="">—</option>${opt("brought", MOUNT_LABEL.brought)}${opt("not_brought", MOUNT_LABEL.not_brought)}</select></td>
+      <option value="">—</option>${opt("brought", MOUNT_LABEL.brought)}${opt("not_brought", MOUNT_LABEL.not_brought)}${opt("no_answer", MOUNT_LABEL.no_answer)}</select></td>
     <td><input type="date" class="mt-in" value="${esc(l.mount_due || "")}" onchange="mountSave('${id}','mount_due',this.value,this)"></td>
     <td><input type="text" class="mt-in mt-note" value="${esc(l.mount_note || "")}" placeholder="კომენტარი…" onchange="mountSave('${id}','mount_note',this.value.trim(),this)"></td>
     <td class="mt-by">${l.mount_updated_by ? esc(l.mount_updated_by) + "<br>" + fmtTime(l.mount_updated_at) : ""}</td>
