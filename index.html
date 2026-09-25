@@ -166,6 +166,9 @@ tr.mt-retnew td{background:#fef2f2;}
 @media(max-width:900px){.stats-grid.mt-stats{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:600px){.stats-grid.mt-stats{grid-template-columns:repeat(2,1fr);}}
 .mt-card.on{box-shadow:0 0 0 2px var(--blue);}
+.cm-reg{background:#f3f4f6;font-weight:700;font-size:11.5px;color:#374151;border-top:1px solid #e5e7eb;}
+.cm-reg:first-child{border-top:none;}
+.cm-row{padding-left:20px;}
 .mt-notice{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:14px;}
 
 .btn-edit{background:var(--blue-dim2);color:var(--blue);border:1px solid rgba(29,110,245,.2);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;transition:.18s;}
@@ -3987,15 +3990,62 @@ document.addEventListener("click",e=>{if(!e.target.closest("#statusMultiBtn")&&!
 
 // ── ქალაქები: რამდენიმეს ერთდროულად მონიშვნა ──
 // სია მოდალის dCity-დან — ერთ ადგილას რომ იყოს შესანახი
+// ქალაქები რეგიონებად — ფილტრში ჯერ რეგიონია, ქვეშ მისი ქალაქები.
+// რეგიონზე დაჭერა ყველა მის ქალაქს ნიშნავს.
+const REGIONS = {
+  "თბილისი": ["თბილისი"],
+  "აჭარა": ["ბათუმი","ქობულეთი","ხულო"],
+  "იმერეთი": ["ქუთაისი","ზესტაფონი","სამტრედია","ჭიათურა","ტყიბული","წყალტუბო","თერჯოლა","ბაღდათი","ვანი","ხონი","საჩხერე"],
+  "ქვემო ქართლი": ["რუსთავი","მარნეული","ბოლნისი","გარდაბანი","დმანისი","თეთრიწყარო","წალკა","კაზრეთი"],
+  "შიდა ქართლი": ["გორი","ხაშური","ქარელი","კასპი","სურამი","რუისი"],
+  "კახეთი": ["თელავი","გურჯაანი","საგარეჯო","ყვარელი","ლაგოდეხი","დედოფლისწყარო","სიღნაღი","ახმეტა"],
+  "სამეგრელო-ზემო სვანეთი": ["ზუგდიდი","სენაკი","ფოთი","მარტვილი","ჩხოროწყუ","წალენჯიხა","ხობი","აბაშა","მესტია","ქვარი"],
+  "სამცხე-ჯავახეთი": ["ახალციხე","ახალქალაქი","ბორჯომი","ნინოწმინდა","ადიგენი","ვალე","ბაკურიანი"],
+  "მცხეთა-მთიანეთი": ["მცხეთა","დუშეთი","თიანეთი","ყაზბეგი","ჟინვალი","წეროვანი","საგურამო","ახალგორი","მარტყოფი","ვაზიანი"],
+  "გურია": ["ოზურგეთი","ლანჩხუთი","ჩოხატაური"],
+  "რაჭა-ლეჩხუმი": ["ამბროლაური","ონი","ცაგერი"],
+};
 function buildCityFilter() {
   const src = document.getElementById("dCity");
   const list = document.getElementById("cityMultiList");
   if (!src || !list || list.children.length) return;
-  list.innerHTML = [...src.options]
-    .map(o => o.value.trim())
-    .filter(Boolean)
-    .map(c => `<label class="sm-item cm-row"><input type="checkbox" class="cm-chk" value="${esc(c)}" onchange="cmChange()"> <span>${esc(c)}</span></label>`)
-    .join("");
+  const all = [...src.options].map(o => o.value.trim()).filter(Boolean);
+  const placed = new Set(Object.values(REGIONS).flat());
+  const row = c => `<label class="sm-item cm-row"><input type="checkbox" class="cm-chk" value="${esc(c)}" onchange="cmChange()"> <span>${esc(c)}</span></label>`;
+  let html = "";
+  for (const [reg, cities] of Object.entries(REGIONS)) {
+    const mine = cities.filter(c => all.includes(c));
+    if (!mine.length) continue;
+    html += `<label class="sm-item cm-reg" data-reg="${esc(reg)}"><input type="checkbox" class="cm-reg-chk" onchange="cmRegion(this)"> <span>${esc(reg)}</span></label>`
+          + mine.map(row).join("");
+  }
+  const rest = all.filter(c => !placed.has(c));
+  if (rest.length) html += `<label class="sm-item cm-reg" data-reg="სხვა"><input type="checkbox" class="cm-reg-chk" onchange="cmRegion(this)"> <span>სხვა</span></label>`
+                         + rest.map(row).join("");
+  list.innerHTML = html;
+}
+// რომელი ქალაქები ეკუთვნის რიგში მდგარ რეგიონს — შემდეგ რეგიონამდე ყველა
+function cmRegionRows(regLabel) {
+  const out = [];
+  let on = false;
+  for (const el of document.querySelectorAll("#cityMultiList > label")) {
+    if (el.classList.contains("cm-reg")) { on = el.dataset.reg === regLabel; continue; }
+    if (on) out.push(el.querySelector(".cm-chk"));
+  }
+  return out;
+}
+function cmRegion(cb) {
+  cmRegionRows(cb.closest(".cm-reg").dataset.reg).forEach(c => { c.checked = cb.checked; });
+  cmChange();
+}
+function cmSyncRegions() {
+  document.querySelectorAll("#cityMultiList .cm-reg").forEach(r => {
+    const kids = cmRegionRows(r.dataset.reg);
+    const on = kids.filter(c => c.checked).length;
+    const box = r.querySelector(".cm-reg-chk");
+    box.checked = kids.length > 0 && on === kids.length;
+    box.indeterminate = on > 0 && on < kids.length;
+  });
 }
 function toggleCityDrop(e) {
   e.stopPropagation();
@@ -4015,12 +4065,18 @@ function cmSearch(q) {
   document.querySelectorAll(".cm-row").forEach(r => {
     r.style.display = !t || r.textContent.toLowerCase().includes(t) ? "" : "none";
   });
+  // რეგიონის სათაური მხოლოდ მაშინ ჩანს, თუ ქვეშ რამე დარჩა
+  document.querySelectorAll("#cityMultiList .cm-reg").forEach(r => {
+    const vis = cmRegionRows(r.dataset.reg).some(c => c.closest(".cm-row").style.display !== "none");
+    r.style.display = vis ? "" : "none";
+  });
 }
 function cmCheckAll(cb) {
   // მხოლოდ ხილულებს — ძებნის დროს რომ არ აირჩეს ყველა 70
   document.querySelectorAll(".cm-row").forEach(r => {
     if (r.style.display !== "none") r.querySelector(".cm-chk").checked = cb.checked;
   });
+  cmSyncRegions();
   cmUpdateLabel(); applyFilters();
 }
 function cmChange() {
@@ -4029,15 +4085,25 @@ function cmChange() {
   const checked = [...chks].filter(c => c.checked);
   all.checked = checked.length === chks.length && chks.length > 0;
   all.indeterminate = checked.length > 0 && checked.length < chks.length;
+  cmSyncRegions();
   cmUpdateLabel(); applyFilters();
 }
 function cmUpdateLabel() {
   const vals = selectedCities();
   const lbl = document.getElementById("cityMultiLabel");
   if (!lbl) return;
-  if (!vals.length)           lbl.textContent = "ყველა";
-  else if (vals.length === 1) lbl.textContent = vals[0];
-  else                        lbl.textContent = vals.length + " ქალაქი";
+  if (!vals.length)           { lbl.textContent = "ყველა"; return; }
+  if (vals.length === 1)      { lbl.textContent = vals[0]; return; }
+  // თუ მთელი რეგიონია მონიშნული, რეგიონის სახელი უფრო გასაგებია, ვიდრე „8 ქალაქი"
+  const sel = new Set(vals), full = [];
+  let covered = 0;
+  for (const [reg, cities] of Object.entries(REGIONS)) {
+    const mine = cities.filter(c => sel.has(c));
+    if (mine.length && mine.length === cities.length) { full.push(reg); covered += mine.length; }
+  }
+  lbl.textContent = full.length && covered === vals.length
+    ? (full.length === 1 ? full[0] : full.length + " რეგიონი")
+    : vals.length + " ქალაქი";
 }
 function selectedCities() {
   return [...document.querySelectorAll(".cm-chk:checked")].map(c => c.value);
