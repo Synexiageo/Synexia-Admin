@@ -2042,7 +2042,8 @@ const SPHERES = {1:"ლოგისტიკა",2:"საცალო ვაჭ
 // ხელით საქმის კეთება ყველა კატეგორიაზე მაღლა დგას. საოჯახო ტექნიკის
 // ხელოსანი, რომელიც ტრაქტორის კონდიციონერსაც აკეთებს, სპეცტექნიკის გამო
 // არ უნდა ჩამოიჭრას — ეს სიტყვები ნებისმიერ კატეგორიას აუქმებს.
-const UNQ_ABS_EXC = ["ხელოსან","რემონტ","შეკეთებ","მექანიკოს","ტექნიკოს","ინსტალატორ","მონტაჟ","დამზადებ"];
+const UNQ_ABS_EXC = ["ხელოსან","რემონტ","შეკეთებ","მექანიკოს","ტექნიკოს","ინსტალატორ","მონტაჟ","დამზადებ",
+  "xelosan","khelosan","remont","sheketeb","shekete","meqanikos","mekanikos","teqnikos","teknikos","montaj","damzadeb"];
 const UNQ_ABS = {
   "მიტანა/ტრანსპორტი": {
     kw: ["glovo","გლოვო","დელივერ","delivery","კურიერ","curier","courier","მიტანის სერვის","ტრანსპორტირ","ტაქსი","taxi","taqsi","რულთან","ბოლტ","bolt","yandex","იანდექს","მძღოლ"],
@@ -3553,6 +3554,7 @@ function regColumns() {
   const cols = [
     { h:"#",                cell:(r,i) => `<td class="td-date">${i+1}</td>` },
     { h:"თარიღი",           cell:r => `<td class="td-date">${String(r.created_at||"").substring(0,10)}</td>` },
+    { h:"ადგილი",           cell:r => `<td>${r.reg_city ? esc(r.reg_city) : DIM}</td>` },
     { h:"სახელი გვარი",     cell:r => `<td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>` },
     { h:"იუზერნეიმი",       cell:r => { const u = usernamesOf(r); return `<td>${u.length
         ? `<span style="display:flex;flex-wrap:wrap;gap:4px">` + u.map(n =>
@@ -3697,11 +3699,12 @@ function exportRegsXlsx() {
   const list = regsFiltered();
   if (!list.length) { alert("ჩანაწერი არ არის"); return; }
   const biz = REG_SECTION === "business";
-  const header = ["თარიღი","სახელი გვარი","იუზერნეიმი"]
+  const header = ["თარიღი","ადგილი","სახელი გვარი","იუზერნეიმი"]
     .concat(biz ? ["ტიპი","კომპანია","ს/კ"] : [])
     .concat(["ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"]);
   const rows = list.map(r => [
       String(r.created_at||"").substring(0,10),
+      r.reg_city || "",
       [r.first_name, r.last_name].filter(Boolean).join(" ").trim(),
       usernamesOf(r).join(", ")
     ].concat(biz ? [ENTITY_LABEL[entityOf(r)], r.company_name, r.company_id] : [])
