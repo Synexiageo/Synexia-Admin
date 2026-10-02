@@ -555,6 +555,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <button class="nav-tab" id="regsTabBtn" onclick="switchTab('regs',this)" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>ანკეტები <span id="regsNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
       </button>
+      <button class="nav-tab" id="mpTabBtn" onclick="switchTab('microps',this)" style="display:none">
+        <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>მიკროფსი
+      </button>
       <button class="nav-tab" onclick="switchTab('retired',this)">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Retired
       </button>
@@ -985,6 +988,39 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
     </div>
 
     <!-- Retired კლიენტები -->
+    <div class="tab-panel" id="tabMicrops">
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);max-width:760px;margin-bottom:16px">
+        <div class="stat-card blue"> <div class="stat-label">ბოლო დღე</div>      <div class="stat-value" id="mpDay">—</div></div>
+        <div class="stat-card">      <div class="stat-label">წერდა</div>         <div class="stat-value" id="mpPeople">—</div></div>
+        <div class="stat-card green"><div class="stat-label">მიღებული საათი</div><div class="stat-value" id="mpAcc">—</div></div>
+        <div class="stat-card red">  <div class="stat-label">დაკარგული საათი</div><div class="stat-value" id="mpLost">—</div></div>
+      </div>
+
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:16px;max-width:760px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">ყოველდღიური ფაილის ატვირთვა</div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px">
+          აირჩიე operator_steering ფაილი (.xlsx). თარიღი თვითონ ამოიკითხება.
+          თუ იმ დღის ფაილი უკვე ატვირთულია, ახლით ჩანაცვლდება.
+        </div>
+        <input type="file" id="mpFile" accept=".xlsx" onchange="mpUpload(this)"
+               style="font-size:13px;font-family:inherit">
+        <div id="mpMsg" style="font-size:13px;color:var(--text-mid);margin-top:10px"></div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="table-count">ბოლო დღეები</div>
+          <button class="btn btn-outline" onclick="loadMicrops()" style="height:32px;padding:0 12px;font-size:12px">განახლება</button>
+        </div>
+        <div class="table-scroll">
+          <table><thead><tr>
+            <th>თარიღი</th><th>წერდა</th><th>ჩაწერა</th><th>მიიღო</th><th>%</th>
+            <th>დაკარგა</th><th>ღირებულება</th><th>60%-ზე დაბლა</th><th>ატვირთა</th>
+          </tr></thead><tbody id="mpBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-panel" id="tabRetired">
       <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);max-width:300px;margin-bottom:16px">
         <div class="stat-card purple"><div class="stat-label">სულ Retired</div><div class="stat-value" id="retTotal">—</div></div>
@@ -1489,6 +1525,8 @@ async function showDashboard() {
   const stTitle = document.getElementById("teamStatsTitle");
   if (stTitle) stTitle.textContent = seesTeamStats() ? "გუნდის სტატისტიკა" : "ჩემი სტატისტიკა";
   document.getElementById("regsTabBtn").style.display = seesRegistrations() ? "" : "none";
+  document.getElementById("mpTabBtn").style.display = uploadsMicrops() ? "" : "none";
+  loadMicropsPerm();
   document.getElementById("rgImportToggle").style.display = (SESSION.role === "admin") ? "" : "none";
   if (SESSION.role === "influencer") {
     // hide everything except the leads tab
@@ -1536,8 +1574,26 @@ function sessionFromUser(u) {
     handles_rejected:       !!u.handles_rejected,
     can_delete_leads:       !!u.can_delete_leads,
     can_edit_registrations: !!u.can_edit_registrations,
-    can_assign_leads:       !!u.can_assign_leads
+    can_assign_leads:       !!u.can_assign_leads,
+    can_upload_microps:     !!u.can_upload_microps
   };
+}
+
+/** მიკროფსის უფლება ცალკე იკითხება: სვეტი მოგვიანებით დაემატა და
+ *  ძველ ბაზაზე მთელ მოთხოვნას ჩააგდებდა. აქ უარესი შემთხვევა — ჩანართი არ ჩანს. */
+async function loadMicropsPerm() {
+  if (!SESSION || !SESSION.username) return;
+  try {
+    const { data } = await sbGet("users",
+      `username=eq.${encodeURIComponent(SESSION.username)}&select=can_upload_microps`);
+    if (!Array.isArray(data) || !data.length) return;
+    const can = !!data[0].can_upload_microps;
+    if (can === !!SESSION.can_upload_microps) return;
+    SESSION.can_upload_microps = can;
+    sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
+    const btn = document.getElementById("mpTabBtn");
+    if (btn) btn.style.display = uploadsMicrops() ? "" : "none";
+  } catch (e) { /* ძველი ბაზა — ჩანართი უბრალოდ არ გამოჩნდება */ }
 }
 
 /** შენახული სესია ძველ უფლებებს ინახავს — ბაზიდან ვანახლებთ,
@@ -1793,6 +1849,7 @@ function switchTab(name, btn) {
   if (name === "teamStats" && !seesOwnStats()) return;
   if (name === "log" && !seesTeamStats()) return;
   if (name === "regs" && !seesRegistrations()) return;
+  if (name === "microps" && !uploadsMicrops()) return;
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active"));
   document.getElementById("tab"+name.charAt(0).toUpperCase()+name.slice(1)).classList.add("active");
@@ -1806,6 +1863,7 @@ function switchTab(name, btn) {
   if (name==="tasks")      loadTasks();
   if (name==="regs")       loadRegs();
   if (name==="mount")      loadMountTab(1);
+  if (name==="microps")    loadMicrops();
 }
 function refreshCurrent() {
   if (currentTab==="leads")           loadLeads(currentPage);
@@ -1817,6 +1875,7 @@ function refreshCurrent() {
   else if (currentTab==="tasks")      loadTasks();
   else if (currentTab==="regs")       loadRegs();
   else if (currentTab==="mount")      loadMountTab(mountPage);
+  else if (currentTab==="microps")    loadMicrops();
 }
 
 // ── HELPERS ──────────────────────────────
@@ -3775,6 +3834,232 @@ function exportRegsXlsx() {
   ]);
   const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
   downloadXlsx(`Synexia_ანკეტები_${day}.xlsx`, "ანკეტები", header, rows);
+}
+
+// ── მიკროფსი: ყოველდღიური ფაილი ──────────
+// .xlsx ფაილი zip-ია. ბრაუზერს თვითონ შეუძლია გახსნა (DecompressionStream),
+// ამიტომ გარე ბიბლიოთეკა არ გვჭირდება — CRM ერთ ფაილად რჩება.
+function uploadsMicrops() {
+  return !!SESSION && (SESSION.role === "admin" || SESSION.can_upload_microps);
+}
+
+const MP_RATE = 25;   // ₾ ერთ მიღებულ საათზე
+
+async function zipEntries(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const dv = new DataView(buf.buffer);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0 && i > buf.length - 66000; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("ფაილი .xlsx არ არის");
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder();
+  const out = {};
+  for (let i = 0; i < count; i++) {
+    const method = dv.getUint16(p + 10, true);
+    const csize  = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const cmtLen = dv.getUint16(p + 32, true);
+    const local = dv.getUint32(p + 42, true);
+    const name = dec.decode(buf.subarray(p + 46, p + 46 + nameLen));
+    out[name] = { method, csize, local };
+    p += 46 + nameLen + extraLen + cmtLen;
+  }
+  out.__buf = buf; out.__dv = dv;
+  return out;
+}
+
+async function zipText(entries, name) {
+  const e = entries[name];
+  if (!e) return "";
+  const dv = entries.__dv, buf = entries.__buf;
+  const nameLen = dv.getUint16(e.local + 26, true);
+  const extraLen = dv.getUint16(e.local + 28, true);
+  const start = e.local + 30 + nameLen + extraLen;
+  const bytes = buf.subarray(start, start + e.csize);
+  if (e.method === 0) return new TextDecoder().decode(bytes);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+}
+
+function colIndex(ref) {
+  let n = 0;
+  for (const ch of ref) {
+    if (ch < "A" || ch > "Z") break;
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n - 1;
+}
+
+// ფურცელს ობიექტების სიად ვაქცევთ — პირველი სტრიქონი სათაურია
+function sheetRows(xml, shared) {
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  const rows = [];
+  for (const row of doc.getElementsByTagName("row")) {
+    const cells = [];
+    for (const c of row.getElementsByTagName("c")) {
+      const i = colIndex(c.getAttribute("r") || "");
+      const t = c.getAttribute("t");
+      let v;
+      if (t === "s") {
+        v = shared[+(c.getElementsByTagName("v")[0]?.textContent || 0)] ?? "";
+      } else if (t === "inlineStr") {
+        v = [...c.getElementsByTagName("t")].map(x => x.textContent).join("");
+      } else {
+        const raw = c.getElementsByTagName("v")[0]?.textContent;
+        v = raw == null ? "" : (isNaN(raw) ? raw : +raw);
+      }
+      cells[i] = v;
+    }
+    rows.push(cells);
+  }
+  if (!rows.length) return [];
+  const head = (rows[0] || []).map(h => String(h ?? "").trim());
+  return rows.slice(1).map(r => {
+    const o = {};
+    head.forEach((h, i) => { if (h) o[h] = r[i] ?? ""; });
+    return o;
+  }).filter(o => Object.values(o).some(v => v !== ""));
+}
+
+async function xlsxSheets(file) {
+  const z = await zipEntries(file);
+  const sharedXml = await zipText(z, "xl/sharedStrings.xml");
+  const shared = sharedXml
+    ? [...new DOMParser().parseFromString(sharedXml, "application/xml").getElementsByTagName("si")]
+        .map(si => [...si.getElementsByTagName("t")].map(t => t.textContent).join(""))
+    : [];
+
+  const wbXml = await zipText(z, "xl/workbook.xml");
+  const relXml = await zipText(z, "xl/_rels/workbook.xml.rels");
+  const rels = {};
+  for (const r of new DOMParser().parseFromString(relXml, "application/xml").getElementsByTagName("Relationship")) {
+    rels[r.getAttribute("Id")] = r.getAttribute("Target").replace(/^\/?xl\//, "");
+  }
+  const out = {};
+  for (const s of new DOMParser().parseFromString(wbXml, "application/xml").getElementsByTagName("sheet")) {
+    const id = s.getAttribute("r:id") || s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+    const target = rels[id];
+    if (!target) continue;
+    out[s.getAttribute("name")] = sheetRows(await zipText(z, "xl/" + target), shared);
+  }
+  return out;
+}
+
+const mpNum = v => (typeof v === "number" ? v : parseFloat(String(v).replace(",", ".")) || 0);
+
+async function mpUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const msg = document.getElementById("mpMsg");
+  const show = t => { msg.textContent = t; };
+  show("ვკითხულობ ფაილს…");
+  try {
+    const sh = await xlsxSheets(file);
+    const contrib = sh["Contributors"] || [];
+    if (!contrib.length) throw new Error("ფურცელი Contributors ვერ ვიპოვე");
+
+    const details = sh["Rejection Details"] || [];
+    const analysis = sh["Rejection Analysis"] || [];
+    const banned = (sh["Banned Users"] || []).filter(r => r.Contributor && r.Contributor !== "Total");
+
+    // თარიღი ფაილიდან, თუ არა — დღევანდელი
+    const day = String(details.find(r => r.Date)?.Date || "").slice(0, 10)
+             || new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
+
+    const byId = {};
+    for (const r of analysis) if (r["User ID"]) byId[r["User ID"]] = r;
+
+    const people = contrib.filter(r => r["User ID"] && r.Contributor && r.Contributor !== "Total").map(r => {
+      const a = byId[r["User ID"]] || {};
+      return {
+        day, user_id: String(r["User ID"]), name: String(r.Contributor || ""),
+        sub_gm: String(r["Sub-GM"] || ""), status: String(r.Status || ""),
+        recorded: mpNum(r["Hours (Recorded)"]), accepted: mpNum(r["Hours (Accepted)"]),
+        avg_day: mpNum(r["Avg/Day"]),
+        acceptance: r["Acceptance %"] === "" ? null : mpNum(r["Acceptance %"]),
+        streak: Math.round(mpNum(r["Streak (days)"])), trend: String(r.Trend || ""),
+        rejections: Math.round(mpNum(a["Total Rejections"])),
+        reasons: String(a["Rejection Reasons"] || ""),
+        top_rejection: String(r["Top Rejection"] || ""),
+        tip: String(a["Coaching Tip"] || ""),
+      };
+    });
+
+    const worked = people.filter(p => p.recorded > 0);
+    const rej = {};
+    for (const d of details) if (d.Reason) rej[d.Reason] = (rej[d.Reason] || 0) + 1;
+
+    const totals = {
+      day, uploaded_by: SESSION.display_name || SESSION.username,
+      uploaded_at: new Date().toISOString(),
+      people: worked.length,
+      recorded: +people.reduce((s, p) => s + p.recorded, 0).toFixed(2),
+      accepted: +people.reduce((s, p) => s + p.accepted, 0).toFixed(2),
+      banned: banned.length,
+      trend_up:   worked.filter(p => p.trend === "Up").length,
+      trend_down: worked.filter(p => p.trend === "Down").length,
+      low_rate:   worked.filter(p => p.acceptance != null && p.acceptance < 60).length,
+      rejections: rej, notified: false,
+    };
+
+    show(`ვწერ ბაზაში — ${people.length} ადამიანი…`);
+    await sbDelete("microps_people", `day=eq.${day}`);
+    for (let i = 0; i < people.length; i += 400) {
+      const part = people.slice(i, i + 400);
+      const ok = await sbPost("microps_people", part);
+      if (!ok) throw new Error("ჩაწერა ვერ მოხერხდა");
+    }
+    await sbDelete("microps_days", `day=eq.${day}`);
+    await sbPost("microps_days", totals);
+
+    show(`✓ ${day} — ${worked.length} ადამიანი, ${totals.accepted} მიღებული საათი.`);
+    input.value = "";
+    loadMicrops();
+  } catch (e) {
+    show("⚠ " + e.message);
+  }
+}
+
+async function loadMicrops() {
+  if (!uploadsMicrops()) return;
+  const body = document.getElementById("mpBody");
+  body.innerHTML = '<tr class="loading-row"><td colspan="9"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
+  try {
+    const { data } = await sbGet("microps_days", "select=*&order=day.desc&limit=30");
+    const rows = data || [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-dim)">ჯერ არაფერი ატვირთულა</td></tr>';
+      ["mpDay","mpPeople","mpAcc","mpLost"].forEach(id => document.getElementById(id).textContent = "—");
+      return;
+    }
+    const t = rows[0];
+    document.getElementById("mpDay").textContent    = t.day;
+    document.getElementById("mpPeople").textContent = t.people ?? "—";
+    document.getElementById("mpAcc").textContent    = Math.round(t.accepted ?? 0);
+    document.getElementById("mpLost").textContent   = Math.round((t.recorded ?? 0) - (t.accepted ?? 0));
+
+    body.innerHTML = rows.map(r => {
+      const rec = +r.recorded || 0, acc = +r.accepted || 0;
+      const pct = rec ? Math.round(acc / rec * 100) : 0;
+      return `<tr>
+        <td class="td-date">${esc(r.day)}</td>
+        <td>${r.people ?? ""}</td>
+        <td>${rec.toFixed(1)}</td>
+        <td>${acc.toFixed(1)}</td>
+        <td style="font-weight:700;color:${pct >= 80 ? "var(--success)" : pct >= 65 ? "" : "var(--danger)"}">${pct}%</td>
+        <td>${(rec - acc).toFixed(1)}</td>
+        <td>${Math.round(acc * MP_RATE).toLocaleString("ka-GE")} ₾</td>
+        <td>${r.low_rate ?? ""}</td>
+        <td style="color:var(--text-dim)">${esc(r.uploaded_by || "")}</td>
+      </tr>`;
+    }).join("");
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--danger)">⚠ ${esc(e.message)}</td></tr>`;
+  }
 }
 
 // ── ანკეტის შესწორება ────────────────────
