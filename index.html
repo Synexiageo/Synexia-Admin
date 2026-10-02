@@ -2247,6 +2247,24 @@ function unqCheck(l) {
   return pending;
 }
 
+// რომელ ლიდებს უკვე შეეხო ავტო-ფილტრი — ჟურნალი ახსოვს.
+// ასეთებს აღარ ვეხებით: სტატუსი ოპერატორმა შეგნებულად შეცვალა.
+const AUTO_ACTIONS = ["ავტო-Unqualified", "ავტო-PhoneModelIssue"];
+const sbInList = a => "(" + a.map(v => `"${encodeURIComponent(String(v))}"`).join(",") + ")";
+
+async function dropAlreadyAuto(hits) {
+  if (!hits.length) return hits;
+  const seen = new Set();
+  const ids = hits.map(h => h.l.id);
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sbGet("activity_log",
+      `select=lead_id&action=in.${sbInList(AUTO_ACTIONS)}`
+      + `&lead_id=in.${sbInList(ids.slice(i, i + 100))}&limit=1000`);
+    (data || []).forEach(x => seen.add(x.lead_id));
+  }
+  return hits.filter(h => !seen.has(h.l.id));
+}
+
 // ახალი ლიდების ავტომატური დამუშავება — სესიაზე ერთხელ
 async function autoUnqualifySweep() {
   if (!SESSION || SESSION.role === "influencer") return;
@@ -2255,7 +2273,11 @@ async function autoUnqualifySweep() {
   try {
     const { data } = await sbGet("leads",
       `select=id,name,note,status,priority,sphere_rank,phone_model&status=eq.${encodeURIComponent("New Lead")}&order=created_at.desc&limit=1000`);
-    const hits = (data||[]).map(l => ({ l, r: unqCheck(l) })).filter(x => x.r && x.r.status);
+    const all = (data||[]).map(l => ({ l, r: unqCheck(l) })).filter(x => x.r && x.r.status);
+    // რობოტს თითო ლიდზე ერთი ცდა აქვს. თუ ოპერატორმა მერე ხელით დააბრუნა
+    // New Lead-ზე, მისი გადაწყვეტილება რჩება — თორემ უსასრულოდ ვეკამათებით
+    // და ლიდი ყოველ გახსნაზე უკან ვარდება.
+    const hits = await dropAlreadyAuto(all);
     for (const { l, r } of hits) {
       await sbPatch("leads", `id=eq.${l.id}`, { status: r.status });
       await sbPost("activity_log", {
@@ -2685,9 +2707,27 @@ async function saveAll() {
       finalOnboarded = new Date().toISOString().substring(0, 10);
     }
     await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username, ...(newAgent !== oldAgent ? { assigned_to: newAgent || null } : {}), ...mountBody });
+    // ბაზაში წესები ზის, რომლებიც სტატუსს უკან აბრუნებს (მაგ. ტელეფონის მოდელი).
+    // ეს უჩუმრად ხდებოდა: ოპერატორი ინახავდა, ისტორიაში ეწერებოდა, რეალურად კი არაფერი იცვლებოდა.
+    let realStatus = status;
+    if (oldStatus !== status) {
+      const { data: chk } = await sbGet("leads", `select=status&id=eq.${encodeURIComponent(savedId)}`);
+      realStatus = chk?.[0]?.status ?? status;
+      if (realStatus !== status) {
+        if (savedLead) savedLead.status = realStatus;
+        const badge = row?.querySelector(".status-badge");
+        if (badge) { badge.textContent = realStatus; badge.className = "status-badge " + statusClass(realStatus); }
+        alert(`სტატუსი ვერ შეინახა — ავტომატურმა წესმა ლიდი ისევ „${realStatus}"-ში დააბრუნა.\n\n`
+            + `ყველაზე ხშირად ამის მიზეზი ტელეფონის მოდელია: ბაზაში ჩაწერილია „${savedLead?.phone_model || "—"}".\n`
+            + `თუ მოდელი სხვაა, ჯერ ის უნდა გასწორდეს.`);
+      }
+    }
+
     const changes = [];
     if (name && name !== (savedLead?.name||"")) changes.push("სახელი: "+savedLead?.name+" → "+name);
-    if (oldStatus !== status) changes.push("სტატუსი: "+oldStatus+" → "+status);
+    if (oldStatus !== status) changes.push(realStatus === status
+      ? "სტატუსი: "+oldStatus+" → "+status
+      : "სტატუსი: "+oldStatus+" → "+status+" (ვერ შეინახა — ავტომატურმა წესმა დააბრუნა)");
     if (newAgent !== oldAgent) changes.push("აგენტი: "+(oldAgent||"მიუბმელი")+" → "+(newAgent||"მიუბმელი"));
     if (mountChanged) {
       const ms = v => MOUNT_LABEL[v] || "—";
