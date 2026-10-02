@@ -194,6 +194,56 @@ export async function ask(chatId, messages, { maxRounds = 10 } = {}) {
   return { text: "ვერ დავასრულე — ძალიან ბევრი ნაბიჯი დასჭირდა.", convo };
 }
 
+// ── ონბორდინგი: ქალაქების, ქალაქში კი პროფესიების მიხედვით ────────
+// პროფესიას CRM-ის ველიდან ვიღებთ — ანკეტაში თავისუფალი ტექსტია და არ ჯგუფდება.
+const inList = a => "(" + a.map(v => `"${v}"`).join(",") + ")";
+
+export async function onboardingReport(from, to) {
+  const regs = await sbTable(
+    `registrations?created_at=gte.${encodeURIComponent(from)}&created_at=lt.${encodeURIComponent(to)}`
+    + `&select=lead_id,reg_city,occupation&limit=1000`);
+
+  if (!regs?.length) return { count: 0, text: "ახალი ონბორდინგი არ ყოფილა." };
+
+  const ids = [...new Set(regs.map(r => r.lead_id).filter(Boolean))];
+  const leads = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const part = await sbTable(
+      `leads?id=in.${encodeURIComponent(inList(ids.slice(i, i + 100)))}&select=id,city,profession&limit=200`);
+    leads.push(...(part || []));
+  }
+  const byId = Object.fromEntries(leads.map(l => [l.id, l]));
+
+  const cities = {};
+  for (const r of regs) {
+    const lead = byId[r.lead_id] || {};
+    const city = r.reg_city || lead.city || "ქალაქი უცნობია";
+    const prof = lead.profession || (r.occupation || "").trim() || "პროფესია უცნობია";
+    (cities[city] ||= {});
+    cities[city][prof] = (cities[city][prof] || 0) + 1;
+  }
+
+  const out = [];
+  const order = Object.entries(cities)
+    .map(([city, profs]) => [city, profs, Object.values(profs).reduce((a, b) => a + b, 0)])
+    .sort((a, b) => b[2] - a[2]);
+  for (const [city, profs, total] of order) {
+    out.push(`${city} — ${total}`);
+    for (const [p, n] of Object.entries(profs).sort((a, b) => b[1] - a[1])) {
+      out.push(`   ${p}: ${n}`);
+    }
+  }
+  return { count: regs.length, text: out.join("\n") };
+}
+
+// თბილისის დღის საზღვრები UTC-ში. back=1 — გუშინ, back=7..1 — გასული კვირა.
+export function tbilisiWindow(backDays, lengthDays = 1) {
+  const tb = new Date(Date.now() + 4 * 3600e3);
+  const midnight = new Date(tb.toISOString().slice(0, 10) + "T00:00:00Z").getTime() - 4 * 3600e3;
+  const to = midnight - (backDays - lengthDays) * 24 * 3600e3;
+  return { from: new Date(to - lengthDays * 24 * 3600e3).toISOString(), to: new Date(to).toISOString() };
+}
+
 // ── საუბრის მეხსიერება ────────────────────────────────────────────
 export async function loadChat(chatId) {
   const rows = await sbTable(`bot_chats?chat_id=eq.${chatId}&select=messages`);
