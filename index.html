@@ -2141,13 +2141,19 @@ const PH_ALLOW = {
   // 11-დან ზემოთ ვარგისია, ძველებს (X, XR, 8, SE) ავტომატურად არ ვჭრით — ოპერატორი წყვეტს.
   iphone: t => /1[1-7]/.test(t) ? true : null,
   // Galaxy S20–S25 (FE / Ultra / + / Active / Slim), Note 20, A51–A57, A72, M31(s), Z Flip3/5/6/7, Z Fold4/5/6/7
-  samsung: t => !/\d/.test(t) ? null : (
-       /note\s?20(?!\d)/.test(t)
-    || /flip\s?[3567](?!\d)/.test(t)
-    || /fold\s?[4567](?!\d)/.test(t)
-    || /(?<!\d)s\s?2[0-5](?!\d)/.test(t)
-    || /(?<!\d)a\s?(5[1-7]|72)(?!\d)/.test(t)
-    || /(?<!\d)m\s?31(?!\d)/.test(t)),
+  samsung: t => {
+    if (!/\d/.test(t)) return null;
+    if (/note\s?20(?!\d)/.test(t)
+     || /flip\s?[3567](?!\d)/.test(t)
+     || /fold\s?[4567](?!\d)/.test(t)
+     || /(?<!\d)s\s?2[0-5](?!\d)/.test(t)
+     || /(?<!\d)a\s?(5[1-7]|72)(?!\d)/.test(t)
+     || /(?<!\d)m\s?31(?!\d)/.test(t)) return true;
+    // „samsung 56" — სერიის ასო არ წერია. A56 ვარგისია, S56 არ არსებობს,
+    // 56-ით სხვა არაფერია — ანუ ციფრი მარტო ვერაფერს ამტკიცებს.
+    // ეს ინფორმაციის ნაკლებობაა და არა უვარგისობა: ოპერატორმა ზარზე დააზუსტოს.
+    return /(?<![a-z0-9])[asmjz]\s?\d|note\s?\d|flip\s?\d|fold\s?\d/.test(t) ? false : null;
+  },
   // Pixel 7a, 7 Pro, 8/8a/8 Pro, 9/9a/9 Pro/9 Pro XL, 10/10 Pro — უბრალო Pixel 7 სიაში არ არის
   pixel: t => !/\d/.test(t) ? null : (
        /(?<!\d)7\s?a(?!\d)/.test(t)
