@@ -265,9 +265,26 @@ export async function loadChat(chatId) {
   return rows?.[0]?.messages ?? [];
 }
 
+// ინსტრუმენტის პასუხი („ბაზამ ეს დააბრუნა") მარტო არაფერს ნიშნავს —
+// მის წინ ყოველთვის უნდა იდგეს კითხვა. ჩამოჭრამ ეს წყვილი არ უნდა გაახლიჩოს.
+const hasBlock = (m, type) =>
+  Array.isArray(m.content) && m.content.some(c => c.type === type);
+
+function trimConvo(convo, keep = 20) {
+  let out = convo.slice(-keep);
+  while (out.length && (out[0].role !== "user" || hasBlock(out[0], "tool_result"))) {
+    out = out.slice(1);
+  }
+  // ბოლოში დასმული კითხვა უპასუხოდ არ უნდა დარჩეს
+  while (out.length && hasBlock(out[out.length - 1], "tool_use")) {
+    out = out.slice(0, -1);
+  }
+  return out;
+}
+
 export async function saveChat(chatId, convo) {
   // ბოლო 20 შეტყობინება ყოფნის — თან მთლიანი ისტორია ძვირდება
-  const trimmed = convo.slice(-20);
+  const trimmed = trimConvo(convo);
   await sbTable("bot_chats?on_conflict=chat_id", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
