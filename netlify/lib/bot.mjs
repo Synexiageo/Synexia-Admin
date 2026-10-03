@@ -4,7 +4,9 @@
 const env = (k, def) => process.env[k] ?? def;
 
 export const OWNER = String(env("TELEGRAM_OWNER_ID", ""));
-export const MODEL = env("BOT_MODEL", "claude-opus-5");
+// Opus 5.5 — ყველაზე ძლიერი და Opus 5-ზე იაფიც.
+// გასაიაფებლად Netlify-ში BOT_MODEL=claude-sonnet-5-5 (ნახევარ ფასად).
+export const MODEL = env("BOT_MODEL", "claude-opus-5-5");
 
 const SB_URL  = env("SB_URL", "https://tsfzuyujfcacultjexsy.supabase.co");
 const SB_KEY  = env("SB_SERVICE_KEY", "");
