@@ -1,9 +1,10 @@
 // როცა ელენე ფაილს ატვირთავს, 15 წუთში შეჯამება მოდის.
 // ყოველ დღეზე ერთხელ — microps_days.notified ამას ადევნებს თვალს.
 
-import { sbTable, say, OWNER } from "../lib/bot.mjs";
+import { sbTable, say, sendDailySummary, claimOnce, OWNER } from "../lib/bot.mjs";
 
-export const config = { schedule: "*/15 * * * *" };
+// ფაილი 11:00-ზე იტვირთება — ხუთ წუთში ერთხელ შემოწმება საკმარისია
+export const config = { schedule: "*/5 * * * *" };
 
 const RATE = 25;   // ₾ ერთ მიღებულ საათზე
 
@@ -84,6 +85,9 @@ export default async () => {
 
     const g = await groups(d.day);
     if (g) lines.push("", g);
+
+    // ჯერ დღის საერთო სურათი, მერე მიკროფსი — ერთ ჯერზე ორივე
+    if (await claimOnce("daily")) await sendDailySummary();
 
     await say(OWNER, lines.join("\n"));
     await sbTable(`microps_days?day=eq.${d.day}`, {

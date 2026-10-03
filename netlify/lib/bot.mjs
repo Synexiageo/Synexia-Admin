@@ -259,6 +259,54 @@ export function tbilisiWindow(backDays, lengthDays = 1) {
   return { from: new Date(to - lengthDays * 24 * 3600e3).toISOString(), to: new Date(to).toISOString() };
 }
 
+// ── დღის შეჯამება ─────────────────────────────────────────────────
+// ორი ადგილიდან იგზავნება: მიკროფსის ფაილის ატვირთვისთანავე, ან —
+// თუ ფაილი არ ატვირთულა — შუადღისას, რომ დღე უშეჯამებოდ არ დარჩეს.
+const DAILY_PROMPT = `დილის შეჯამება. ბაზიდან აიღე და მოკლედ დაწერე:
+1. გუშინ რამდენი ლიდი შემოვიდა (ზოგადი სეგმენტი) და რამდენი იყო ⭐ ცხელი
+2. გუშინ რამდენ ლიდს შეეცვალა სტატუსი — ანუ რამდენი დამუშავდა
+3. ახლა რამდენი დაურეკავი New Lead არის და ვის რამდენი აქვს
+4. თუ რამე თვალში საცემია — ერთ აგენტთან სხვებზე ბევრად მეტი დაგროვდა,
+   ან ლიდების ნაკადი მკვეთრად დაეცა — ბოლოს ერთი წინადადებით თქვი.
+
+ანკეტებს ნუ ჩამოთვლი, ის ცალკე მოდის. დიასახლისების სეგმენტი არ ჩათვალო.
+მისალმება არ დაწერო.`;
+
+export async function sendDailySummary() {
+  if (!OWNER) return;
+  let summary;
+  try {
+    summary = (await ask(OWNER, [{ role: "user", content: DAILY_PROMPT }])).text;
+  } catch (e) {
+    summary = "შეჯამება ვერ გავაკეთე: " + String(e.message).slice(0, 300);
+  }
+
+  let people;
+  try {
+    const w = tbilisiWindow(1);
+    const { count, text } = await onboardingReport(w.from, w.to);
+    people = count ? `🎉 გუშინ ავიყვანეთ ${count} ადამიანი\n\n${text}` : "🙁 გუშინ " + text;
+  } catch (e) {
+    people = "ანკეტები ვერ წავიკითხე: " + String(e.message).slice(0, 200);
+  }
+
+  await say(OWNER, "☀️ დღის შეჯამება\n\n" + summary + "\n\n―――――\n\n" + people);
+}
+
+// დღეში ერთხელ — ვინც პირველი მოასწრებს, ის აგზავნის
+export async function claimOnce(key) {
+  const day = new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10);
+  const full = `${key}-${day}`;
+  const rows = await sbTable(`bot_alerts?key=eq.${encodeURIComponent(full)}&select=key`);
+  if (rows?.length) return false;
+  await sbTable("bot_alerts?on_conflict=key", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ key: full, at: new Date().toISOString() }),
+  });
+  return true;
+}
+
 // ── საუბრის მეხსიერება ────────────────────────────────────────────
 export async function loadChat(chatId) {
   const rows = await sbTable(`bot_chats?chat_id=eq.${chatId}&select=messages`);
