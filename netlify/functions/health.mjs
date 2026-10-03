@@ -16,7 +16,7 @@ export default async () => {
     } catch (e) { out.telegram = "✗ " + e.message; }
   }
 
-  out.owner_id = env("TELEGRAM_OWNER_ID") || "ცვლადი არ არის";
+  out.owner_id = env("TELEGRAM_OWNER_ID") ? "✓ დაყენებულია" : "ცვლადი არ არის";
   out.secret   = env("TELEGRAM_SECRET") ? "✓ დაყენებულია" : "ცვლადი არ არის";
 
   // Anthropic
