@@ -256,7 +256,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       </div>
 
       <div class="f">
-        <label for="occ">საქმიანობა</label>
+        <label for="occ">საქმიანობა<span class="req">*</span></label>
         <input type="text" id="occ" placeholder="მაგ: ავეჯის ხელოსანი" autocomplete="off">
       </div>
 
@@ -380,7 +380,7 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","phone","email","pid","acc","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","phone","email","pid","acc","occ","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
   document.querySelectorAll(".uname").forEach(i => i.classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
@@ -404,6 +404,7 @@ async function submitForm() {
   if (!email) missing.push("email");
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
+  if (!occ)   missing.push("occ");
   if (ENTITY !== "individual") {
     if (!cname) missing.push("cname");
     if (!cid)   missing.push("cid");
