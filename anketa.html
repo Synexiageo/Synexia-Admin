@@ -89,14 +89,32 @@ form{display:flex; flex-direction:column; gap:15px;}
 }
 .add-more:hover{background:rgba(240,73,35,.07); border-color:var(--accent); color:var(--accent-2);}
 #legalWrap{display:none; flex-direction:column; gap:15px;}
-#contractBox{max-height:260px; overflow-y:auto; border:1.5px solid var(--line); border-radius:12px;
-  padding:14px 16px; background:#fff; font-size:13px; line-height:1.65; white-space:pre-wrap;
-  color:#333; -webkit-overflow-scrolling:touch;}
-#contractBox b{color:#111;}
-.agree{display:flex; align-items:flex-start; gap:10px; margin-top:12px; cursor:pointer;
-  font-size:14.5px; line-height:1.45;}
-.agree input{width:20px; height:20px; margin:1px 0 0; flex:none; accent-color:var(--brand);}
-.agree.bad span{color:var(--danger);}
+button.ghost{background:var(--field); color:var(--ink); border:1.5px solid var(--line);
+  box-shadow:none; font-size:15px;}
+button.ghost:hover{background:var(--field-on); border-color:var(--line-on);}
+#contractWrap .hint{margin-top:8px;}
+#cState.ok{color:var(--ok);}
+#contractWrap.bad button.ghost{border-color:var(--err);}
+#contractWrap.bad .hint{color:var(--err);}
+
+.cmask{position:fixed; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(2px);
+  display:none; align-items:center; justify-content:center; padding:16px; z-index:50;}
+.cmask.show{display:flex;}
+.cwin{background:var(--panel); border:1.5px solid var(--line); border-radius:18px;
+  width:min(680px,100%); max-height:min(88vh,860px); display:flex; flex-direction:column; overflow:hidden;}
+.chead{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:16px 18px; border-bottom:1.5px solid var(--line); font-weight:700; font-size:16px;}
+.cx{background:none; border:none; box-shadow:none; color:var(--ink-2); font-size:19px;
+  width:34px; height:34px; padding:0; border-radius:9px; line-height:1;}
+.cx:hover{background:var(--field); color:var(--ink);}
+.cbody{overflow-y:auto; padding:18px; font-size:14px; line-height:1.72; white-space:pre-wrap;
+  color:var(--ink-2); -webkit-overflow-scrolling:touch;}
+.cbody b{color:var(--ink);}
+.cfoot{padding:14px 18px 16px; border-top:1.5px solid var(--line); display:flex;
+  flex-direction:column; gap:10px;}
+.cnote{font-size:13.5px; color:var(--muted); text-align:center;}
+.cnote.ready{color:var(--ok);}
+@media(max-width:560px){ .cwin{max-height:94vh;} .cbody{font-size:13.5px; padding:15px;} }
 
 #legalWrap.show{display:flex;}
 
@@ -221,16 +239,28 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div class="f" id="contractWrap" style="display:none">
         <label>ხელშეკრულება<span class="req">*</span></label>
-        <div id="contractBox"></div>
-        <label class="agree" id="agreeWrap">
-          <input type="checkbox" id="agree">
-          <span>გავეცანი ხელშეკრულებას და ვეთანხმები მის პირობებს</span>
-        </label>
+        <button type="button" id="cOpen" class="ghost" onclick="openContract()">ხელშეკრულების გაცნობა</button>
+        <span class="hint" id="cState">ჯერ არ გაგიცვნიათ</span>
       </div>
 
       <div class="msg" id="msg"></div>
       <button id="btn" onclick="submitForm()">გაგზავნა</button>
     </form>
+  </div>
+
+
+  <div class="cmask" id="cMask" onclick="maskClick(event)">
+    <div class="cwin" role="dialog" aria-modal="true" aria-label="ხელშეკრულება">
+      <div class="chead">
+        <span id="cTitle">მომსახურების ხელშეკრულება</span>
+        <button type="button" class="cx" onclick="closeContract()" aria-label="დახურვა">✕</button>
+      </div>
+      <div class="cbody" id="cBody"></div>
+      <div class="cfoot">
+        <div class="cnote" id="cNote">ჩამოდით ბოლომდე, რომ დაეთანხმოთ</div>
+        <button type="button" id="cAgree" disabled onclick="agreeContract()">ვეთანხმები</button>
+      </div>
+    </div>
   </div>
 
   <div class="done" id="done">
@@ -395,10 +425,10 @@ async function submitForm() {
     show("err", "ხელშეკრულება ვერ ჩაიტვირთა. გადატვირთეთ გვერდი და სცადეთ თავიდან.");
     return;
   }
-  if (!$("agree").checked) {
-    $("agreeWrap").classList.add("bad");
+  if (!AGREED) {
+    $("contractWrap").classList.add("bad");
     $("contractWrap").scrollIntoView({ behavior: "smooth", block: "center" });
-    show("err", "ხელშეკრულების პირობებს უნდა დაეთანხმოთ");
+    show("err", "ჯერ გაეცანით ხელშეკრულებას და დაეთანხმეთ პირობებს");
     return;
   }
 
@@ -473,8 +503,8 @@ function resetForm() {
   $("unameList").appendChild(usernameRow(""));
   refreshUsernameRows();
   setEntity("individual");
-  $("agree").checked = false;
-  $("agreeWrap").classList.remove("bad");
+  setAgreed(false);
+  $("contractWrap").classList.remove("bad");
   renderContract();
   clearMsg();
   $("btn").disabled = false;
@@ -517,12 +547,9 @@ async function loadContracts() {
   renderContract();
 }
 
-function renderContract() {
-  CONTRACT = CONTRACTS[ENTITY] || null;
-  const wrap = $("contractWrap");
-  if (!CONTRACT) { wrap.style.display = "none"; return; }
-  wrap.style.display = "";
+let AGREED = false;
 
+function contractText() {
   const g = id => ($(id) ? $(id).value.trim() : "");
   const d = new Date();
   const vals = {
@@ -533,16 +560,63 @@ function renderContract() {
     "საიდენტიფიკაციო": g("cid") || "—",
     "ანგარიში": g("acc") || "—",
   };
-  $("contractBox").innerHTML = htmlEsc(CONTRACT.body)
+  return htmlEsc(CONTRACT.body)
     .replace(/\{\{([^}]+)\}\}/g, (m, k) => "<b>" + htmlEsc(vals[k.trim()] ?? m) + "</b>");
 }
 
-// ველის შევსებისთანავე ხელშეკრულებაშიც ჩანს
-["fname","lname","pid","acc","cname","cid"].forEach(id => {
-  const el = $(id);
-  if (el) el.addEventListener("input", renderContract);
+// ტიპის შეცვლა სხვა ხელშეკრულებას ნიშნავს — თანხმობა თავიდან უნდა გაიცეს
+function renderContract() {
+  const was = CONTRACT;
+  CONTRACT = CONTRACTS[ENTITY] || null;
+  if (!was || !CONTRACT || was.id !== CONTRACT.id) setAgreed(false);
+  $("contractWrap").style.display = CONTRACT ? "" : "none";
+}
+
+function setAgreed(ok) {
+  AGREED = ok;
+  const st = $("cState"), btn = $("cOpen");
+  if (!st) return;
+  st.textContent = ok ? "✓ გაცნობილი ხართ და ეთანხმებით" : "ჯერ არ გაგიცვნიათ";
+  st.classList.toggle("ok", ok);
+  btn.textContent = ok ? "ხელშეკრულების ხელახლა ნახვა" : "ხელშეკრულების გაცნობა";
+  if (ok) $("contractWrap").classList.remove("bad");
+}
+
+function openContract() {
+  if (!CONTRACT) return;
+  $("cBody").innerHTML = contractText();
+  $("cBody").scrollTop = 0;
+  $("cMask").classList.add("show");
+  document.body.style.overflow = "hidden";
+  checkScrolled();
+}
+
+function closeContract() {
+  $("cMask").classList.remove("show");
+  document.body.style.overflow = "";
+}
+
+function maskClick(e) { if (e.target === $("cMask")) closeContract(); }
+
+// ღილაკი მხოლოდ მაშინ ირთვება, როცა ტექსტი ბოლომდე ჩამოვიდა
+function checkScrolled() {
+  const b = $("cBody"), btn = $("cAgree"), note = $("cNote");
+  const atEnd = b.scrollHeight - b.scrollTop - b.clientHeight <= 12;
+  btn.disabled = !atEnd;
+  note.textContent = atEnd ? "ხელშეკრულება ბოლომდე ნანახია" : "ჩამოდით ბოლომდე, რომ დაეთანხმოთ";
+  note.classList.toggle("ready", atEnd);
+}
+
+function agreeContract() {
+  setAgreed(true);
+  closeContract();
+  clearMsg();
+}
+
+$("cBody").addEventListener("scroll", checkScrolled);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("cMask").classList.contains("show")) closeContract();
 });
-$("agree").addEventListener("change", () => $("agreeWrap").classList.remove("bad"));
 
 loadContracts();
 </script>
