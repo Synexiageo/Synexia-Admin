@@ -88,15 +88,18 @@ export default async () => {
       const c = byId[r.contract_id];
       if (!c) continue;
       r.contract_version = c.version;
-      const name = safe(`${String(r.agreed_at || "").slice(0, 10)} `
-        + `${[r.first_name, r.last_name].filter(Boolean).join(" ")} (${KIND[c.entity_type] || ""})`);
+      const day = String(r.agreed_at || "").slice(0, 10);
+      const kind = KIND[c.entity_type] || "სხვა";
+      const name = safe(`${day} ${[r.first_name, r.last_name].filter(Boolean).join(" ")} (${kind})`);
+      // დრაივში: ხელშეკრულებები / 2026-10-09 / ფიზიკური პირი /
+      const path = [day, kind];
 
       try {
         const res = await fetch(DRIVE_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            secret: DRIVE_SECRET, name, html: buildDoc(r, c.body),
+            secret: DRIVE_SECRET, name, path, html: buildDoc(r, c.body),
             email: r.email || "",
             person: [r.first_name, r.last_name].filter(Boolean).join(" "),
           }),
