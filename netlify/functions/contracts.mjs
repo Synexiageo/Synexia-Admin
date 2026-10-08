@@ -53,6 +53,8 @@ function buildDoc(reg, body) {
   .ct-l3 { padding-left: 8.8em; text-indent: -3.9em; }
   .ct-l3 .ct-n { min-width: 3.9em; }
   .ct-sign { text-align: left; margin: 3pt 0 0; }
+  .ct-sigwrap { margin: 2pt 0 -4pt; text-align: left; }
+  .ct-sig { height: 46pt; width: auto; display: block; }
   .ct-sign:first-of-type { margin-top: 26pt; }
   .agreed { margin-top: 26pt; padding-top: 10pt; border-top: 1px solid #999;
             font-size: 9.5pt; color: #444; text-align: left; }
