@@ -69,7 +69,7 @@ function buildDoc(reg, body) {
 export default async () => {
   if (!DRIVE_URL || !DRIVE_SECRET) return new Response("ok");
 
-  let done = 0, failed = 0;
+  let done = 0, failed = 0, firstError = "";
   try {
     const rows = await sbTable(
       "registrations?contract_id=not.is.null&drive_url=is.null"
@@ -110,13 +110,15 @@ export default async () => {
         done++;
       } catch (e) {
         failed++;
+        if (!firstError) firstError = e.message;
         console.error("drive upload", r.id, e.message);
       }
     }
 
     // პირველ ჩავარდნაზე ვატყობინებ — თორემ ჩუმად დაგროვდება
     if (failed && OWNER) {
-      await say(OWNER, `⚠️ ${failed} ხელშეკრულება ვერ აიტვირთა დრაივში. `
+      await say(OWNER, `⚠️ ${failed} ხელშეკრულება ვერ აიტვირთა დრაივში.\n\n`
+        + `მიზეზი: ${String(firstError).slice(0, 300)}\n\n`
         + `შემდეგ გაშვებაზე თავიდან ვცდი.`);
     }
   } catch (e) {
