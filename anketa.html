@@ -89,6 +89,15 @@ form{display:flex; flex-direction:column; gap:15px;}
 }
 .add-more:hover{background:rgba(240,73,35,.07); border-color:var(--accent); color:var(--accent-2);}
 #legalWrap{display:none; flex-direction:column; gap:15px;}
+#contractBox{max-height:260px; overflow-y:auto; border:1.5px solid var(--line); border-radius:12px;
+  padding:14px 16px; background:#fff; font-size:13px; line-height:1.65; white-space:pre-wrap;
+  color:#333; -webkit-overflow-scrolling:touch;}
+#contractBox b{color:#111;}
+.agree{display:flex; align-items:flex-start; gap:10px; margin-top:12px; cursor:pointer;
+  font-size:14.5px; line-height:1.45;}
+.agree input{width:20px; height:20px; margin:1px 0 0; flex:none; accent-color:var(--brand);}
+.agree.bad span{color:var(--danger);}
+
 #legalWrap.show{display:flex;}
 
 button{
@@ -160,7 +169,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div id="legalWrap">
         <div class="f">
-          <label for="cname">კომპანიის დასახელება<span class="req">*</span></label>
+          <label for="cname" id="cnameLabel">კომპანიის დასახელება<span class="req">*</span></label>
           <input type="text" id="cname" placeholder="შპს სინექსია" autocomplete="off">
         </div>
         <div class="f">
@@ -210,6 +219,15 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
         <input type="text" id="occ" placeholder="მაგ: ავეჯის ხელოსანი" autocomplete="off">
       </div>
 
+      <div class="f" id="contractWrap" style="display:none">
+        <label>ხელშეკრულება<span class="req">*</span></label>
+        <div id="contractBox"></div>
+        <label class="agree" id="agreeWrap">
+          <input type="checkbox" id="agree">
+          <span>გავეცანი ხელშეკრულებას და ვეთანხმები მის პირობებს</span>
+        </label>
+      </div>
+
       <div class="msg" id="msg"></div>
       <button id="btn" onclick="submitForm()">გაგზავნა</button>
     </form>
@@ -236,9 +254,13 @@ function setEntity(kind) {
   $("segInd").classList.toggle("on", kind === "individual");
   $("segEnt").classList.toggle("on", kind === "entrepreneur");
   $("segLeg").classList.toggle("on", kind === "legal");
-  // კომპანიის ველები მხოლოდ შპს-ს სჭირდება — მეწარმე ფიზიკურის ტოლფასია
-  $("legalWrap").classList.toggle("show", kind === "legal");
-  if (kind === "legal") {
+  // დასახელება და ს/ნ ორივეს სჭირდება — ხელშეკრულებაში სწორედ ესენი წერია
+  const biz = kind !== "individual";
+  $("legalWrap").classList.toggle("show", biz);
+  if (biz) {
+    $("cnameLabel").innerHTML = (kind === "legal" ? "კომპანიის დასახელება" : "მეწარმის დასახელება")
+      + '<span class="req">*</span>';
+    $("cname").placeholder = kind === "legal" ? "შპს სინექსია" : "ი/მ გიორგი მაისურაძე";
     $("cname").focus();
   } else {
     ["cname","cid"].forEach(id => $(id).classList.remove("bad"));
@@ -247,6 +269,7 @@ function setEntity(kind) {
   const many = kind !== "individual";
   $("unameAdd").style.display = many ? "" : "none";
   $("unameLabel").innerHTML = (many ? "მომხმარებლის სახელები" : "მომხმარებლის სახელი") + '<span class="req">*</span>';
+  if (typeof renderContract === "function") renderContract();
   $("unameHint").textContent = many
     ? "ყველა ადამიანის იუზერნეიმი, ვინც ამ ანგარიშზე იმუშავებს — ლათინური ასოებით"
     : "ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით";
@@ -327,7 +350,7 @@ async function submitForm() {
   if (!phone) missing.push("phone");
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
-  if (ENTITY === "legal") {
+  if (ENTITY !== "individual") {
     if (!cname) missing.push("cname");
     if (!cid)   missing.push("cid");
   }
@@ -367,6 +390,18 @@ async function submitForm() {
     show("err", wrong[1]);
     return;
   }
+  // ── ხელშეკრულება სავალდებულოა ──
+  if (!CONTRACT) {
+    show("err", "ხელშეკრულება ვერ ჩაიტვირთა. გადატვირთეთ გვერდი და სცადეთ თავიდან.");
+    return;
+  }
+  if (!$("agree").checked) {
+    $("agreeWrap").classList.add("bad");
+    $("contractWrap").scrollIntoView({ behavior: "smooth", block: "center" });
+    show("err", "ხელშეკრულების პირობებს უნდა დაეთანხმოთ");
+    return;
+  }
+
   // ველებშიც გასუფთავებული ჩავწეროთ, რომ ადამიანმა დაინახოს რა იგზავნება
   $("acc").value   = accClean;
   $("pid").value   = pidDigits;
@@ -391,8 +426,9 @@ async function submitForm() {
         p_usernames: usernames,
         p_entity_type: ENTITY,
         p_reg_city: regCity,
-        p_company_name: ENTITY === "legal" ? cname : null,
-        p_company_id:   ENTITY === "legal" ? cid   : null
+        p_company_name: ENTITY !== "individual" ? cname : null,
+        p_company_id:   ENTITY !== "individual" ? cid   : null,
+        p_contract_id:  CONTRACT ? CONTRACT.id : null
       })
     });
 
@@ -437,6 +473,9 @@ function resetForm() {
   $("unameList").appendChild(usernameRow(""));
   refreshUsernameRows();
   setEntity("individual");
+  $("agree").checked = false;
+  $("agreeWrap").classList.remove("bad");
+  renderContract();
   clearMsg();
   $("btn").disabled = false;
   $("btn").textContent = "გაგზავნა";
@@ -457,6 +496,55 @@ $("acc").addEventListener("input", e => {
     if (clean !== e.target.value) e.target.value = clean;
   });
 });
+
+// ── ხელშეკრულება ────────────────────────────────────────────
+// ტექსტი ბაზაშია, ვერსიებით. ანკეტა ყოველთვის აქტიურ ვერსიას იღებს და
+// გაგზავნისას ზუსტად იმას მიაბამს, რომელიც ეკრანზე ეწერა.
+let CONTRACTS = {}, CONTRACT = null;
+
+const GE_MONTHS = ["იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი",
+                   "ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
+const htmlEsc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+async function loadContracts() {
+  try {
+    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body&active=is.true", {
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
+    });
+    const d = await r.json();
+    if (Array.isArray(d)) d.forEach(c => { CONTRACTS[c.entity_type] = c; });
+  } catch (e) { /* ქსელი — ქვემოთ renderContract მოაგვარებს */ }
+  renderContract();
+}
+
+function renderContract() {
+  CONTRACT = CONTRACTS[ENTITY] || null;
+  const wrap = $("contractWrap");
+  if (!CONTRACT) { wrap.style.display = "none"; return; }
+  wrap.style.display = "";
+
+  const g = id => ($(id) ? $(id).value.trim() : "");
+  const d = new Date();
+  const vals = {
+    "თარიღი": d.getDate() + " " + GE_MONTHS[d.getMonth()] + " " + d.getFullYear() + "წ",
+    "სახელი": [g("fname"), g("lname")].filter(Boolean).join(" ") || "—",
+    "პირადი": g("pid") || "—",
+    "კომპანია": g("cname") || "—",
+    "საიდენტიფიკაციო": g("cid") || "—",
+    "ანგარიში": g("acc") || "—",
+  };
+  $("contractBox").innerHTML = htmlEsc(CONTRACT.body)
+    .replace(/\{\{([^}]+)\}\}/g, (m, k) => "<b>" + htmlEsc(vals[k.trim()] ?? m) + "</b>");
+}
+
+// ველის შევსებისთანავე ხელშეკრულებაშიც ჩანს
+["fname","lname","pid","acc","cname","cid"].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener("input", renderContract);
+});
+$("agree").addEventListener("change", () => $("agreeWrap").classList.remove("bad"));
+
+loadContracts();
 </script>
 </body>
 </html>
