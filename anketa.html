@@ -237,6 +237,13 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
       </div>
 
       <div class="f">
+        <label for="email">ელ-ფოსტა<span class="req">*</span></label>
+        <input type="email" id="email" placeholder="name@example.com" autocomplete="off"
+               autocapitalize="off" spellcheck="false">
+        <span class="hint">ხელშეკრულებას ამ მისამართზე გამოგიგზავნით</span>
+      </div>
+
+      <div class="f">
         <label for="pid">პირადი ნომერი<span class="req">*</span></label>
         <input type="text" id="pid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
         <span class="hint">11 ციფრი</span>
@@ -373,7 +380,7 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","phone","pid","acc","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","phone","email","pid","acc","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
   document.querySelectorAll(".uname").forEach(i => i.classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
@@ -383,7 +390,7 @@ async function submitForm() {
   clearMsg();
   const v = id => $(id).value.trim();
   const first = v("fname"), last = v("lname"), phone = v("phone");
-  const pid = v("pid"), acc = v("acc"), occ = v("occ");
+  const pid = v("pid"), acc = v("acc"), occ = v("occ"), email = v("email");
   const cname = v("cname"), cid = v("cid");
   const regCity = v("regcity");
   const usernames = readUsernames();
@@ -394,6 +401,7 @@ async function submitForm() {
   if (!first) missing.push("fname");
   if (!last)  missing.push("lname");
   if (!phone) missing.push("phone");
+  if (!email) missing.push("email");
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
   if (ENTITY !== "individual") {
@@ -423,7 +431,9 @@ async function submitForm() {
   const accClean  = acc.replace(/\s/g, "").toUpperCase();
 
   const wrong =
-    digits.length !== 9
+    !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
+      ? ["email", "ელ-ფოსტა არასწორია — შეამოწმეთ მისამართი"]
+    : digits.length !== 9
       ? ["phone", `ტელეფონის ნომერი უნდა იყოს 9 ციფრი (+995-ის გარეშე) — თქვენ ${digits.length} შეიყვანეთ`]
     : pidDigits.length !== 11
       ? ["pid", `პირადი ნომერი უნდა იყოს 11 ციფრი — თქვენ ${pidDigits.length} შეიყვანეთ`]
@@ -474,7 +484,8 @@ async function submitForm() {
         p_reg_city: regCity,
         p_company_name: ENTITY !== "individual" ? cname : null,
         p_company_id:   ENTITY !== "individual" ? cid   : null,
-        p_contract_id:  CONTRACT ? CONTRACT.id : null
+        p_contract_id:  CONTRACT ? CONTRACT.id : null,
+        p_email:        email.toLowerCase()
       })
     });
 

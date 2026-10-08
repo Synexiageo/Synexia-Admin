@@ -74,7 +74,7 @@ export default async () => {
     const rows = await sbTable(
       "registrations?contract_id=not.is.null&drive_url=is.null"
       + "&select=id,first_name,last_name,personal_id,account_number,company_name,company_id,"
-      + "entity_type,agreed_at,created_at,contract_id&order=created_at.asc&limit=20");
+      + "entity_type,agreed_at,created_at,contract_id,email&order=created_at.asc&limit=20");
     if (!rows?.length) return new Response("ok");
 
     const ids = [...new Set(rows.map(r => r.contract_id))];
@@ -93,7 +93,11 @@ export default async () => {
         const res = await fetch(DRIVE_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ secret: DRIVE_SECRET, name, html: buildDoc(r, c.body) }),
+          body: JSON.stringify({
+            secret: DRIVE_SECRET, name, html: buildDoc(r, c.body),
+            email: r.email || "",
+            person: [r.first_name, r.last_name].filter(Boolean).join(" "),
+          }),
         });
         const out = await res.json();
         if (!out.ok) throw new Error(out.error || "drive");
