@@ -76,7 +76,7 @@ export default async () => {
     const rows = await sbTable(
       "registrations?contract_id=not.is.null&drive_url=is.null"
       + "&select=id,first_name,last_name,personal_id,account_number,company_name,company_id,"
-      + "entity_type,agreed_at,created_at,contract_id,email&order=created_at.asc&limit=20");
+      + "entity_type,agreed_at,created_at,contract_id,email,reg_city&order=created_at.asc&limit=20");
     if (!rows?.length) return new Response("ok");
 
     const ids = [...new Set(rows.map(r => r.contract_id))];
@@ -91,8 +91,8 @@ export default async () => {
       const day = String(r.agreed_at || "").slice(0, 10);
       const kind = KIND[c.entity_type] || "სხვა";
       const name = safe(`${day} ${[r.first_name, r.last_name].filter(Boolean).join(" ")} (${kind})`);
-      // დრაივში: ხელშეკრულებები / 2026-10-09 / ფიზიკური პირი /
-      const path = [day, kind];
+      // დრაივში: ხელშეკრულებები / 2026-10-09 / თბილისი / ფიზიკური პირი /
+      const path = [day, r.reg_city || "ქალაქი უცნობია", kind];
 
       try {
         const res = await fetch(DRIVE_URL, {
