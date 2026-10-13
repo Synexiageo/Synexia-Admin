@@ -1507,9 +1507,11 @@ async function showDashboard() {
   document.getElementById("navUserIcon").textContent  = (SESSION.display_name||"?").charAt(0).toUpperCase();
   if (SESSION.role==="admin") {
     document.getElementById("usersTabBtn").style.display="";
-    document.getElementById("csvBtn").style.display="";
     document.getElementById("addBizBtn").style.display="";
   }
+  // ლიდების ჩამოტვირთვა — ვინც გუნდის სტატისტიკას ხედავს, ისიც.
+  // ორივე მიმართულებით, თორემ სხვისი სესიის შემდეგ ღილაკი დარჩება.
+  document.getElementById("csvBtn").style.display = seesTeamStats() ? "" : "none";
   // აქტივობის ჟურნალი — ვინც გუნდის სტატისტიკას ხედავს, ისიც.
   // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ჩანართი დარჩება.
   document.getElementById("logTabBtn").style.display = seesTeamStats() ? "" : "none";
