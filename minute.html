@@ -681,12 +681,14 @@ const htmlEsc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 
 async function loadContracts() {
   try {
-    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body"
-      + "&active=is.true&program=eq." + PROGRAM, {
+    const r = await fetch(SB_URL + "/rest/v1/contracts?select=*&active=is.true", {
       headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
     });
     const d = await r.json();
-    if (Array.isArray(d)) d.forEach(c => { CONTRACTS[c.entity_type] = c; });
+    // გაფილტვრა აქ და არა მოთხოვნაში — program სვეტი შეიძლება ჯერ არ არსებობდეს
+    if (Array.isArray(d)) d.forEach(c => {
+      if (c.program === PROGRAM) CONTRACTS[c.entity_type] = c;
+    });
   } catch (e) { /* ქსელი — ქვემოთ renderContract მოაგვარებს */ }
   renderContract();
 }

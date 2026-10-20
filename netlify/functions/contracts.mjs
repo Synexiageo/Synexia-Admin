@@ -74,10 +74,10 @@ export default async () => {
   let done = 0, failed = 0, firstError = "";
   try {
     const rows = await sbTable(
+      // select=* — program სვეტი ახალია და სახელით მოთხოვნა 400-ით ვარდება,
+      // სანამ მიგრაცია არ გაეშვება; ატვირთვა კი არ უნდა გაჩერდეს
       "registrations?contract_id=not.is.null&drive_url=is.null"
-      + "&select=id,first_name,last_name,personal_id,account_number,company_name,company_id,"
-      + "entity_type,agreed_at,created_at,contract_id,email,reg_city,program"
-      + "&order=created_at.asc&limit=20");
+      + "&select=*&order=created_at.asc&limit=20");
     if (!rows?.length) return new Response("ok");
 
     const ids = [...new Set(rows.map(r => r.contract_id))];

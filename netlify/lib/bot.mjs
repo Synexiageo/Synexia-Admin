@@ -221,7 +221,8 @@ const inList = a => "(" + a.map(v => `"${v}"`).join(",") + ")";
 export async function onboardingReport(from, to) {
   const regs = await sbTable(
     `registrations?created_at=gte.${encodeURIComponent(from)}&created_at=lt.${encodeURIComponent(to)}`
-    + `&select=lead_id,reg_city,occupation,program,tier&limit=1000`);
+    // select=* — program/tier სახელით მოთხოვნა 400-ით ვარდება, სანამ სვეტები არ გაჩნდება
+    + `&select=*&limit=1000`);
 
   if (!regs?.length) return { count: 0, text: "ახალი ონბორდინგი არ ყოფილა." };
 
