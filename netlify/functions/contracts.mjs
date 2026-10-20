@@ -14,6 +14,8 @@ const DRIVE_URL = process.env.DRIVE_URL || "";
 const DRIVE_SECRET = process.env.DRIVE_SECRET || "";
 
 const KIND = { individual: "ფიზიკური პირი", entrepreneur: "მცირე მეწარმე", legal: "შპს" };
+// minute ცალკე შეკვეთაა და მისი ხელშეკრულებები "minute_" წინსართით ცხოვრობს
+const MINUTE = "minute_";
 const MONTHS = ["იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი",
                 "ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
 
@@ -74,10 +76,9 @@ export default async () => {
   let done = 0, failed = 0, firstError = "";
   try {
     const rows = await sbTable(
-      // select=* — program სვეტი ახალია და სახელით მოთხოვნა 400-ით ვარდება,
-      // სანამ მიგრაცია არ გაეშვება; ატვირთვა კი არ უნდა გაჩერდეს
       "registrations?contract_id=not.is.null&drive_url=is.null"
-      + "&select=*&order=created_at.asc&limit=20");
+      + "&select=id,first_name,last_name,personal_id,account_number,company_name,company_id,"
+      + "entity_type,agreed_at,created_at,contract_id,email,reg_city&order=created_at.asc&limit=20");
     if (!rows?.length) return new Response("ok");
 
     const ids = [...new Set(rows.map(r => r.contract_id))];
@@ -90,12 +91,12 @@ export default async () => {
       if (!c) continue;
       r.contract_version = c.version;
       const day = String(r.agreed_at || "").slice(0, 10);
-      const kind = KIND[c.entity_type] || "სხვა";
-      const minute = r.program === "minute";
+      const minute = String(c.entity_type || "").startsWith(MINUTE);
+      const kind = KIND[String(c.entity_type).replace(MINUTE, "")] || "სხვა";
       const who = [r.first_name, r.last_name].filter(Boolean).join(" ");
       const name = safe(`${day} ${who} (${kind})${minute ? " — Minute" : ""}`);
       // დრაივში: ხელშეკრულებები / 2026-10-09 / თბილისი / ფიზიკური პირი /
-      // minute ცალკე შეკვეთაა — თავისი საქაღალდე აქვს, მიკროფსს არ ერევა
+      // minute-ს თავისი საქაღალდე აქვს — მიკროფსის სტრუქტურას არ ეხება
       const path = [day, r.reg_city || "ქალაქი უცნობია", kind];
       if (minute) path.unshift("Minute Data");
 

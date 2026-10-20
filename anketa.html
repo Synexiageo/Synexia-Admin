@@ -570,16 +570,11 @@ const htmlEsc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 
 async function loadContracts() {
   try {
-    const r = await fetch(SB_URL + "/rest/v1/contracts?select=*&active=is.true", {
+    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body&active=is.true", {
       headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
     });
     const d = await r.json();
-    // program-ით გაფილტვრა აქ ხდება და არა მოთხოვნაში: სვეტი შეიძლება ჯერ
-    // არ არსებობდეს და მაშინ მთელი მოთხოვნა 400-ით ვარდება — ანკეტა კი
-    // ხელშეკრულების გარეშე არაფერს აგზავნის. ცარიელი program = მიკროფსი.
-    if (Array.isArray(d)) d.forEach(c => {
-      if ((c.program || "microps") === "microps") CONTRACTS[c.entity_type] = c;
-    });
+    if (Array.isArray(d)) d.forEach(c => { CONTRACTS[c.entity_type] = c; });
   } catch (e) { /* ქსელი — ქვემოთ renderContract მოაგვარებს */ }
   renderContract();
 }

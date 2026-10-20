@@ -325,9 +325,12 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 const $ = id => document.getElementById(id);
 
-// ეს ანკეტა minute-ის შეკვეთისაა. იგივე ცხრილში იწერება, რაც მიკროფსისა,
-// ოღონდ program='minute'-ით — რეპორტებში ერთმანეთში არ უნდა აირიოს.
+// ეს ანკეტა minute-ის შეკვეთისაა და ძველს არაფრით ეკიდება:
+// თავისი გვერდი, თავისი ხელშეკრულებები, თავისი ტარიფები.
+// ხელშეკრულებებს entity_type-ში "minute_" წინსართი აქვთ — ძველი ანკეტა
+// მათ ვერ დაინახავს და მისთვის ხელის ხლება არასდროს დაგვჭირდება.
 const PROGRAM = "minute";
+const CT_PREFIX = "minute_";
 
 // ── ტარიფი ──────────────────────────────────────────────────
 // დიასახლისი 5 ₾, სხვა საქმიანობა 8 ₾. არჩევანი სავალდებულოა —
@@ -681,13 +684,13 @@ const htmlEsc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 
 async function loadContracts() {
   try {
-    const r = await fetch(SB_URL + "/rest/v1/contracts?select=*&active=is.true", {
+    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body"
+      + "&active=is.true&entity_type=like.minute_*", {
       headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
     });
     const d = await r.json();
-    // გაფილტვრა აქ და არა მოთხოვნაში — program სვეტი შეიძლება ჯერ არ არსებობდეს
     if (Array.isArray(d)) d.forEach(c => {
-      if (c.program === PROGRAM) CONTRACTS[c.entity_type] = c;
+      CONTRACTS[c.entity_type.replace(CT_PREFIX, "")] = c;
     });
   } catch (e) { /* ქსელი — ქვემოთ renderContract მოაგვარებს */ }
   renderContract();
