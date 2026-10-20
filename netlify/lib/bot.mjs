@@ -144,6 +144,11 @@ export const SYSTEM = `შენ ხარ Synexia-ს CRM-ის ასის�
 - reg_date — როდის შემოვიდა. დრო UTC-შია, თბილისი = UTC+4.
   "დღევანდელი" = reg_date >= (current_date at time zone 'Asia/Tbilisi')::date
 - registrations — ოფისში შევსებული ანკეტები, activity_log — ყველა ქმედების ჟურნალი
+  registrations.program: 'microps' (ძველი შეკვეთა, 25 ₾ საათში) ან 'minute' (ახალი შეკვეთა,
+  Minute Data). minute-ს ტარიფი კატეგორიით აქვს: tier='home' დიასახლისი 5 ₾,
+  tier='general' სხვა საქმიანობა 8 ₾ — ზუსტი თანხა rate სვეტშია.
+  ძველ ჩანაწერებში program ცარიელია — ისინი მიკროფსისაა.
+  ანკეტების დათვლისას პროგრამები ერთმანეთში არ აურიო.
 
 მიკროფსი — ყოველდღიური ფაილი, რომელსაც ელენე ტვირთავს:
 - microps_days — დღის ჯამები: people, recorded, accepted, banned, trend_up, trend_down,
@@ -216,7 +221,7 @@ const inList = a => "(" + a.map(v => `"${v}"`).join(",") + ")";
 export async function onboardingReport(from, to) {
   const regs = await sbTable(
     `registrations?created_at=gte.${encodeURIComponent(from)}&created_at=lt.${encodeURIComponent(to)}`
-    + `&select=lead_id,reg_city,occupation&limit=1000`);
+    + `&select=lead_id,reg_city,occupation,program,tier&limit=1000`);
 
   if (!regs?.length) return { count: 0, text: "ახალი ონბორდინგი არ ყოფილა." };
 
@@ -229,23 +234,38 @@ export async function onboardingReport(from, to) {
   }
   const byId = Object.fromEntries(leads.map(l => [l.id, l]));
 
-  const cities = {};
+  // ორი შეკვეთაა — მიკროფსი და minute. ერთ სიაში რომ ჩავყაროთ, არც ერთის
+  // ციფრი აღარ გამოდგება, ამიტომ ცალ-ცალკე ვთვლით.
+  const progs = {};
   for (const r of regs) {
     const lead = byId[r.lead_id] || {};
     const city = r.reg_city || lead.city || "ქალაქი უცნობია";
     const prof = lead.profession || (r.occupation || "").trim() || "პროფესია უცნობია";
-    (cities[city] ||= {});
-    cities[city][prof] = (cities[city][prof] || 0) + 1;
+    const prog = r.program === "minute" ? "minute" : "microps";
+    ((progs[prog] ||= {})[city] ||= {});
+    progs[prog][city][prof] = (progs[prog][city][prof] || 0) + 1;
   }
 
+  const PROG_NAME = { microps: "მიკროფსი", minute: "Minute" };
+  const many = Object.keys(progs).length > 1;
   const out = [];
-  const order = Object.entries(cities)
-    .map(([city, profs]) => [city, profs, Object.values(profs).reduce((a, b) => a + b, 0)])
-    .sort((a, b) => b[2] - a[2]);
-  for (const [city, profs, total] of order) {
-    out.push(`${city} — ${total}`);
-    for (const [p, n] of Object.entries(profs).sort((a, b) => b[1] - a[1])) {
-      out.push(`   ${p}: ${n}`);
+  for (const prog of ["microps", "minute"]) {
+    const cities = progs[prog];
+    if (!cities) continue;
+    if (many) {
+      const total = Object.values(cities)
+        .reduce((s, p) => s + Object.values(p).reduce((a, b) => a + b, 0), 0);
+      if (out.length) out.push("");
+      out.push(`■ ${PROG_NAME[prog]} — ${total}`);
+    }
+    const order = Object.entries(cities)
+      .map(([city, profs]) => [city, profs, Object.values(profs).reduce((a, b) => a + b, 0)])
+      .sort((a, b) => b[2] - a[2]);
+    for (const [city, profs, total] of order) {
+      out.push(`${city} — ${total}`);
+      for (const [p, n] of Object.entries(profs).sort((a, b) => b[1] - a[1])) {
+        out.push(`   ${p}: ${n}`);
+      }
     }
   }
   return { count: regs.length, text: out.join("\n") };

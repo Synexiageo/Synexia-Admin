@@ -1073,6 +1073,14 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           <input type="text" class="tb-input" id="rgSearch" placeholder="სახელი, ტელეფონი, პირადი ნომერი..." style="width:100%;height:34px" oninput="filterRegs()">
         </div>
         <div class="tb-group">
+          <span class="tb-label">პროგრამა</span>
+          <select class="tb-input" id="rgProgFilter" style="height:34px" onchange="filterRegs()">
+            <option value="">ყველა</option>
+            <option value="microps">მიკროფსი</option>
+            <option value="minute">Minute</option>
+          </select>
+        </div>
+        <div class="tb-group">
           <span class="tb-label">დამთხვევა</span>
           <select class="tb-input" id="rgMatchFilter" style="height:34px" onchange="filterRegs()">
             <option value="">ყველა</option>
@@ -1080,7 +1088,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="no">ვერ მოიძებნა</option>
           </select>
         </div>
-        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';filterRegs()">გასუფთავება</button>
+        <button class="btn-reset-sm" onclick="document.getElementById('rgSearch').value='';document.getElementById('rgMatchFilter').value='';document.getElementById('rgProgFilter').value='';filterRegs()">გასუფთავება</button>
       </div>
 
       <!-- ძველი ცხრილის გადმოტანა -->
@@ -3633,6 +3641,11 @@ async function loadRegs() {
 const ENTITY_LABEL = { individual:"ფიზიკური პირი", entrepreneur:"მეწარმე", legal:"შპს" };
 let REG_SECTION = "individual";
 
+// program ძველ ჩანაწერებში ცარიელია — ყველა ძველი ანკეტა მიკროფსისაა
+function programOf(r) { return r.program || "microps"; }
+const PROGRAM_LABEL = { microps: "მიკროფსი", minute: "Minute" };
+const TIER_LABEL = { home: "დიასახლისი", general: "სხვა საქმიანობა" };
+
 function entityOf(r) { return r.entity_type || "individual"; }
 function usernamesOf(r) { return Array.isArray(r.usernames) ? r.usernames.filter(Boolean) : []; }
 function isBusiness(r) { return entityOf(r) !== "individual"; }
@@ -3648,9 +3661,11 @@ function setRegSection(sec) {
 function regsFiltered(withSection = true) {
   const q = (document.getElementById("rgSearch")?.value||"").trim().toLowerCase();
   const m = document.getElementById("rgMatchFilter")?.value||"";
+  const p = document.getElementById("rgProgFilter")?.value||"";
   return allRegs.filter(r => {
     if (withSection && REG_SECTION === "business"  && !isBusiness(r)) return false;
     if (withSection && REG_SECTION === "individual" && isBusiness(r)) return false;
+    if (p && programOf(r) !== p) return false;
     if (m === "yes" && !r.matched) return false;
     if (m === "no"  &&  r.matched) return false;
     if (!q) return true;
@@ -3671,6 +3686,14 @@ function regColumns() {
   const cols = [
     { h:"#",                cell:(r,i) => `<td class="td-date">${i+1}</td>` },
     { h:"თარიღი",           cell:r => `<td class="td-date">${String(r.created_at||"").substring(0,10)}</td>` },
+    { h:"პროგრამა",         cell:r => { const p = programOf(r);
+        const tag = p === "minute"
+          ? `<span style="background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">Minute</span>`
+          : `<span style="background:#e2e8f0;color:#334155;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">მიკროფსი</span>`;
+        const sub = r.tier
+          ? `<div style="font-size:11.5px;color:var(--text-dim);margin-top:2px">${esc(TIER_LABEL[r.tier] || r.tier)}${r.rate ? " · " + esc(r.rate) + " ₾" : ""}</div>`
+          : "";
+        return `<td>${tag}${sub}</td>`; } },
     { h:"ადგილი",           cell:r => `<td>${r.reg_city ? esc(r.reg_city) : DIM}</td>` },
     { h:"სახელი გვარი",     cell:r => `<td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>` },
     { h:"იუზერნეიმი",       cell:r => { const u = usernamesOf(r); return `<td>${u.length
@@ -3818,18 +3841,22 @@ function zipFileDownload(filename, files) {
 function exportRegsXlsx() {
   const q = (document.getElementById("rgSearch")?.value||"").trim();
   const m = document.getElementById("rgMatchFilter")?.value||"";
+  const p = document.getElementById("rgProgFilter")?.value||"";
   let list = allRegs;
-  if (q || m) {
+  if (q || m || p) {
     const hit = regsFiltered(false);
     list = confirm(`ფილტრი ჩართულია — შეესაბამება ${hit.length} ანკეტა ${allRegs.length}-იდან.\n\n`
                  + `„OK" — მხოლოდ ეს ${hit.length}\n„Cancel" — ყველა ${allRegs.length}`)
            ? hit : allRegs;
   }
   if (!list.length) { alert("ჩანაწერი არ არის"); return; }
-  const header = ["თარიღი","ადგილი","ტიპი","სახელი გვარი","იუზერნეიმი","კომპანია","ს/კ",
+  const header = ["თარიღი","პროგრამა","კატეგორია","ტარიფი","ადგილი","ტიპი","სახელი გვარი","იუზერნეიმი","კომპანია","ს/კ",
                   "ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"];
   const rows = list.map(r => [
     String(r.created_at||"").substring(0,10),
+    PROGRAM_LABEL[programOf(r)] || programOf(r),
+    r.tier ? (TIER_LABEL[r.tier] || r.tier) : "",
+    r.rate ?? "",
     r.reg_city,
     ENTITY_LABEL[entityOf(r)] || entityOf(r),
     [r.first_name, r.last_name].filter(Boolean).join(" ").trim(),

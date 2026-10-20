@@ -570,7 +570,9 @@ const htmlEsc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 
 async function loadContracts() {
   try {
-    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body&active=is.true", {
+    // program=microps — „ანკეტები minute" ცალკე ხელშეკრულებებს იყენებს
+    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body"
+      + "&active=is.true&program=eq.microps", {
       headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
     });
     const d = await r.json();

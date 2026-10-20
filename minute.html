@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>ანკეტები minute — Synexia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+<style>
+:root{
+  --bg:#0E0D0C; --panel:#181614; --field:#211E1C; --field-on:#282320;
+  --ink:#F6F2EF; --ink-2:#B8ADA6; --muted:#8A7E77;
+  --line:#302A26; --line-on:#F04923;
+  --accent:#F04923; --accent-2:#FF6A45;
+  --ok:#22C55E; --warn:#F5A524; --err:#EF4444;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--ink); min-height:100vh;
+  font-family:'Noto Sans Georgian','Plus Jakarta Sans',-apple-system,sans-serif;
+  font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding:28px 18px 56px;
+}
+.card{width:100%; max-width:560px; display:flex; flex-direction:column; gap:22px;}
+
+.brand{display:flex; align-items:center; gap:11px; justify-content:center;}
+.mark{width:38px; height:38px; border-radius:10px; background:var(--accent); display:grid; place-items:center; flex:none;
+  box-shadow:0 6px 22px rgba(240,73,35,.35);}
+.mark svg{width:19px; height:19px; fill:#fff;}
+.brand-name{font-family:'Plus Jakarta Sans',sans-serif; font-size:19px; font-weight:800; letter-spacing:-.02em;}
+
+.head{text-align:center; display:flex; flex-direction:column; gap:7px;}
+.head h1{margin:0; font-size:25px; font-weight:700; letter-spacing:-.02em; line-height:1.2;}
+.head p{margin:0; color:var(--ink-2); font-size:14.5px;}
+
+form{display:flex; flex-direction:column; gap:15px;}
+.row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+@media(max-width:460px){ .row{grid-template-columns:1fr;} }
+
+.f{display:flex; flex-direction:column; gap:7px;}
+.f label{font-size:13.5px; font-weight:600; color:var(--ink-2); padding-left:2px;}
+.f label .req{color:var(--accent); margin-left:3px;}
+.f select{
+  background:var(--field); border:1.5px solid var(--line); border-radius:12px;
+  padding:15px 16px; font-size:16.5px; color:var(--ink);
+  font-family:inherit; outline:none; width:100%; appearance:none;
+  transition:border-color .16s, background .16s;
+}
+.f select:focus{border-color:var(--line-on); background:var(--field-on);}
+.f select.bad{border-color:var(--err);}
+.f input{
+  background:var(--field); border:1.5px solid var(--line); border-radius:12px;
+  padding:15px 16px; font-size:16.5px; color:var(--ink);
+  font-family:inherit; outline:none; width:100%;
+  transition:border-color .16s, background .16s;
+}
+.f input::placeholder{color:var(--muted);}
+.f input:focus{border-color:var(--line-on); background:var(--field-on);}
+.f input.bad{border-color:var(--err);}
+.hint{font-size:12px; color:var(--muted); padding-left:2px;}
+
+/* ფიზიკური / იურიდიული */
+.seg{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; background:var(--field);
+  border:1.5px solid var(--line); border-radius:12px; padding:5px;}
+.seg button{
+  margin:0; box-shadow:none; background:transparent; color:var(--ink-2);
+  border-radius:8px; padding:11px 4px; font-size:14px; font-weight:600;
+}
+@media(max-width:400px){ .seg button{font-size:13px; padding:11px 2px;} }
+.seg button:hover{background:rgba(255,255,255,.04); color:var(--ink);}
+.seg button.on{background:var(--accent); color:#fff;}
+.seg button.on:hover{background:var(--accent);}
+
+/* ტარიფის არჩევანი — ორი ღილაკი, თითოეულზე თანხა ეწერა */
+.seg.two{grid-template-columns:repeat(2,1fr);}
+.seg.two button{display:flex; flex-direction:column; gap:3px; padding:11px 6px; line-height:1.25;}
+.seg.two .amt{font-size:12.5px; font-weight:700; opacity:.72;}
+.seg.two button.on .amt{opacity:.9;}
+#tierWrap.bad .seg{border-color:var(--err);}
+#tierWrap.bad .hint{color:var(--err);}
+.uname-row{display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
+.uname-row:last-child{margin-bottom:0;}
+.uname-row input{flex:1;}
+.uname-del{
+  margin:0; box-shadow:none; flex:none; width:44px; padding:0; align-self:stretch;
+  background:transparent; border:1.5px solid var(--line); color:var(--muted); font-size:19px; font-weight:400;
+}
+.uname-del:hover{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.45); color:#FCA5A5;}
+.add-more{
+  margin:9px 0 0; box-shadow:none; background:transparent; color:var(--accent-2);
+  border:1.5px dashed var(--line); padding:10px; font-size:13.5px; font-weight:600; width:100%;
+}
+.add-more:hover{background:rgba(240,73,35,.07); border-color:var(--accent); color:var(--accent-2);}
+#legalWrap{display:none; flex-direction:column; gap:15px;}
+button.ghost{background:var(--field); color:var(--ink); border:1.5px solid var(--line);
+  box-shadow:none; font-size:15px;}
+button.ghost:hover{background:var(--field-on); border-color:var(--line-on);}
+#contractWrap .hint{margin-top:8px;}
+#cState.ok{color:var(--ok);}
+#contractWrap.bad button.ghost{border-color:var(--err);}
+#contractWrap.bad .hint{color:var(--err);}
+
+.cmask{position:fixed; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(2px);
+  display:none; align-items:center; justify-content:center; padding:16px; z-index:50;}
+.cmask.show{display:flex;}
+.cwin{background:var(--panel); border:1.5px solid var(--line); border-radius:18px;
+  width:min(680px,100%); max-height:min(88vh,860px); display:flex; flex-direction:column; overflow:hidden;}
+.chead{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:16px 18px; border-bottom:1.5px solid var(--line); font-weight:700; font-size:16px;}
+.cx{background:none; border:none; box-shadow:none; color:var(--ink-2); font-size:19px;
+  width:34px; height:34px; padding:0; border-radius:9px; line-height:1;}
+.cx:hover{background:var(--field); color:var(--ink);}
+.cbody{overflow-y:auto; padding:22px 24px 26px; font-size:14px; line-height:1.75;
+  color:var(--ink-2); text-align:justify; -webkit-overflow-scrolling:touch;}
+.cbody b{color:var(--ink); font-weight:700;}
+.cbody h1{margin:0 0 22px; font-size:16px; letter-spacing:.16em; text-align:center;
+  color:var(--ink); font-weight:400;}
+.cbody p{margin:0 0 11px;}
+.ct-top{display:flex; justify-content:space-between; gap:16px; margin:0 0 24px;
+  color:var(--ink);}
+.cbody .ct-n{display:inline-block; text-indent:0; color:var(--ink);}
+.cbody .ct-l0{padding-left:2.2em; text-indent:-2.2em; margin-top:14px;}
+.cbody .ct-l0 .ct-n{min-width:2.2em;}
+.cbody .ct-l1{padding-left:4.4em; text-indent:-2.9em; margin-left:0;}
+.cbody .ct-l1 .ct-n{min-width:2.9em;}
+.cbody .ct-l2{padding-left:6.6em; text-indent:-3.4em;}
+.cbody .ct-l2 .ct-n{min-width:3.4em;}
+.cbody .ct-l3{padding-left:8.8em; text-indent:-3.9em;}
+.cbody .ct-l3 .ct-n{min-width:3.9em;}
+.cbody .ct-sign{margin:4px 0 0; color:var(--ink); text-align:left;}
+/* დოკუმენტი თეთრია — მუქ ფონზე ხელმოწერა ქაღალდის ნაგლეჯივით ჩანს */
+.cbody .ct-sigwrap{margin:6px 0 2px; text-align:left;}
+.cbody .ct-sig{height:52px; width:auto; display:block; background:#fff;
+  border-radius:7px; padding:5px 10px; box-sizing:content-box;}
+.cbody .ct-sign:first-of-type{margin-top:28px; padding-top:20px; border-top:1.5px solid var(--line);}
+.cfoot{padding:14px 18px 16px; border-top:1.5px solid var(--line); display:flex;
+  flex-direction:column; gap:10px;}
+.cnote{font-size:13.5px; color:var(--muted); text-align:center;}
+.cnote.ready{color:var(--ok);}
+@media(max-width:560px){ .cwin{max-height:94vh;} .cbody{font-size:13.5px; padding:15px;} }
+
+#legalWrap.show{display:flex;}
+
+button{
+  margin-top:6px; background:var(--accent); color:#fff; border:none; border-radius:12px;
+  padding:17px; font-size:17px; font-weight:700; font-family:inherit; cursor:pointer;
+  transition:transform .1s, background .16s, opacity .16s;
+  box-shadow:0 8px 26px rgba(240,73,35,.3);
+}
+button:hover{background:var(--accent-2);}
+button:active{transform:scale(.985);}
+button:disabled{opacity:.55; cursor:default; box-shadow:none;}
+
+.msg{border-radius:12px; padding:13px 15px; font-size:14.5px; font-weight:500; display:none; line-height:1.45;}
+.msg.show{display:block;}
+.msg.err{background:rgba(239,68,68,.13); color:#FCA5A5; border:1px solid rgba(239,68,68,.3);}
+.msg.warn{background:rgba(245,165,36,.12); color:#FCD34D; border:1px solid rgba(245,165,36,.3);}
+
+/* წარმატების ეკრანი */
+.done{display:none; flex-direction:column; align-items:center; gap:16px; text-align:center; padding:34px 8px 12px;}
+.done.show{display:flex;}
+.tick{width:76px; height:76px; border-radius:50%; background:rgba(34,197,94,.14);
+  border:2px solid rgba(34,197,94,.45); display:grid; place-items:center;}
+.tick svg{width:34px; height:34px; stroke:var(--ok); fill:none; stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:40; stroke-dashoffset:40; animation:draw .45s .1s forwards;}
+@keyframes draw{ to{ stroke-dashoffset:0; } }
+.done h2{margin:0; font-size:23px; font-weight:700;}
+.done p{margin:0; color:var(--ink-2); font-size:15px; max-width:34ch;}
+.again{background:transparent; color:var(--ink-2); border:1.5px solid var(--line); box-shadow:none;
+  padding:13px 26px; font-size:15px; margin-top:8px;}
+.again:hover{background:var(--field); color:var(--ink);}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+    <span class="brand-name">Synexia</span>
+  </div>
+
+  <div id="formWrap">
+    <div class="head">
+      <h1>ანკეტები minute</h1>
+      <p>შეავსეთ მონაცემები — ანაზღაურება ამ ანგარიშზე ჩაირიცხება</p>
+    </div>
+
+    <form onsubmit="return false" autocomplete="off" style="margin-top:20px">
+      <div class="f">
+        <label for="regcity">რეგისტრაციის ადგილი<span class="req">*</span></label>
+        <select id="regcity" onchange="rememberRegCity()">
+          <option value="">— აირჩიეთ —</option>
+          <option>თბილისი</option>
+          <option>ბათუმი</option>
+          <option>ქუთაისი</option>
+          <option>გორი</option>
+        </select>
+      </div>
+
+      <div class="f" id="tierWrap">
+        <label>კატეგორია<span class="req">*</span></label>
+        <div class="seg two">
+          <button type="button" id="tierHome" onclick="setTier('home')">
+            დიასახლისი<span class="amt">5 ₾</span>
+          </button>
+          <button type="button" id="tierGen" onclick="setTier('general')">
+            სხვა საქმიანობა<span class="amt">8 ₾</span>
+          </button>
+        </div>
+        <span class="hint" id="tierHint">ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება</span>
+      </div>
+
+      <div class="f">
+        <label>ანაზღაურება ვის სახელზე ჩაირიცხოს<span class="req">*</span></label>
+        <div class="seg">
+          <button type="button" id="segInd" class="on" onclick="setEntity('individual')">ფიზიკური პირი</button>
+          <button type="button" id="segEnt" onclick="setEntity('entrepreneur')">მეწარმე</button>
+          <button type="button" id="segLeg" onclick="setEntity('legal')">შპს</button>
+        </div>
+      </div>
+
+      <div id="legalWrap">
+        <div class="f">
+          <label for="cname" id="cnameLabel">კომპანიის დასახელება<span class="req">*</span></label>
+          <input type="text" id="cname" placeholder="შპს სინექსია" autocomplete="off">
+        </div>
+        <div class="f">
+          <label for="cid">საიდენტიფიკაციო კოდი<span class="req">*</span></label>
+          <input type="text" id="cid" inputmode="numeric" maxlength="11" placeholder="405000000" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="f">
+          <label for="fname">სახელი<span class="req">*</span></label>
+          <input type="text" id="fname" placeholder="გიორგი" autocomplete="off">
+        </div>
+        <div class="f">
+          <label for="lname">გვარი<span class="req">*</span></label>
+          <input type="text" id="lname" placeholder="მაისურაძე" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="f">
+        <label id="unameLabel">მომხმარებლის სახელი<span class="req">*</span></label>
+        <div id="unameList"></div>
+        <button type="button" id="unameAdd" class="add-more" onclick="addUsername()" style="display:none">+ კიდევ ერთი იუზერნეიმი</button>
+        <span class="hint" id="unameHint">ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით</span>
+      </div>
+
+      <div class="f">
+        <label for="phone">ტელეფონის ნომერი<span class="req">*</span></label>
+        <input type="tel" id="phone" inputmode="numeric" maxlength="13" placeholder="5XX XX XX XX" autocomplete="off">
+        <span class="hint">9 ციფრი, +995-ის გარეშე — იგივე, რომლითაც დარეგისტრირდით</span>
+      </div>
+
+      <div class="f">
+        <label for="email">ელ-ფოსტა<span class="req">*</span></label>
+        <input type="email" id="email" placeholder="name@example.com" autocomplete="off"
+               autocapitalize="off" spellcheck="false">
+        <span class="hint">ხელშეკრულებას ამ მისამართზე გამოგიგზავნით</span>
+      </div>
+
+      <div class="f">
+        <label for="pid">პირადი ნომერი<span class="req">*</span></label>
+        <input type="text" id="pid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
+        <span class="hint">11 ციფრი</span>
+      </div>
+
+      <div class="f">
+        <label for="acc">საბანკო ანგარიშის ნომერი<span class="req">*</span></label>
+        <input type="text" id="acc" maxlength="22" placeholder="GE00XX0000000000000000" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <span class="hint">22 სიმბოლო, GE-ით იწყება</span>
+      </div>
+
+      <div class="f">
+        <label for="occ">საქმიანობა<span class="req">*</span></label>
+        <input type="text" id="occ" placeholder="მაგ: ავეჯის ხელოსანი" autocomplete="off">
+      </div>
+
+      <div class="f" id="contractWrap" style="display:none">
+        <label>ხელშეკრულება<span class="req">*</span></label>
+        <button type="button" id="cOpen" class="ghost" onclick="openContract()">ხელშეკრულების გაცნობა</button>
+        <span class="hint" id="cState">ჯერ არ გაგიცვნიათ</span>
+      </div>
+
+      <div class="msg" id="msg"></div>
+      <button id="btn" onclick="submitForm()">გაგზავნა</button>
+    </form>
+  </div>
+
+
+  <div class="cmask" id="cMask" onclick="maskClick(event)">
+    <div class="cwin" role="dialog" aria-modal="true" aria-label="ხელშეკრულება">
+      <div class="chead">
+        <span id="cTitle">ხელშეკრულება</span>
+        <button type="button" class="cx" onclick="closeContract()" aria-label="დახურვა">✕</button>
+      </div>
+      <div class="cbody" id="cBody"></div>
+      <div class="cfoot">
+        <div class="cnote" id="cNote">ჩამოდით ბოლომდე, რომ დაეთანხმოთ</div>
+        <button type="button" id="cAgree" disabled onclick="agreeContract()">ვეთანხმები</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="done" id="done">
+    <div class="tick"><svg viewBox="0 0 24 24"><polyline points="4 12.5 9.5 18 20 6.5"/></svg></div>
+    <h2>მიღებულია</h2>
+    <p id="doneText">მადლობა! თქვენი მონაცემები წარმატებით დარეგისტრირდა.</p>
+    <button class="again" onclick="resetForm()">ახალი ანკეტა</button>
+  </div>
+</div>
+
+<script>
+const SB_URL = "https://tsfzuyujfcacultjexsy.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzZnp1eXVqZmNhY3VsdGpleHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwNDAzNjEsImV4cCI6MjA5NDYxNjM2MX0.KwxGBmZzezolz860aPbk3zZ1hYNicDai-_n8Ce5StyA";
+
+const $ = id => document.getElementById(id);
+
+// ეს ანკეტა minute-ის შეკვეთისაა. იგივე ცხრილში იწერება, რაც მიკროფსისა,
+// ოღონდ program='minute'-ით — რეპორტებში ერთმანეთში არ უნდა აირიოს.
+const PROGRAM = "minute";
+
+// ── ტარიფი ──────────────────────────────────────────────────
+// დიასახლისი 5 ₾, სხვა საქმიანობა 8 ₾. არჩევანი სავალდებულოა —
+// წინასწარ არცერთი არ არის მონიშნული, რომ შემთხვევით არ გაგზავნონ.
+const RATES = { home: 5, general: 8 };
+let TIER = "";
+
+function setTier(kind) {
+  TIER = kind;
+  $("tierHome").classList.toggle("on", kind === "home");
+  $("tierGen").classList.toggle("on", kind === "general");
+  $("tierWrap").classList.remove("bad");
+  $("tierHint").textContent = "ანაზღაურების ტარიფი: " + RATES[kind] + " ₾";
+}
+
+// ── ფიზიკური / იურიდიული ────────────────────────────────────
+let ENTITY = "individual";
+function setEntity(kind) {
+  ENTITY = kind;
+  $("segInd").classList.toggle("on", kind === "individual");
+  $("segEnt").classList.toggle("on", kind === "entrepreneur");
+  $("segLeg").classList.toggle("on", kind === "legal");
+  // დასახელება და ს/ნ ორივეს სჭირდება — ხელშეკრულებაში სწორედ ესენი წერია
+  const biz = kind !== "individual";
+  $("legalWrap").classList.toggle("show", biz);
+  if (biz) {
+    $("cnameLabel").innerHTML = (kind === "legal" ? "კომპანიის დასახელება" : "მეწარმის დასახელება")
+      + '<span class="req">*</span>';
+    $("cname").placeholder = kind === "legal" ? "შპს სინექსია" : "ი/მ გიორგი მაისურაძე";
+    $("cname").focus();
+  } else {
+    ["cname","cid"].forEach(id => $(id).classList.remove("bad"));
+  }
+  // შპს-სა და მეწარმეს რამდენიმე ადამიანი შეიძლება ჰყავდეს
+  const many = kind !== "individual";
+  $("unameAdd").style.display = many ? "" : "none";
+  $("unameLabel").innerHTML = (many ? "მომხმარებლის სახელები" : "მომხმარებლის სახელი") + '<span class="req">*</span>';
+  if (typeof renderContract === "function") renderContract();
+  $("unameHint").textContent = many
+    ? "ყველა ადამიანის იუზერნეიმი, ვინც ამ ანგარიშზე იმუშავებს — ლათინური ასოებით"
+    : "ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით";
+  if (!many) trimUsernames();
+}
+
+// ── იუზერნეიმების სია ───────────────────────────────────────
+function usernameRow(value) {
+  const row = document.createElement("div");
+  row.className = "uname-row";
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.className = "uname"; inp.placeholder = "giorgi_m";
+  inp.autocomplete = "off"; inp.autocapitalize = "off"; inp.spellcheck = false;
+  inp.value = value || "";
+  const del = document.createElement("button");
+  del.type = "button"; del.className = "uname-del"; del.textContent = "✕";
+  del.title = "წაშლა";
+  del.onclick = () => { row.remove(); refreshUsernameRows(); };
+  row.append(inp, del);
+  return row;
+}
+function refreshUsernameRows() {
+  const rows = [...document.querySelectorAll(".uname-row")];
+  if (!rows.length) { $("unameList").appendChild(usernameRow("")); return refreshUsernameRows(); }
+  // ერთადერთ ველს წაშლის ღილაკი არ სჭირდება
+  rows.forEach(r => { r.querySelector(".uname-del").style.display = rows.length > 1 ? "" : "none"; });
+}
+function addUsername() {
+  $("unameList").appendChild(usernameRow(""));
+  refreshUsernameRows();
+  [...document.querySelectorAll(".uname")].pop().focus();
+}
+/** ფიზიკურ პირს მხოლოდ ერთი რჩება */
+function trimUsernames() {
+  const rows = [...document.querySelectorAll(".uname-row")];
+  rows.slice(1).forEach(r => r.remove());
+  refreshUsernameRows();
+}
+function readUsernames() {
+  const seen = new Set(), out = [];
+  document.querySelectorAll(".uname").forEach(i => {
+    const v = i.value.trim();
+    if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
+  });
+  return out;
+}
+$("unameList").appendChild(usernameRow(""));
+refreshUsernameRows();
+
+function show(kind, text) {
+  const m = $("msg");
+  m.className = "msg show " + kind;
+  m.textContent = text;
+}
+function clearMsg() { $("msg").className = "msg"; }
+
+function markBad(ids) {
+  ["fname","lname","phone","email","pid","acc","occ","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
+  document.querySelectorAll(".uname").forEach(i => i.classList.remove("bad"));
+  ids.forEach(id => $(id).classList.add("bad"));
+  if (ids.length) $(ids[0]).focus();
+}
+
+async function submitForm() {
+  clearMsg();
+  const v = id => $(id).value.trim();
+  const first = v("fname"), last = v("lname"), phone = v("phone");
+  const pid = v("pid"), acc = v("acc"), occ = v("occ"), email = v("email");
+  const cname = v("cname"), cid = v("cid");
+  const regCity = v("regcity");
+  const usernames = readUsernames();
+
+  // ── ტარიფი ──
+  if (!TIER) {
+    $("tierWrap").classList.add("bad");
+    $("tierWrap").scrollIntoView({ behavior: "smooth", block: "center" });
+    show("err", "აირჩიეთ კატეგორია — დიასახლისი თუ სხვა საქმიანობა");
+    return;
+  }
+
+  // ── ცარიელი ველები ──
+  const missing = [];
+  if (!regCity) missing.push("regcity");
+  if (!first) missing.push("fname");
+  if (!last)  missing.push("lname");
+  if (!phone) missing.push("phone");
+  if (!email) missing.push("email");
+  if (!pid)   missing.push("pid");
+  if (!acc)   missing.push("acc");
+  if (!occ)   missing.push("occ");
+  if (ENTITY !== "individual") {
+    if (!cname) missing.push("cname");
+    if (!cid)   missing.push("cid");
+  }
+  if (!usernames.length) {
+    markBad(missing);
+    const u = document.querySelector(".uname");
+    if (u && !missing.length) { u.classList.add("bad"); u.focus(); }
+    show("err", missing.length
+      ? "შეავსეთ ვარსკვლავით მონიშნული ველები"
+      : "მიუთითეთ მინიმუმ ერთი მომხმარებლის სახელი");
+    return;
+  }
+  if (missing.length) {
+    markBad(missing);
+    show("err", "შეავსეთ ვარსკვლავით მონიშნული ველები");
+    return;
+  }
+
+  // ── სიგრძეები ──
+  // ტელეფონი: 9 ციფრი. თუ ქვეყნის კოდით აკრიფეს, ვაცილებთ.
+  let digits = phone.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("995")) digits = digits.slice(3);
+  const pidDigits = pid.replace(/\D/g, "");
+  const accClean  = acc.replace(/\s/g, "").toUpperCase();
+
+  const wrong =
+    !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
+      ? ["email", "ელ-ფოსტა არასწორია — შეამოწმეთ მისამართი"]
+    : digits.length !== 9
+      ? ["phone", `ტელეფონის ნომერი უნდა იყოს 9 ციფრი (+995-ის გარეშე) — თქვენ ${digits.length} შეიყვანეთ`]
+    : pidDigits.length !== 11
+      ? ["pid", `პირადი ნომერი უნდა იყოს 11 ციფრი — თქვენ ${pidDigits.length} შეიყვანეთ`]
+    : accClean.length !== 22
+      ? ["acc", `საბანკო ანგარიში უნდა იყოს 22 სიმბოლო — თქვენ ${accClean.length} შეიყვანეთ`]
+    : null;
+
+  if (wrong) {
+    markBad([wrong[0]]);
+    show("err", wrong[1]);
+    return;
+  }
+  // ── ხელშეკრულება სავალდებულოა ──
+  if (!CONTRACT) {
+    show("err", "ხელშეკრულება ვერ ჩაიტვირთა. გადატვირთეთ გვერდი და სცადეთ თავიდან.");
+    return;
+  }
+  if (!AGREED) {
+    $("contractWrap").classList.add("bad");
+    $("contractWrap").scrollIntoView({ behavior: "smooth", block: "center" });
+    show("err", "ჯერ გაეცანით ხელშეკრულებას და დაეთანხმეთ პირობებს");
+    return;
+  }
+
+  // ველებშიც გასუფთავებული ჩავწეროთ, რომ ადამიანმა დაინახოს რა იგზავნება
+  $("acc").value   = accClean;
+  $("pid").value   = pidDigits;
+  $("phone").value = digits;
+  markBad([]);
+
+  const btn = $("btn");
+  btn.disabled = true;
+  btn.textContent = "იგზავნება...";
+
+  try {
+    const res = await fetch(SB_URL + "/rest/v1/rpc/submit_registration", {
+      method: "POST",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_first_name: first, p_last_name: last, p_phone: digits,
+        p_personal_id: pidDigits, p_account_number: accClean, p_occupation: occ,
+        p_usernames: usernames,
+        p_entity_type: ENTITY,
+        p_reg_city: regCity,
+        p_company_name: ENTITY !== "individual" ? cname : null,
+        p_company_id:   ENTITY !== "individual" ? cid   : null,
+        p_contract_id:  CONTRACT ? CONTRACT.id : null,
+        p_email:        email.toLowerCase()
+      })
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+    const out = await res.json();
+
+    if (!out || out.ok === false) {
+      show("err", "ტელეფონის ნომერი არასწორია. შეამოწმეთ და სცადეთ ხელახლა.");
+      btn.disabled = false; btn.textContent = "გაგზავნა";
+      return;
+    }
+
+    // ჩანაწერი უკვე შენახულია — ახლა ვაწერთ, რომ minute-ისაა და რა ტარიფით
+    await tagRegistration({ pid: pidDigits, tier: TIER, rate: RATES[TIER] });
+
+    // ჩანაწერი ყოველთვის ინახება — მაშინაც, თუ ნომერი ბაზაში ვერ მოიძებნა
+    $("doneText").textContent = out.matched
+      ? "მადლობა! თქვენი მონაცემები მიღებულია."
+      : "მადლობა! მონაცემები მიღებულია — ოპერატორი დაგიკავშირდებათ დასაზუსტებლად.";
+    $("formWrap").style.display = "none";
+    $("done").classList.add("show");
+    window.scrollTo(0, 0);
+
+  } catch (e) {
+    show("err", "დაფიქსირდა შეცდომა. სცადეთ ხელახლა ან მიმართეთ ოპერატორს.");
+    btn.disabled = false;
+    btn.textContent = "გაგზავნა";
+  }
+}
+
+// ── პროგრამის მონიშვნა ──────────────────────────────────────
+// submit_registration საერთოა ორივე ანკეტისთვის და მას არ ვეხებით.
+// ჩანაწერის შექმნის შემდეგ ცალკე ვეუბნებით ბაზას, რომ ეს minute-ია.
+// თუ ვერ მოხერხდა, ჩანაწერი მაინც შენახულია — მონიშვნას რიგში ვაყენებთ
+// და შემდეგ გახსნაზე ვცდით ხელახლა, რომ რეპორტში მიკროფსად არ ჩაეთვალოს.
+const TAG_QUEUE = "sx_minute_tag_queue";
+
+async function tagOnce(job) {
+  const r = await fetch(SB_URL + "/rest/v1/rpc/tag_registration", {
+    method: "POST",
+    headers: {
+      "apikey": SB_KEY,
+      "Authorization": "Bearer " + SB_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      p_personal_id: job.pid, p_program: PROGRAM,
+      p_tier: job.tier, p_rate: job.rate
+    })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  const out = await r.json();
+  if (!out || out.ok !== true) throw new Error(JSON.stringify(out));
+}
+
+function queueTag(job) {
+  try {
+    const q = JSON.parse(localStorage.getItem(TAG_QUEUE) || "[]");
+    q.push({ ...job, at: Date.now() });
+    localStorage.setItem(TAG_QUEUE, JSON.stringify(q.slice(-50)));
+  } catch (e) {}
+}
+
+async function tagRegistration(job) {
+  for (let i = 0; i < 3; i++) {
+    try { await tagOnce(job); return true; }
+    catch (e) { await new Promise(r => setTimeout(r, 400 * (i + 1))); }
+  }
+  queueTag(job);
+  return false;
+}
+
+// ფუნქცია ჩანაწერს მხოლოდ 5 წუთის განმავლობაში პოულობს — ძველი რიგი
+// აღარ გამოდგება, ამიტომ მას უბრალოდ ვაგდებთ.
+(async function flushTagQueue() {
+  let q;
+  try { q = JSON.parse(localStorage.getItem(TAG_QUEUE) || "[]"); } catch (e) { return; }
+  if (!q.length) return;
+  const rest = [];
+  for (const job of q) {
+    if (Date.now() - (job.at || 0) > 5 * 60e3) continue;
+    try { await tagOnce(job); } catch (e) { rest.push(job); }
+  }
+  try { localStorage.setItem(TAG_QUEUE, JSON.stringify(rest)); } catch (e) {}
+})();
+
+function rememberRegCity() {
+  try { localStorage.setItem("sx_regcity", $("regcity").value); } catch (e) {}
+  $("regcity").classList.remove("bad");
+}
+(function restoreRegCity() {
+  try {
+    const v = localStorage.getItem("sx_regcity");
+    if (v) $("regcity").value = v;
+  } catch (e) {}
+})();
+
+function resetForm() {
+  ["fname","lname","phone","pid","acc","occ","cname","cid"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  $("unameList").innerHTML = "";
+  $("unameList").appendChild(usernameRow(""));
+  refreshUsernameRows();
+  setEntity("individual");
+  TIER = "";
+  $("tierHome").classList.remove("on");
+  $("tierGen").classList.remove("on");
+  $("tierWrap").classList.remove("bad");
+  $("tierHint").textContent = "ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება";
+  setAgreed(false);
+  $("contractWrap").classList.remove("bad");
+  renderContract();
+  clearMsg();
+  $("btn").disabled = false;
+  $("btn").textContent = "გაგზავნა";
+  $("done").classList.remove("show");
+  $("formWrap").style.display = "";
+  $("fname").focus();
+}
+
+// მხოლოდ ციფრები — ტელეფონსა და პირად ნომერში
+$("acc").addEventListener("input", e => {
+  const clean = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (clean !== e.target.value) e.target.value = clean;
+});
+
+["phone","pid","cid"].forEach(id => {
+  $(id).addEventListener("input", e => {
+    const clean = e.target.value.replace(/[^\d+ ]/g, "");
+    if (clean !== e.target.value) e.target.value = clean;
+  });
+});
+
+// ── ხელშეკრულება ────────────────────────────────────────────
+// ტექსტი ბაზაშია, ვერსიებით. ანკეტა ყოველთვის აქტიურ ვერსიას იღებს და
+// გაგზავნისას ზუსტად იმას მიაბამს, რომელიც ეკრანზე ეწერა.
+let CONTRACTS = {}, CONTRACT = null;
+
+const GE_MONTHS = ["იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი",
+                   "ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
+const htmlEsc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+async function loadContracts() {
+  try {
+    const r = await fetch(SB_URL + "/rest/v1/contracts?select=id,entity_type,version,body"
+      + "&active=is.true&program=eq." + PROGRAM, {
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
+    });
+    const d = await r.json();
+    if (Array.isArray(d)) d.forEach(c => { CONTRACTS[c.entity_type] = c; });
+  } catch (e) { /* ქსელი — ქვემოთ renderContract მოაგვარებს */ }
+  renderContract();
+}
+
+let AGREED = false;
+
+function contractText() {
+  const g = id => ($(id) ? $(id).value.trim() : "");
+  const d = new Date();
+  const vals = {
+    "თარიღი": d.getDate() + " " + GE_MONTHS[d.getMonth()] + " " + d.getFullYear() + "წ",
+    "სახელი": [g("fname"), g("lname")].filter(Boolean).join(" ") || "—",
+    "პირადი": g("pid") || "—",
+    "კომპანია": g("cname") || "—",
+    "საიდენტიფიკაციო": g("cid") || "—",
+    "ანგარიში": g("acc") || "—",
+  };
+  // ტექსტი ჩვენივე ბაზიდან მოდის და HTML-ია; მხოლოდ შევსებული მნიშვნელობები იცვლება
+  return CONTRACT.body
+    .replace(/\{\{([^}]+)\}\}/g, (m, k) => "<b>" + htmlEsc(vals[k.trim()] ?? m) + "</b>");
+}
+
+// ტიპის შეცვლა სხვა ხელშეკრულებას ნიშნავს — თანხმობა თავიდან უნდა გაიცეს
+function renderContract() {
+  const was = CONTRACT;
+  CONTRACT = CONTRACTS[ENTITY] || null;
+  if (!was || !CONTRACT || was.id !== CONTRACT.id) setAgreed(false);
+  $("contractWrap").style.display = CONTRACT ? "" : "none";
+}
+
+function setAgreed(ok) {
+  AGREED = ok;
+  const st = $("cState"), btn = $("cOpen");
+  if (!st) return;
+  st.textContent = ok ? "✓ გაცნობილი ხართ და ეთანხმებით" : "ჯერ არ გაგიცვნიათ";
+  st.classList.toggle("ok", ok);
+  btn.textContent = ok ? "ხელშეკრულების ხელახლა ნახვა" : "ხელშეკრულების გაცნობა";
+  if (ok) $("contractWrap").classList.remove("bad");
+}
+
+const CT_TITLE = { individual: "ფიზიკური პირი", entrepreneur: "მცირე მეწარმე", legal: "შპს" };
+
+function openContract() {
+  if (!CONTRACT) return;
+  $("cTitle").textContent = "ხელშეკრულება — " + (CT_TITLE[ENTITY] || "");
+  $("cBody").innerHTML = contractText();
+  $("cBody").scrollTop = 0;
+  $("cMask").classList.add("show");
+  document.body.style.overflow = "hidden";
+  checkScrolled();
+}
+
+function closeContract() {
+  $("cMask").classList.remove("show");
+  document.body.style.overflow = "";
+}
+
+function maskClick(e) { if (e.target === $("cMask")) closeContract(); }
+
+// ღილაკი მხოლოდ მაშინ ირთვება, როცა ტექსტი ბოლომდე ჩამოვიდა
+function checkScrolled() {
+  const b = $("cBody"), btn = $("cAgree"), note = $("cNote");
+  const atEnd = b.scrollHeight - b.scrollTop - b.clientHeight <= 12;
+  btn.disabled = !atEnd;
+  note.textContent = atEnd ? "ხელშეკრულება ბოლომდე ნანახია" : "ჩამოდით ბოლომდე, რომ დაეთანხმოთ";
+  note.classList.toggle("ready", atEnd);
+}
+
+function agreeContract() {
+  setAgreed(true);
+  closeContract();
+  clearMsg();
+}
+
+$("cBody").addEventListener("scroll", checkScrolled);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("cMask").classList.contains("show")) closeContract();
+});
+
+loadContracts();
+</script>
+</body>
+</html>
