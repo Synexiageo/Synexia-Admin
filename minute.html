@@ -211,7 +211,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
             დიასახლისი<span class="amt">5 ₾</span>
           </button>
           <button type="button" id="tierGen" onclick="setTier('general')">
-            სხვა საქმიანობა<span class="amt">8 ₾</span>
+            სხვა საქმიანობა<span class="amt">7 ₾</span>
           </button>
         </div>
         <span class="hint" id="tierHint">ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება</span>
@@ -333,9 +333,10 @@ const PROGRAM = "minute";
 const CT_PREFIX = "minute_";
 
 // ── ტარიფი ──────────────────────────────────────────────────
-// დიასახლისი 5 ₾, სხვა საქმიანობა 8 ₾. არჩევანი სავალდებულოა —
-// წინასწარ არცერთი არ არის მონიშნული, რომ შემთხვევით არ გაგზავნონ.
-const RATES = { home: 5, general: 8 };
+// დიასახლისი 5 ₾, სხვა საქმიანობა 7 ₾ — ისე, როგორც ხელშეკრულების
+// პუნქტ 1.2 „გ"-ში წერია. არჩევანი სავალდებულოა: წინასწარ არცერთი
+// არ არის მონიშნული, რომ შემთხვევით არ გაგზავნონ.
+const RATES = { home: 5, general: 7 };
 let TIER = "";
 
 function setTier(kind) {
