@@ -201,7 +201,11 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
           <option>ბათუმი</option>
           <option>ქუთაისი</option>
           <option>გორი</option>
+          <option value="__other">სხვა</option>
         </select>
+        <input type="text" id="regcityOther" placeholder="ქალაქის სახელი ქართულად"
+               autocomplete="off" spellcheck="false" style="display:none;margin-top:8px">
+        <span class="hint" id="regcityHint" style="display:none">დაწერეთ ქართულად, მაგ: ზუგდიდი</span>
       </div>
 
       <div class="f" id="tierWrap">
@@ -427,7 +431,8 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","phone","email","pid","acc","occ","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","phone","email","pid","acc","occ","cname","cid","regcity","regcityOther"]
+    .forEach(id => $(id).classList.remove("bad"));
   document.querySelectorAll(".uname").forEach(i => i.classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
@@ -439,8 +444,24 @@ async function submitForm() {
   const first = v("fname"), last = v("lname"), phone = v("phone");
   const pid = v("pid"), acc = v("acc"), occ = v("occ"), email = v("email");
   const cname = v("cname"), cid = v("cid");
-  const regCity = v("regcity");
+  const regCity = readRegCity();
   const usernames = readUsernames();
+
+  // ── სხვა ქალაქი ──
+  if (v("regcity") === OTHER_CITY) {
+    const name = v("regcityOther").replace(/\s+/g, " ");
+    if (!name) {
+      markBad(["regcityOther"]);
+      show("err", "ჩაწერეთ ქალაქის სახელი");
+      return;
+    }
+    if (!GE_CITY.test(name)) {
+      markBad(["regcityOther"]);
+      show("err", "ქალაქის სახელი ქართულად დაწერეთ");
+      return;
+    }
+    $("regcityOther").value = name;
+  }
 
   // ── ტარიფი ──
   if (!TIER) {
@@ -628,14 +649,49 @@ async function tagRegistration(job) {
   try { localStorage.setItem(TAG_QUEUE, JSON.stringify(rest)); } catch (e) {}
 })();
 
+// ── რეგისტრაციის ადგილი ─────────────────────────────────────
+// სიაში ოთხი ქალაქია; დანარჩენს „სხვა" ფარავს და სახელს თვითონ წერენ.
+// მხოლოდ ქართული ასოები — ლათინურად ჩაწერილი „Zugdidi" რეპორტში
+// ცალკე ქალაქად დაჯდებოდა.
+const OTHER_CITY = "__other";
+const GE_CITY = /^[ა-ჺ]+(?:[ -][ა-ჺ]+)*$/;
+
+function regCityIsOther() { return $("regcity").value === OTHER_CITY; }
+
+function readRegCity() {
+  return regCityIsOther()
+    ? $("regcityOther").value.trim().replace(/\s+/g, " ")
+    : $("regcity").value.trim();
+}
+
+function syncRegCityOther() {
+  const other = regCityIsOther();
+  $("regcityOther").style.display = other ? "" : "none";
+  $("regcityHint").style.display  = other ? "" : "none";
+  if (other) $("regcityOther").focus();
+  else { $("regcityOther").value = ""; $("regcityOther").classList.remove("bad"); }
+}
+
 function rememberRegCity() {
+  syncRegCityOther();
   try { localStorage.setItem("sx_regcity", $("regcity").value); } catch (e) {}
   $("regcity").classList.remove("bad");
 }
+
+$("regcityOther").addEventListener("input", () => {
+  $("regcityOther").classList.remove("bad");
+  try { localStorage.setItem("sx_regcity_other", $("regcityOther").value); } catch (e) {}
+});
+
 (function restoreRegCity() {
   try {
     const v = localStorage.getItem("sx_regcity");
     if (v) $("regcity").value = v;
+    if (regCityIsOther()) {
+      $("regcityOther").value = localStorage.getItem("sx_regcity_other") || "";
+      $("regcityOther").style.display = "";
+      $("regcityHint").style.display = "";
+    }
   } catch (e) {}
 })();
 
