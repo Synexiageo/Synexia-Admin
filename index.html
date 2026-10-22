@@ -3644,7 +3644,9 @@ let REG_SECTION = "individual";
 // program ძველ ჩანაწერებში ცარიელია — ყველა ძველი ანკეტა მიკროფსისაა
 function programOf(r) { return r.program || "microps"; }
 const PROGRAM_LABEL = { microps: "მიკროფსი", minute: "Minute" };
-const TIER_LABEL = { home: "დიასახლისი", general: "სხვა საქმიანობა" };
+const TIER_LABEL = { home: "დიასახლისი", general: "სხვა საქმიანობა", both: "ორივე" };
+// „ორივეს" ერთი ტარიფი არ აქვს — საათები ადგილის მიხედვით ანაზღაურდება
+const TIER_RATE = { home: "5 ₾", general: "7 ₾", both: "5 და 7 ₾" };
 
 function entityOf(r) { return r.entity_type || "individual"; }
 function usernamesOf(r) { return Array.isArray(r.usernames) ? r.usernames.filter(Boolean) : []; }
@@ -3690,8 +3692,9 @@ function regColumns() {
         const tag = p === "minute"
           ? `<span style="background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">Minute</span>`
           : `<span style="background:#e2e8f0;color:#334155;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:700">მიკროფსი</span>`;
+        const money = TIER_RATE[r.tier] || (r.rate ? r.rate + " ₾" : "");
         const sub = r.tier
-          ? `<div style="font-size:11.5px;color:var(--text-dim);margin-top:2px">${esc(TIER_LABEL[r.tier] || r.tier)}${r.rate ? " · " + esc(r.rate) + " ₾" : ""}</div>`
+          ? `<div style="font-size:11.5px;color:var(--text-dim);margin-top:2px">${esc(TIER_LABEL[r.tier] || r.tier)}${money ? " · " + esc(money) : ""}</div>`
           : "";
         return `<td>${tag}${sub}</td>`; } },
     { h:"ადგილი",           cell:r => `<td>${r.reg_city ? esc(r.reg_city) : DIM}</td>` },
@@ -3856,7 +3859,7 @@ function exportRegsXlsx() {
     String(r.created_at||"").substring(0,10),
     PROGRAM_LABEL[programOf(r)] || programOf(r),
     r.tier ? (TIER_LABEL[r.tier] || r.tier) : "",
-    r.rate ?? "",
+    r.tier === "both" ? "5 და 7" : (r.rate ?? ""),
     r.reg_city,
     ENTITY_LABEL[entityOf(r)] || entityOf(r),
     [r.first_name, r.last_name].filter(Boolean).join(" ").trim(),

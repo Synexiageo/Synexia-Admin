@@ -76,11 +76,11 @@ form{display:flex; flex-direction:column; gap:15px;}
 .seg button.on{background:var(--accent); color:#fff;}
 .seg button.on:hover{background:var(--accent);}
 
-/* ტარიფის არჩევანი — ორი ღილაკი, თითოეულზე თანხა ეწერა */
-.seg.two{grid-template-columns:repeat(2,1fr);}
-.seg.two button{display:flex; flex-direction:column; gap:3px; padding:11px 6px; line-height:1.25;}
-.seg.two .amt{font-size:12.5px; font-weight:700; opacity:.72;}
-.seg.two button.on .amt{opacity:.9;}
+/* ტარიფის არჩევანი — თითოეულ ღილაკზე თანხაც ეწერა */
+.seg.rates button{display:flex; flex-direction:column; gap:3px; padding:11px 5px; line-height:1.25;}
+.seg.rates .amt{font-size:12.5px; font-weight:700; opacity:.72;}
+.seg.rates button.on .amt{opacity:.9;}
+@media(max-width:420px){ .seg.rates button{font-size:12.5px; padding:11px 2px;} }
 #tierWrap.bad .seg{border-color:var(--err);}
 #tierWrap.bad .hint{color:var(--err);}
 .uname-row{display:flex; gap:8px; align-items:stretch; margin-bottom:8px;}
@@ -210,12 +210,15 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div class="f" id="tierWrap">
         <label>კატეგორია<span class="req">*</span></label>
-        <div class="seg two">
+        <div class="seg rates">
           <button type="button" id="tierHome" onclick="setTier('home')">
             დიასახლისი<span class="amt">5 ₾</span>
           </button>
           <button type="button" id="tierGen" onclick="setTier('general')">
             სხვა საქმიანობა<span class="amt">7 ₾</span>
+          </button>
+          <button type="button" id="tierBoth" onclick="setTier('both')">
+            ორივე<span class="amt">5 და 7 ₾</span>
           </button>
         </div>
         <span class="hint" id="tierHint">ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება</span>
@@ -338,17 +341,25 @@ const CT_PREFIX = "minute_";
 
 // ── ტარიფი ──────────────────────────────────────────────────
 // დიასახლისი 5 ₾, სხვა საქმიანობა 7 ₾ — ისე, როგორც ხელშეკრულების
-// პუნქტ 1.2 „გ"-ში წერია. არჩევანი სავალდებულოა: წინასწარ არცერთი
-// არ არის მონიშნული, რომ შემთხვევით არ გაგზავნონ.
-const RATES = { home: 5, general: 7 };
+// პუნქტ 1.2 „გ"-ში წერია. ვინც ორივეს აკეთებს, „ორივეს" ირჩევს და
+// საათები თავისი ადგილის მიხედვით ანაზღაურდება — ერთი ციფრი მას ვერ
+// აღწერს, ამიტომ rate ცარიელი რჩება.
+// არჩევანი სავალდებულოა: წინასწარ არცერთი არ არის მონიშნული.
+const RATES = { home: 5, general: 7, both: null };
+const TIER_TEXT = {
+  home:    "ანაზღაურების ტარიფი: 5 ₾",
+  general: "ანაზღაურების ტარიფი: 7 ₾",
+  both:    "სახლში გადაღებული საათი 5 ₾, პროფესიულ გარემოში — 7 ₾",
+};
 let TIER = "";
 
 function setTier(kind) {
   TIER = kind;
   $("tierHome").classList.toggle("on", kind === "home");
   $("tierGen").classList.toggle("on", kind === "general");
+  $("tierBoth").classList.toggle("on", kind === "both");
   $("tierWrap").classList.remove("bad");
-  $("tierHint").textContent = "ანაზღაურების ტარიფი: " + RATES[kind] + " ₾";
+  $("tierHint").textContent = TIER_TEXT[kind];
 }
 
 // ── ფიზიკური / იურიდიული ────────────────────────────────────
@@ -467,7 +478,7 @@ async function submitForm() {
   if (!TIER) {
     $("tierWrap").classList.add("bad");
     $("tierWrap").scrollIntoView({ behavior: "smooth", block: "center" });
-    show("err", "აირჩიეთ კატეგორია — დიასახლისი თუ სხვა საქმიანობა");
+    show("err", "აირჩიეთ კატეგორია — დიასახლისი, სხვა საქმიანობა თუ ორივე");
     return;
   }
 
@@ -702,8 +713,7 @@ function resetForm() {
   refreshUsernameRows();
   setEntity("individual");
   TIER = "";
-  $("tierHome").classList.remove("on");
-  $("tierGen").classList.remove("on");
+  ["tierHome","tierGen","tierBoth"].forEach(id => $(id).classList.remove("on"));
   $("tierWrap").classList.remove("bad");
   $("tierHint").textContent = "ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება";
   setAgreed(false);
