@@ -97,10 +97,10 @@ export default async () => {
       const kind = KIND[String(c.entity_type).replace(MINUTE, "")] || "სხვა";
       const who = [r.first_name, r.last_name].filter(Boolean).join(" ");
       const name = safe(`${day} ${who} (${kind})${minute ? " — Minute" : ""}`);
-      // დრაივში: ხელშეკრულებები / 2026-10-09 / თბილისი / ფიზიკური პირი /
-      // minute-ს თავისი საქაღალდე აქვს — მიკროფსის სტრუქტურას არ ეხება
-      const path = [day, r.reg_city || "ქალაქი უცნობია", kind];
-      if (minute) path.unshift("Minute Data");
+      // დრაივში: ხელშეკრულებები / shift / 2026-10-09 / თბილისი / ფიზიკური პირი /
+      // ორი შეკვეთა — ორი შტო, ზემოდანვე გაყოფილი
+      const path = [minute ? "minute" : "shift",
+                    day, r.reg_city || "ქალაქი უცნობია", kind];
 
       try {
         const res = await fetch(DRIVE_URL, {
