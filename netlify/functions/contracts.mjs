@@ -45,7 +45,9 @@ function buildDoc(reg, body) {
        text-align: center; margin: 0 0 22pt; }
   p { margin: 0 0 7pt; }
   .ct-top { display: flex; justify-content: space-between; margin: 0 0 20pt; }
-  .ct-n { display: inline-block; }
+  /* text-indent მემკვიდრეობით გადმოდის და პუნქტის ნომერს მარცხნივ წევს —
+     ფურცლის კიდეში ეკარგება. ნომრის უჯრაში მას ვაუქმებთ. */
+  .ct-n { display: inline-block; text-indent: 0; }
   .ct-l0 { padding-left: 2.2em; text-indent: -2.2em; margin-top: 10pt; }
   .ct-l0 .ct-n { min-width: 2.2em; }
   .ct-l1 { padding-left: 4.4em; text-indent: -2.9em; }
