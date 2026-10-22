@@ -554,41 +554,55 @@ async function submitForm() {
   btn.disabled = true;
   btn.textContent = "იგზავნება...";
 
+  const full = "+995" + digits;
+
   try {
-    const res = await fetch(SB_URL + "/rest/v1/rpc/submit_registration", {
-      method: "POST",
-      headers: {
-        "apikey": SB_KEY,
-        "Authorization": "Bearer " + SB_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        p_first_name: first, p_last_name: last, p_phone: digits,
-        p_personal_id: pidDigits, p_account_number: accClean, p_occupation: occ,
-        p_usernames: usernames,
-        p_entity_type: ENTITY,
-        p_reg_city: regCity,
-        p_company_name: ENTITY !== "individual" ? cname : null,
-        p_company_id:   ENTITY !== "individual" ? cid   : null,
-        p_contract_id:  CONTRACT ? CONTRACT.id : null,
-        p_email:        email.toLowerCase()
-      })
-    });
-
-    if (!res.ok) throw new Error(await res.text());
-    const out = await res.json();
-
-    if (!out || out.ok === false) {
-      show("err", "ტელეფონის ნომერი არასწორია. შეამოწმეთ და სცადეთ ხელახლა.");
+    // ერთი ნომერი minute-ზე მხოლოდ ერთხელ
+    if (await alreadyOnMinute(full)) {
+      markBad(["phone"]);
+      show("err", "ამ ნომრით უკვე დარეგისტრირებული ხართ");
       btn.disabled = false; btn.textContent = "გაგზავნა";
       return;
     }
 
-    // ჩანაწერი უკვე შენახულია — ახლა ვაწერთ, რომ minute-ისაა და რა ტარიფით
-    await tagRegistration({ pid: pidDigits, tier: TIER, rate: RATES[TIER] });
+    // ლიდს ვუკავშირებთ, მაგრამ მის სტატუსს არ ვეხებით: minute ახალი
+    // შეკვეთაა და ძველი სტატუსი (Retired-იც კი) მას არ უშლის ხელს.
+    const leadId = await findLead(full);
 
-    // ჩანაწერი ყოველთვის ინახება — მაშინაც, თუ ნომერი ბაზაში ვერ მოიძებნა
-    $("doneText").textContent = out.matched
+    const res = await fetch(SB_URL + "/rest/v1/registrations", {
+      method: "POST",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        first_name: first, last_name: last, phone: full,
+        personal_id: pidDigits, account_number: accClean, occupation: occ,
+        usernames: usernames,
+        entity_type: ENTITY,
+        reg_city: regCity,
+        company_name: ENTITY !== "individual" ? cname : null,
+        company_id:   ENTITY !== "individual" ? cid   : null,
+        contract_id:  CONTRACT.id,
+        agreed_at:    new Date().toISOString(),
+        email:        email.toLowerCase(),
+        program: PROGRAM, tier: TIER, rate: RATES[TIER],
+        lead_id: leadId, matched: !!leadId
+      })
+    });
+
+    // ბაზაშიც დგას იგივე წესი — თუ წამში ორჯერ დააჭირეს, იქ გაიჭედება
+    if (res.status === 409) {
+      markBad(["phone"]);
+      show("err", "ამ ნომრით უკვე დარეგისტრირებული ხართ");
+      btn.disabled = false; btn.textContent = "გაგზავნა";
+      return;
+    }
+    if (!res.ok) throw new Error(await res.text());
+
+    $("doneText").textContent = leadId
       ? "მადლობა! თქვენი მონაცემები მიღებულია."
       : "მადლობა! მონაცემები მიღებულია — ოპერატორი დაგიკავშირდებათ დასაზუსტებლად.";
     $("formWrap").style.display = "none";
@@ -602,61 +616,33 @@ async function submitForm() {
   }
 }
 
-// ── პროგრამის მონიშვნა ──────────────────────────────────────
-// submit_registration საერთოა ორივე ანკეტისთვის და მას არ ვეხებით.
-// ჩანაწერის შექმნის შემდეგ ცალკე ვეუბნებით ბაზას, რომ ეს minute-ია.
-// თუ ვერ მოხერხდა, ჩანაწერი მაინც შენახულია — მონიშვნას რიგში ვაყენებთ
-// და შემდეგ გახსნაზე ვცდით ხელახლა, რომ რეპორტში მიკროფსად არ ჩაეთვალოს.
-const TAG_QUEUE = "sx_minute_tag_queue";
-
-async function tagOnce(job) {
-  const r = await fetch(SB_URL + "/rest/v1/rpc/tag_registration", {
-    method: "POST",
-    headers: {
-      "apikey": SB_KEY,
-      "Authorization": "Bearer " + SB_KEY,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      p_personal_id: job.pid, p_program: PROGRAM,
-      p_tier: job.tier, p_rate: job.rate
-    })
+// ── ბაზასთან კითხვები ───────────────────────────────────────
+// minute თავისით წერს registrations-ში: submit_registration ძველი
+// შეკვეთისაა და ლიდის სტატუსს ცვლის, რაც აქ საჭირო არ არის —
+// minute-ზე Retired ლიდიც თავისუფლად რეგისტრირდება.
+async function sbGet(path) {
+  const r = await fetch(SB_URL + "/rest/v1/" + path, {
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
   });
   if (!r.ok) throw new Error(await r.text());
-  const out = await r.json();
-  if (!out || out.ok !== true) throw new Error(JSON.stringify(out));
+  const d = await r.json();
+  return Array.isArray(d) ? d : [];
 }
 
-function queueTag(job) {
+async function alreadyOnMinute(full) {
+  const rows = await sbGet("registrations?select=id&program=eq.minute"
+    + "&phone=eq." + encodeURIComponent(full) + "&limit=1");
+  return rows.length > 0;
+}
+
+// ლიდი რომ ვერ მოიძებნოს, ანკეტა მაინც უნდა გაიგზავნოს
+async function findLead(full) {
   try {
-    const q = JSON.parse(localStorage.getItem(TAG_QUEUE) || "[]");
-    q.push({ ...job, at: Date.now() });
-    localStorage.setItem(TAG_QUEUE, JSON.stringify(q.slice(-50)));
-  } catch (e) {}
+    const rows = await sbGet("leads?select=id&phone=eq."
+      + encodeURIComponent(full) + "&limit=1");
+    return rows[0]?.id ?? null;
+  } catch (e) { return null; }
 }
-
-async function tagRegistration(job) {
-  for (let i = 0; i < 3; i++) {
-    try { await tagOnce(job); return true; }
-    catch (e) { await new Promise(r => setTimeout(r, 400 * (i + 1))); }
-  }
-  queueTag(job);
-  return false;
-}
-
-// ფუნქცია ჩანაწერს მხოლოდ 5 წუთის განმავლობაში პოულობს — ძველი რიგი
-// აღარ გამოდგება, ამიტომ მას უბრალოდ ვაგდებთ.
-(async function flushTagQueue() {
-  let q;
-  try { q = JSON.parse(localStorage.getItem(TAG_QUEUE) || "[]"); } catch (e) { return; }
-  if (!q.length) return;
-  const rest = [];
-  for (const job of q) {
-    if (Date.now() - (job.at || 0) > 5 * 60e3) continue;
-    try { await tagOnce(job); } catch (e) { rest.push(job); }
-  }
-  try { localStorage.setItem(TAG_QUEUE, JSON.stringify(rest)); } catch (e) {}
-})();
 
 // ── რეგისტრაციის ადგილი ─────────────────────────────────────
 // სიაში ოთხი ქალაქია; დანარჩენს „სხვა" ფარავს და სახელს თვითონ წერენ.
