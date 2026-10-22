@@ -264,8 +264,8 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div class="f">
         <label for="phone">ტელეფონის ნომერი<span class="req">*</span></label>
-        <input type="tel" id="phone" inputmode="numeric" maxlength="13" placeholder="5XX XX XX XX" autocomplete="off">
-        <span class="hint">9 ციფრი, +995-ის გარეშე — იგივე, რომლითაც დარეგისტრირდით</span>
+        <input type="tel" id="phone" inputmode="tel" maxlength="24" placeholder="5XX XX XX XX" autocomplete="off">
+        <span class="hint">ჩაწერეთ როგორც გინდათ — +995, 0 და ჰარები თვითონ წაიშლება</span>
       </div>
 
       <div class="f">
@@ -512,9 +512,7 @@ async function submitForm() {
   }
 
   // ── სიგრძეები ──
-  // ტელეფონი: 9 ციფრი. თუ ქვეყნის კოდით აკრიფეს, ვაცილებთ.
-  let digits = phone.replace(/\D/g, "");
-  if (digits.length === 12 && digits.startsWith("995")) digits = digits.slice(3);
+  const digits = cleanPhone(phone);
   const pidDigits = pid.replace(/\D/g, "");
   const accClean  = acc.replace(/\s/g, "").toUpperCase();
 
@@ -522,7 +520,7 @@ async function submitForm() {
     !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
       ? ["email", "ელ-ფოსტა არასწორია — შეამოწმეთ მისამართი"]
     : digits.length !== 9
-      ? ["phone", `ტელეფონის ნომერი უნდა იყოს 9 ციფრი (+995-ის გარეშე) — თქვენ ${digits.length} შეიყვანეთ`]
+      ? ["phone", `ქართული ნომერი 9 ციფრია — აქ ${digits.length} გამოვიდა. შეამოწმეთ.`]
     : pidDigits.length !== 11
       ? ["pid", `პირადი ნომერი უნდა იყოს 11 ციფრი — თქვენ ${pidDigits.length} შეიყვანეთ`]
     : accClean.length !== 22
@@ -733,7 +731,31 @@ $("acc").addEventListener("input", e => {
   if (clean !== e.target.value) e.target.value = clean;
 });
 
-["phone","pid","cid"].forEach(id => {
+// ── ტელეფონი ────────────────────────────────────────────────
+// ოპერატორს ფორმატზე ფიქრი არ უნდა სჭირდებოდეს: +995, 00995, წინ
+// მიწერილი 0, ჰარები, ტირეები, ფრჩხილები — ყველაფერს თვითონ ვაცლით
+// და 9 ციფრი რჩება.
+function cleanPhone(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.startsWith("00995")) d = d.slice(5);
+  else if (d.length > 9 && d.startsWith("995")) d = d.slice(3);
+  if (d.length === 10 && d.startsWith("0")) d = d.slice(1);
+  return d;
+}
+
+$("phone").addEventListener("input", e => {
+  // ასოებს არ ვუშვებთ, დანარჩენი თავისუფალია
+  const clean = e.target.value.replace(/[^\d+()\-. ]/g, "");
+  if (clean !== e.target.value) e.target.value = clean;
+});
+
+// ველიდან გასვლისას ვაჩვენებთ იმას, რაც ნამდვილად შეინახება
+$("phone").addEventListener("blur", () => {
+  const d = cleanPhone($("phone").value);
+  if (d.length === 9) $("phone").value = d;
+});
+
+["pid","cid"].forEach(id => {
   $(id).addEventListener("input", e => {
     const clean = e.target.value.replace(/[^\d+ ]/g, "");
     if (clean !== e.target.value) e.target.value = clean;
