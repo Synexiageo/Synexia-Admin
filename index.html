@@ -2739,6 +2739,22 @@ async function addComment() {
   finally { btn.disabled = false; btn.textContent = "+ კომენტარი"; }
 }
 
+// ── ლიდის წინ-უკან ტრიალი ────────────────────────────────
+// გუნდის სტატისტიკა სტატუსის ცვლილებებს ითვლის, ამიტომ ერთი და იმავე
+// ლიდის ბრუნვა ციფრს ზრდის. ასეთი გადასვლა ხანდახან მართლაც საჭიროა
+// (ხელახლა დარეკა, შეცდომის გასწორება), ამიტომ არ ვკრძალავთ — მიზეზს
+// ვითხოვთ და ჟურნალში ვწერთ, რომ ჩუმად აღარ ხდებოდეს.
+const RECYCLE_FROM = ["Declined", "Unqualified", "Retired", "Phone Model Issue", "დუპლიკატი"];
+
+function recycleReason(lead, oldStatus, status) {
+  if (!lead || status === oldStatus) return null;
+  if (lead.previous_status && lead.previous_status === status)
+    return `ლიდი ისევ „${status}"-ში ბრუნდება — იქ უკვე იყო.`;
+  if (RECYCLE_FROM.includes(oldStatus) && !RECYCLE_FROM.includes(status))
+    return `ლიდი „${oldStatus}"-დან ისევ მუშაობაში გადის.`;
+  return null;
+}
+
 async function saveAll() {
   if (!currentId) return;
   const savedId   = currentId;
@@ -2767,6 +2783,17 @@ async function saveAll() {
     mount_updated_at: new Date().toISOString(), mount_updated_by: SESSION.display_name || SESSION.username
   } : {};
 
+  // უკან დაბრუნებას ახსნა სჭირდება — თორემ შენახვა არ გრძელდება
+  const recycle = recycleReason(savedLead, oldStatus, status);
+  let recycleNote = "";
+  if (recycle) {
+    recycleNote = (prompt(recycle + "\n\nდაწერეთ, რატომ — ეს ჟურნალში შეინახება.", "") || "").trim();
+    if (!recycleNote) {
+      document.getElementById("dStatus").value = oldStatus;
+      return;
+    }
+  }
+
   // update row in DOM immediately
   const row = document.querySelector(`tr[onclick*="${savedId}"]`);
   if (row) {
@@ -2787,6 +2814,14 @@ async function saveAll() {
     await sbPatch("leads", `id=eq.${savedId}`, { name: name || savedLead?.name, status, legal, email, onboarded_date: finalOnboarded || null, environment: environment || null, city: city || null, note, next_contact: clearReminder ? null : (nextContact || null), next_contact_time: clearReminder ? null : (nextContactTime || null), next_contact_note: clearReminder ? null : (nextContactNote || null), last_operator: SESSION.display_name || SESSION.username, ...(newAgent !== oldAgent ? { assigned_to: newAgent || null } : {}), ...mountBody });
     // ბაზაში წესები ზის, რომლებიც სტატუსს უკან აბრუნებს (მაგ. ტელეფონის მოდელი).
     // ეს უჩუმრად ხდებოდა: ოპერატორი ინახავდა, ისტორიაში ეწერებოდა, რეალურად კი არაფერი იცვლებოდა.
+    if (recycleNote) {
+      await sbPost("activity_log", {
+        timestamp: nowStr(), username: SESSION.username,
+        display_name: SESSION.display_name, action: "კომენტარი", lead_id: savedId,
+        detail: `უკან დაბრუნების მიზეზი (${oldStatus} → ${status}): ${recycleNote}`,
+      });
+    }
+
     let realStatus = status;
     if (oldStatus !== status) {
       const { data: chk } = await sbGet("leads", `select=status&id=eq.${encodeURIComponent(savedId)}`);
@@ -4819,6 +4854,9 @@ async function loadTeamStats() {
       <thead><tr>
         <th>ოპერატორი</th>
         <th title="სტატუსის ცვლილებების ჯამი — ზუსტად იმდენი, რამდენიც სვეტებში იშლება">სტატუსი შეცვალა</th>
+        <th title="რამდენ სხვადასხვა ლიდს შეეხო — ერთი ლიდის ტრიალი ამ ციფრს არ ზრდის">ლიდი</th>
+        <th title="ცვლილება გაყოფილი ლიდებზე. 1.0 = თითოეული ლიდი ერთხელ გაასწორა">ცვლ/ლიდი</th>
+        <th title="ლიდი დაბრუნდა იმ სტატუსში, სადაც უკვე იყო">უკან</th>
         <th title="კომენტარები და სხვა რედაქტირება — სტატუსს არ ცვლის">სხვა აქტივობა</th>
         <th title="ავტომატური ფილტრი — რობოტის ნამუშევარი, ოპერატორის არა">🤖 ავტო</th>
         ${STATUSES.map(s=>`<th${s==="არ უპასუხა 1"?' title="მოიცავს ძველ „არ უპასუხა“-საც (ნომრის გარეშე)"':""}>${s}</th>`).join("")}
@@ -4830,6 +4868,9 @@ async function loadTeamStats() {
             <span style="font-weight:600">${esc(name)}</span>
           </div></td>
           <td><span class="team-num" style="color:var(--blue)">${stats[name].total}</span></td>
+          <td class="tq-lead" data-op="${esc(name)}"><span style="color:var(--text-dim)">…</span></td>
+          <td class="tq-per"  data-op="${esc(name)}"><span style="color:var(--text-dim)">…</span></td>
+          <td class="tq-back" data-op="${esc(name)}"><span style="color:var(--text-dim)">…</span></td>
           <td>${stats[name].other>0?`<span class="team-num" style="color:var(--text-mid)">${stats[name].other}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>
           <td>${stats[name].auto>0?`<span class="team-num" style="color:var(--text-dim)">${stats[name].auto}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>
           ${STATUSES.map(s => `<td>${stats[name][s]>0?`<span class="team-num" style="color:var(--text)">${stats[name][s]}</span>`:'<span style="color:var(--text-dim)">—</span>'}</td>`).join("")}
@@ -4839,6 +4880,7 @@ async function loadTeamStats() {
         <tr class="team-total-row">
           <td style="font-weight:800">ჯამი</td>
           <td><span class="team-num" style="color:var(--blue)">${names.reduce((a,n)=>a+stats[n].total,0)}</span></td>
+          <td colspan="3" style="color:var(--text-dim);font-size:12px">—</td>
           <td><span class="team-num" style="color:var(--text-mid)">${names.reduce((a,n)=>a+stats[n].other,0)}</span></td>
           <td><span class="team-num" style="color:var(--text-dim)">${names.reduce((a,n)=>a+stats[n].auto,0)}</span></td>
           ${STATUSES.map(s => {
@@ -4848,7 +4890,69 @@ async function loadTeamStats() {
         </tr>
       </tfoot>
     </table></div>`;
+    fillTeamQuality(pFrom, pTo);
   } catch(e) { wrap.innerHTML=`<div style="color:var(--danger);padding:20px">შეცდომა: ${e.message}</div>`; }
+}
+
+// ── რამდენ ლიდს შეეხო და რამდენჯერ დააბრუნა უკან ──────────
+// team_stats მხოლოდ ცვლილებების ჯამს ითვლის — ერთი ლიდის წინ-უკან
+// ტრიალი იმ ციფრს ზრდის. ამიტომ ჟურნალს პირდაპირ ვკითხულობთ:
+// რამდენი სხვადასხვა ლიდია და რამდენჯერ დაბრუნდა ლიდი იქ, სადაც
+// უკვე იყო. ეს ორი ციფრი ტრიალს უაზროდ აქცევს.
+const TQ_MAX_DAYS = 90;   // „ყველა დრო" — ბოლო სამი თვე, თორემ ძალიან დიდი მოთხოვნაა
+
+async function fillTeamQuality(pFrom, pTo) {
+  const cells = document.querySelectorAll(".tq-lead, .tq-per, .tq-back");
+  if (!cells.length) return;
+  const dim = t => `<span style="color:var(--text-dim)">${t}</span>`;
+
+  try {
+    let from = pFrom;
+    if (!from) {
+      const d = new Date(Date.now() - TQ_MAX_DAYS * 86400e3);
+      from = d.toISOString().substring(0, 10);
+    }
+    let q = `select=display_name,lead_id,detail,created_at&action=eq.${encodeURIComponent("განახლება")}`
+          + `&detail=like.${encodeURIComponent("სტატუსი:*")}`
+          + `&created_at=gte.${from}&order=created_at`;
+    if (pTo) q += `&created_at=lt.${pTo}`;
+
+    const rows = await sbGetAll("activity_log", q);
+
+    // ოპერატორი+ლიდი → სტატუსების თანმიმდევრობა
+    const seq = {};
+    rows.forEach(r => {
+      const m = /^სტატუსი:\s*(.+?)\s*→\s*(.+?)\s*$/.exec(r.detail || "");
+      if (!m) return;
+      const k = r.display_name + "\u0000" + r.lead_id;
+      (seq[k] ||= { op: r.display_name, seen: [m[1]], to: [] }).to.push(m[2]);
+    });
+
+    const per = {};
+    Object.values(seq).forEach(s => {
+      const o = (per[s.op] ||= { leads: 0, changes: 0, back: 0 });
+      o.leads++;
+      o.changes += s.to.length;
+      const seen = [...s.seen];
+      s.to.forEach(t => { if (seen.includes(t)) o.back++; seen.push(t); });
+    });
+
+    cells.forEach(td => {
+      const o = per[td.dataset.op];
+      if (!o) { td.innerHTML = dim("—"); return; }
+      if (td.classList.contains("tq-lead"))
+        td.innerHTML = `<span class="team-num">${o.leads}</span>`;
+      else if (td.classList.contains("tq-per"))
+        td.innerHTML = `<span class="team-num">${(o.changes / o.leads).toFixed(2)}</span>`;
+      else
+        td.innerHTML = o.back
+          ? `<span class="team-num" style="color:var(--danger)">${o.back}</span>`
+          : dim("—");
+    });
+  } catch (e) {
+    document.querySelectorAll(".tq-lead, .tq-per, .tq-back")
+      .forEach(td => { td.innerHTML = dim("—"); });
+  }
 }
 
 // ── CALENDAR ─────────────────────────────
