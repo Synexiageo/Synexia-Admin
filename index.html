@@ -1534,6 +1534,14 @@ async function showDashboard() {
   stBtn.lastChild.textContent = seesTeamStats() ? "გუნდის სტატისტიკა" : "ჩემი სტატისტიკა";
   const stTitle = document.getElementById("teamStatsTitle");
   if (stTitle) stTitle.textContent = seesTeamStats() ? "გუნდის სტატისტიკა" : "ჩემი სტატისტიკა";
+  // Onboarded-ს ოპერატორი ხელით ვერ ირჩევს — ეს სტატუსი მხოლოდ შევსებული
+  // ანკეტიდან უნდა მოდიოდეს, თორემ ონბორდინგის ციფრი ვერაფერს ზომავს.
+  // ვტოვებთ სიაში (უბრალოდ გამორთულს), რომ უკვე გაფორმებულ ლიდზე
+  // სტატუსი გაიხსნას და შენახვისას ჩუმად არ შეიცვალოს.
+  const onbOpt = [...document.getElementById("dStatus").options]
+    .find(o => o.value === "Onboarded");
+  if (onbOpt) onbOpt.disabled = SESSION.role !== "admin";
+
   document.getElementById("regsTabBtn").style.display = seesRegistrations() ? "" : "none";
   document.getElementById("mpTabBtn").style.display = uploadsMicrops() ? "" : "none";
   loadMicropsPerm();
@@ -2782,6 +2790,15 @@ async function saveAll() {
     mount_status: mSt || (mDue ? "not_brought" : null), mount_due: mDue || null, mount_note: mNote || null,
     mount_updated_at: new Date().toISOString(), mount_updated_by: SESSION.display_name || SESSION.username
   } : {};
+
+  // ონბორდინგს ანკეტა ადასტურებს, ოპერატორი არა
+  if (status === "Onboarded" && oldStatus !== "Onboarded" && SESSION.role !== "admin") {
+    alert("Onboarded-ზე გადაყვანა ხელით აღარ ხდება.\n\n"
+        + "ლიდი ავტომატურად გადადის, როცა ანკეტა შეივსება — "
+        + "ანკეტაში მითითებული ნომრით მოიძებნება და სტატუსი თავისით შეიცვლება.");
+    document.getElementById("dStatus").value = oldStatus;
+    return;
+  }
 
   // უკან დაბრუნებას ახსნა სჭირდება — თორემ შენახვა არ გრძელდება
   const recycle = recycleReason(savedLead, oldStatus, status);
