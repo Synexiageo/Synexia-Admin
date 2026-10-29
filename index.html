@@ -577,6 +577,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <option value="general">🏢 ზოგადი</option>
         <option value="home">🏠 დიასახლისები</option>
         <option value="">📋 ყველა</option>
+        <option value="minute">⏱ minute</option>
       </select>
       <button id="notifBtn" onclick="enableNotifications()" style="display:none;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:8px;padding:7px 13px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;gap:6px;align-items:center;transition:.18s" title="შეტყობინებების ჩართვა">
         🔔 შეტყობინებები
@@ -1393,7 +1394,7 @@ let currentPage = 1, totalPages = 1, totalLeads = 0;
 // Active segment: "" = all (admin only). Every leads query is scoped through sbGet.
 let SEGMENT = "general";
 let SEGMENT_READY = false;   // false until the segment column is confirmed to exist
-const SEGMENTS = { general: "ზოგადი", home: "დიასახლისები" };
+const SEGMENTS = { general: "ზოგადი", home: "დიასახლისები", minute: "minute" };
 
 // The segment migration may not have run yet. Probe once; until it has,
 // the CRM behaves exactly as it did before segments existed.
@@ -1407,8 +1408,18 @@ async function probeSegment() {
   return SEGMENT_READY;
 }
 
+// minute ცალკე სეგმენტი არ არის — ის `program` სვეტით ინიშნება, რომ
+// ლიდმა თავისი სეგმენტიც (ზოგადი/დიასახლისი) შეინარჩუნოს და სტატუსიც.
+const MINUTE_VIEW = "minute";
+
+function segmentParam() {
+  if (!SEGMENT || !SEGMENT_READY) return "";
+  if (SEGMENT === MINUTE_VIEW) return `&program=eq.minute`;
+  return `&segment=eq.${encodeURIComponent(SEGMENT)}`;
+}
+
 async function sbGet(table, params = "") {
-  if (table === "leads" && SEGMENT && SEGMENT_READY) params += `&segment=eq.${encodeURIComponent(SEGMENT)}`;
+  if (table === "leads") params += segmentParam();
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
     headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Prefer": "count=exact", "Cache-Control": "no-cache" }
   });
@@ -3454,7 +3465,8 @@ async function createUser(){
   if(rl==="influencer"&&!rc){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ ინფლუენსერს სავალდებულოა რეფ. კოდი";return;}
   try{
     const body={username:un,password:pw,role:rl,display_name:dn};
-    if(SEGMENT_READY) body.segment=(SEGMENT||"general");
+    // minute ხედია და არა სეგმენტი — ახალ წევრს ჩვეულებრივი სეგმენტი უნდა მიეცეს
+    if(SEGMENT_READY) body.segment=(SEGMENT===MINUTE_VIEW?"all":(SEGMENT||"general"));
     if(rl==="influencer"&&rc) body.ref_code=rc;
     const ok=await sbPost("users",body);
     if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="agent";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
@@ -4445,7 +4457,11 @@ async function rgRunImport() {
 
 // ── FORM SUBMIT (სარეგისტრაციო ფორმიდან) ──
 async function submitLeadFromForm(data) {
-  return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false, ...(SEGMENT_READY ? { segment: SEGMENT || "general" } : {}) });
+  // minute ხედში დამატებული ლიდი ზოგად სეგმენტში ჯდება, მაგრამ minute-ის პულშიც რჩება
+  const seg = SEGMENT === MINUTE_VIEW ? "general" : (SEGMENT || "general");
+  return await sbPost("leads", { id:genId("SX"), name:data.name, phone:data.phone, ref_code:data.refCode||"", status:"New Lead", reg_date:nowStr(), viewed:false,
+    ...(SEGMENT_READY ? { segment: seg } : {}),
+    ...(SEGMENT === MINUTE_VIEW ? { program: "minute" } : {}) });
 }
 
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeBizModal();closeStatusDrop();closeCityDrop();closeRegEdit();if(CHAT_OPEN)toggleChat();}});
