@@ -705,6 +705,16 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           </select>
         </div>
         <div class="tb-group">
+          <span class="tb-label" title="ვინც ანკეტა ხელახლა შეავსო — ძველი ბარათი აქვს და სიაში ბოლოში ჯდება">↻ ხელახლა შემოვიდა</span>
+          <select class="tb-select" id="filterResub" onchange="applyFilters()">
+            <option value="">ყველა</option>
+            <option value="1">დღეს</option>
+            <option value="3">ბოლო 3 დღე</option>
+            <option value="7">ბოლო კვირა</option>
+            <option value="30">ბოლო თვე</option>
+          </select>
+        </div>
+        <div class="tb-group">
           <span class="tb-label">ფავორიტები</span>
           <select class="tb-select" id="filterFavorite" onchange="applyFilters()">
             <option value="">ყველა</option>
@@ -2062,6 +2072,15 @@ async function loadLeads(page) {
   const prof = document.getElementById("filterProfession")?.value || "";
   if (prof === "__none__")  filters += `&profession=is.null`;
   else if (prof)            filters += `&profession=eq.${encodeURIComponent(prof)}`;
+
+  // ხელახლა შემოსულები — ვინც ანკეტა მეორედ (ან მესამედ) შეავსო.
+  // ახალ ჩანაწერს ბაზა არ ქმნის, ძველ ბარათს უწერს submission_count-ს,
+  // ამიტომ სიაში ძველი თარიღით ჯდებიან და ოპერატორი ვერ ამჩნევს.
+  const resub = document.getElementById("filterResub")?.value || "";
+  if (resub) {
+    const since = new Date(Date.now() - Number(resub) * 86400e3).toISOString();
+    filters += `&submission_count=gt.1&last_submission_at=gte.${since}`;
+  }
 
   // ფავორიტები — სია ლოკალურად გვაქვს, ამიტომ id-ებით ვფილტრავთ
   await loadFavorites();
