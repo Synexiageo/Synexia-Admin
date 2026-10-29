@@ -5028,13 +5028,19 @@ async function loadCalendar() {
   const lastDay = `${_ld.getFullYear()}-${String(_ld.getMonth()+1).padStart(2,"0")}-${String(_ld.getDate()).padStart(2,"0")}`;
   const agent = document.getElementById("calAgent")?.value || "";
   const prof  = document.getElementById("calProfession")?.value || "";
-  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to,profession&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&status=neq.Onboarded&order=next_contact.asc&limit=500`;
+  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to,profession,segment&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&status=neq.Onboarded&order=next_contact.asc&limit=500`;
   if (agent) q += `&assigned_to=eq.${encodeURIComponent(agent)}`;
   if (prof === "__none__") q += `&profession=is.null`;
   else if (prof)           q += `&profession=eq.${encodeURIComponent(prof)}`;
   try {
-    const { data } = await sbGet("leads", q);
-    calLeads = data||[];
+    // სეგმენტის ფილტრს განზრახ ვუვლით გვერდს: შეხსენება თარიღზეა მიბმული
+    // და თუ ოპერატორი „ზოგადზე" დგას, დიასახლისთან დაპირებული ზარი
+    // კალენდარში საერთოდ არ უჩანდა. sbGet leads-ს სეგმენტს თვითონ აწებებს.
+    const res = await fetch(`${SB_URL}/rest/v1/leads?${q}`, {
+      headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Cache-Control": "no-cache" }
+    });
+    const data = await res.json();
+    calLeads = Array.isArray(data) ? data : [];
     renderCalendar();
   } catch(e){ console.error(e); }
 }
@@ -5084,8 +5090,10 @@ function renderCalendar() {
     const events = dayLeads.map(l => {
       const cls = dateStr < today ? "overdue" : dateStr === today ? "today-event" : "";
       const ag = (calShowAgent && l.assigned_to) ? `<span class="cal-ev-agent">${esc(l.assigned_to)}</span>` : "";
-      const tt = `${esc(l.name)}${l.assigned_to ? " — "+esc(l.assigned_to) : ""}${l.next_contact_note ? " — "+esc(l.next_contact_note) : ""}`;
-      return `<div class="cal-event ${cls}" onclick="openModal('${l.id}')" title="${tt}"><span class="cal-ev-name">${esc(l.name)}</span>${ag}</div>`;
+      // ორივე სეგმენტი ერთ კალენდარშია — დიასახლისი ნიშნით გამოირჩევა
+      const home = l.segment === "home" ? `<span title="დიასახლისი">🏠 </span>` : "";
+      const tt = `${esc(l.name)}${l.segment === "home" ? " (დიასახლისი)" : ""}${l.assigned_to ? " — "+esc(l.assigned_to) : ""}${l.next_contact_note ? " — "+esc(l.next_contact_note) : ""}`;
+      return `<div class="cal-event ${cls}" onclick="openModal('${l.id}')" title="${tt}"><span class="cal-ev-name">${home}${esc(l.name)}</span>${ag}</div>`;
     }).join("");
 
     const cntBadge = dayLeads.length ? `<span class="cal-count" title="${dayLeads.length} ადამიანი">${dayLeads.length}</span>` : "";
