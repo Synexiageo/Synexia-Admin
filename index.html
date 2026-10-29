@@ -706,6 +706,18 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
           </select>
         </div>
         <div class="tb-group">
+          <span class="tb-label" title="რატომ არის minute-ის პულში — ქოლცენტრმა დარეკვამდე უნდა იცოდეს">minute-ის მიზეზი</span>
+          <select class="tb-select" id="filterMinuteReason" onchange="applyFilters()">
+            <option value="">ყველა</option>
+            <option value="overcap">25სთ+ (ლიმიტი ამოწურა)</option>
+            <option value="paused">პაუზაზეა</option>
+            <option value="idle">არ იღებს</option>
+            <option value="gone">გაქრა აპლიკაციიდან</option>
+            <option value="retired">ვადა გავიდა</option>
+            <option value="home">დიასახლისი</option>
+          </select>
+        </div>
+        <div class="tb-group">
           <span class="tb-label" title="ვინც ანკეტა ხელახლა შეავსო — ძველი ბარათი აქვს და სიაში ბოლოში ჯდება">↻ ხელახლა შემოვიდა</span>
           <select class="tb-select" id="filterResub" onchange="applyFilters()">
             <option value="">ყველა</option>
@@ -1412,6 +1424,32 @@ async function probeSegment() {
 // ლიდმა თავისი სეგმენტიც (ზოგადი/დიასახლისი) შეინარჩუნოს და სტატუსიც.
 const MINUTE_VIEW = "minute";
 
+// რატომ არის ლიდი minute-ის პულში — ქოლცენტრს დარეკვამდე უნდა ესმოდეს,
+// ვის ურეკავს: ლიმიტამოწურულთან სულ სხვა საუბარია, ვიდრე გაჩერებულთან.
+const MINUTE_REASON = {
+  overcap: { t: "25სთ+", c: "#7c2d12", bg: "#fed7aa",
+             d: "ბოლო თვეში 25+ მიღებული საათი — shift-ზე ლიმიტი ამოწურა, minute ცალკე ითვლება" },
+  paused:  { t: "პაუზა", c: "#9a3412", bg: "#ffedd5",
+             d: "აპლიკაციაში ჩაწერა პაუზაზე აქვს" },
+  idle:    { t: "არ იღებს", c: "#92400e", bg: "#fef3c7",
+             d: "7 დღეა ან მეტია არაფერი გადაუღია" },
+  gone:    { t: "გაქრა", c: "#7f1d1d", bg: "#fee2e2",
+             d: "აპლიკაციაში საერთოდ აღარ ჩანს" },
+  retired: { t: "ვადა გავიდა", c: "#3730a3", bg: "#e0e7ff",
+             d: "კონტრაქტი გაუვიდა — 30 დღე ამოიწურა" },
+  home:    { t: "დიასახლისი", c: "#065f46", bg: "#d1fae5",
+             d: "დიასახლისი — shift-ზე აღარ ვიღებთ, minute იღებს" },
+};
+
+function minuteBadge(l, small = true) {
+  const r = MINUTE_REASON[l && l.minute_reason];
+  if (!r) return "";
+  const pad = small ? "1px 5px" : "2px 7px";
+  const fs  = small ? "10px" : "11px";
+  return `<span title="${esc(r.d)}" style="background:${r.bg};color:${r.c};border-radius:4px;`
+       + `padding:${pad};font-size:${fs};font-weight:700;flex-shrink:0;cursor:help">${r.t}</span>`;
+}
+
 function segmentParam() {
   if (!SEGMENT || !SEGMENT_READY) return "";
   if (SEGMENT === MINUTE_VIEW) return `&program=eq.minute`;
@@ -2087,6 +2125,9 @@ async function loadLeads(page) {
   // ხელახლა შემოსულები — ვინც ანკეტა მეორედ (ან მესამედ) შეავსო.
   // ახალ ჩანაწერს ბაზა არ ქმნის, ძველ ბარათს უწერს submission_count-ს,
   // ამიტომ სიაში ძველი თარიღით ჯდებიან და ოპერატორი ვერ ამჩნევს.
+  const mr = document.getElementById("filterMinuteReason")?.value || "";
+  if (mr) filters += `&minute_reason=eq.${encodeURIComponent(mr)}`;
+
   const resub = document.getElementById("filterResub")?.value || "";
   if (resub) {
     const since = new Date(Date.now() - Number(resub) * 86400e3).toISOString();
@@ -2600,7 +2641,7 @@ function renderLeads(leads, offset) {
         return sph
           ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>` + flg
           : `<span class="prio-phone" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span>`;
-      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span title="ანკეტა ${l.submission_count}-ჯერ შეავსო${l.last_submission_at?" · ბოლოს "+fmtTime(l.last_submission_at):""}" style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0;cursor:help">🔁 ${l.submission_count}×</span>`:""}${isInfluencer?"":favBtn(l.id)}</span>${FAVS.get(l.id)?`<div class="fav-hint">🔖 ${esc(FAVS.get(l.id))}</div>`:""}</td>
+      })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span title="ანკეტა ${l.submission_count}-ჯერ შეავსო${l.last_submission_at?" · ბოლოს "+fmtTime(l.last_submission_at):""}" style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0;cursor:help">🔁 ${l.submission_count}×</span>`:""}${minuteBadge(l)}${isInfluencer?"":favBtn(l.id)}</span>${FAVS.get(l.id)?`<div class="fav-hint">🔖 ${esc(FAVS.get(l.id))}</div>`:""}</td>
       <td class="td-phone">${formatPhone(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${l.status==="დუპლიკატი"?"🔁 ":""}${esc(l.status)}</span>${
@@ -2674,7 +2715,8 @@ async function openModal(id) {
     const l = data[0]; currentLead = l; currentId = id;
 
     document.getElementById("dName").value    = l.name||"";
-    document.getElementById("dMeta").innerHTML = `ID: ${esc(l.id)}`+(l.submission_count>1?` &nbsp;<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">⚠️ ${l.submission_count}-ჯერ შემოვიდა</span>`:"");
+    document.getElementById("dMeta").innerHTML = `ID: ${esc(l.id)}`+(l.submission_count>1?` &nbsp;<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700">⚠️ ${l.submission_count}-ჯერ შემოვიდა</span>`:"")
+      + (l.minute_reason ? " &nbsp;" + minuteBadge(l, false) : "");
     await loadFavorites();
     const favOn = FAVS.has(l.id);
     const favBtnEl = document.getElementById("dFavBtn");
