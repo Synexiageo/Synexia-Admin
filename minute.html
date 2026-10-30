@@ -567,7 +567,8 @@ async function submitForm() {
 
     // ლიდს ვუკავშირებთ, მაგრამ მის სტატუსს არ ვეხებით: minute ახალი
     // შეკვეთაა და ძველი სტატუსი (Retired-იც კი) მას არ უშლის ხელს.
-    const leadId = await findLead(full);
+    const lead = await findLead(full);
+    const leadId = lead && lead.id;
 
     const res = await fetch(SB_URL + "/rest/v1/registrations", {
       method: "POST",
@@ -604,7 +605,7 @@ async function submitForm() {
 
     // ლიდი minute-ზე გაფორმდა — ცრმ-ში ეს ცალკე სტატუსით ჩანს.
     // ანკეტა შენახულია; თუ სტატუსი ვერ დაჯდა, ადამიანს ეს არ უნდა შეეხოს.
-    if (leadId) await markOnboarded(leadId);
+    if (leadId) await markOnboarded(leadId, lead.status);
 
     $("doneText").textContent = leadId
       ? "მადლობა! თქვენი მონაცემები მიღებულია."
@@ -639,9 +640,15 @@ async function alreadyOnMinute(full) {
   return rows.length > 0;
 }
 
-// ანკეტის შემოსვლა = minute-ზე გაფორმება. სტატუსი ცალკეა, რომ ცრმ-ში
-// shift-ის ონბორდინგს არ აერიოს, და პულშიც ვტოვებთ minute-ის ნიშნით.
-async function markOnboarded(leadId) {
+// ანკეტის შემოსვლა = minute-ზე გაფორმება.
+//   S   — მხოლოდ shift        (ბაზაში „Onboarded")
+//   M   — მხოლოდ minute       („Onboarded minute")
+//   S M — ორივე               („Onboarded both")
+// ვინც shift-ზე უკვე გაფორმებულია, იმას არ ვაკარგვინებთ — „ორივე" ხდება.
+const ON_SHIFT = ["Onboarded", "Onboarded both"];
+
+async function markOnboarded(leadId, had) {
+  const status = ON_SHIFT.includes(had) ? "Onboarded both" : "Onboarded minute";
   try {
     await fetch(SB_URL + "/rest/v1/leads?id=eq." + encodeURIComponent(leadId), {
       method: "PATCH",
@@ -650,7 +657,7 @@ async function markOnboarded(leadId) {
         "Content-Type": "application/json", "Prefer": "return=minimal"
       },
       body: JSON.stringify({
-        status: "Onboarded minute",
+        status,
         onboarded_date: new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10),
         program: "minute",
       })
@@ -661,9 +668,9 @@ async function markOnboarded(leadId) {
 // ლიდი რომ ვერ მოიძებნოს, ანკეტა მაინც უნდა გაიგზავნოს
 async function findLead(full) {
   try {
-    const rows = await sbGet("leads?select=id&phone=eq."
+    const rows = await sbGet("leads?select=id,status&phone=eq."
       + encodeURIComponent(full) + "&limit=1");
-    return rows[0]?.id ?? null;
+    return rows[0] ?? null;
   } catch (e) { return null; }
 }
 
