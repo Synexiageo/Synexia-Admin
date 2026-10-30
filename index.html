@@ -2306,9 +2306,9 @@ const PH_JUNK = /^(|x|ki|diax|ok|ara|sxva[a-z ]*|androidi?|ucnobi|telefoni|ubral
 function phBrand(t) {
   for (const [b, kws] of PH_BRAND_KW) if (kws.some(k => t.includes(k))) return b;
   // ბრენდის გარეშე დაწერილი აიფონი — „13 pro", „17 პრო მაქსი", „11"
-  if (/^1[0-7]\b/.test(t) && /pro|max|maqs|mini|plus|pliu|^1[0-7]$/.test(t)) return "iphone";
-  if (/^1[0-7](pro|max|maqs|mini|plus)/.test(t)) return "iphone";
-  if (/^ip\s?1[0-7]\b/.test(t)) return "iphone";                    // „Ip13"
+  if (/^1[0-8]\b/.test(t) && /pro|max|maqs|mini|plus|pliu|^1[0-8]$/.test(t)) return "iphone";
+  if (/^1[0-8](pro|max|maqs|mini|plus)/.test(t)) return "iphone";
+  if (/^ip\s?1[0-8]\b/.test(t)) return "iphone";                    // „Ip13"
   if (/^(x|xr|xs|se|[5-9])\s*(s|plus|max|mini)?$/.test(t)) return "iphone";
   // ბრენდის გარეშე დაწერილი სამსუნგი — „s23 ultra", „a16", „note 20"
   if (/^(s|a|m|j|z)\s?\d/.test(t) || /^note\s?\d/.test(t)) return "samsung";
@@ -2317,30 +2317,30 @@ function phBrand(t) {
 
 // დამტკიცებული მოდელები. ცვლილება აქ ერთ ხაზში ხდება.
 const PH_ALLOW = {
-  // iPhone — 11-დან ზემოთ ვარგისია. ძველები (X, XR, XS, SE, 8 და ქვემოთ)
+  // iPhone — 11-დან 18-ის ჩათვლით ვარგისია. ძველები (X, XR, XS, SE, 8 და ქვემოთ)
   // ცნობილი მოდელებია და სტანდარტს არ აკმაყოფილებს, ანუ უარი.
   // მხოლოდ „აიფონი" მოდელის გარეშე რჩება დასაზუსტებელი.
   iphone: t => {
-    if (/1[1-7]/.test(t)) return true;
+    if (/1[1-8]/.test(t)) return true;
     if (/(?<![a-z0-9])(xr|xs|se|x|[4-9])(?![a-z0-9])/.test(t) || /\d/.test(t)) return false;
     return null;
   },
-  // Galaxy S20–S25 (FE / Ultra / + / Active / Slim), Note 20, A51–A57, A72, M31(s), Z Flip3/5/6/7, Z Fold4/5/6/7
+  // Galaxy S20–S26 (FE / Ultra / + / Active / Slim), Note 20, A51–A57, A72, M31(s), Z Flip3/5/6/7, Z Fold4/5/6/7
   samsung: t => {
     if (!/\d/.test(t)) return null;
     if (/note\s?20(?!\d)/.test(t)
      || /flip\s?[3567](?!\d)/.test(t)
      || /fold\s?[4567](?!\d)/.test(t)
-     || /(?<!\d)s\s?2[0-5](?!\d)/.test(t)
+     || /(?<!\d)s\s?2[0-6](?!\d)/.test(t)
      || /(?<!\d)a\s?(5[1-7]|72)(?!\d)/.test(t)
      || /(?<!\d)m\s?31(?!\d)/.test(t)) return true;
     if (/(?<![a-z0-9])[asmjz]\s?\d|note\s?\d|flip\s?\d|fold\s?\d/.test(t)) return false;
     // სერიის ასო არ წერია — „სამსუნგი 56". ციფრიდან გამოვითვლით:
-    // S სერია მხოლოდ 20–25-ია, Note 20, M31, Flip 3–7, Fold 4–7.
+    // S სერია მხოლოდ 20–26-ია, Note 20, M31, Flip 3–7, Fold 4–7.
     // ამ ციფრებზე სერია ვერ გამოიცნობა; ყველა სხვაზე მხოლოდ A სერია არსებობს.
     const n = (t.match(/(?<!\d)(\d{1,2})(?!\d)/) || [])[1];
     if (!n) return null;
-    if (/^(2[0-5]|31|[3-7])$/.test(n)) return null;
+    if (/^(2[0-6]|31|[3-7])$/.test(n)) return null;
     return /^(5[1-7]|72)$/.test(n);
   },
   // Pixel 7a, 7 Pro, 8/8a/8 Pro, 9/9a/9 Pro/9 Pro XL, 10/10 Pro — უბრალო Pixel 7 სიაში არ არის
