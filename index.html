@@ -2732,8 +2732,17 @@ function setSelectValue(id, value) {
 
 async function openModal(id) {
   try {
-    const { data } = await sbGet("leads", `id=eq.${id}&select=*`);
-    if (!data || !data.length) return;
+    // კონკრეტული ლიდი id-ით იხსნება და სეგმენტს არ უნდა დაემორჩილოს:
+    // კალენდარი ორივე სეგმენტს აჩვენებს, ამიტომ „ზოგადზე" მდგომი
+    // ოპერატორი დიასახლისის ბარათს ვერ ხსნიდა — ჩუმად არაფერი ხდებოდა.
+    const res = await fetch(`${SB_URL}/rest/v1/leads?id=eq.${encodeURIComponent(id)}&select=*`, {
+      headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Cache-Control": "no-cache" }
+    });
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      alert("ლიდი ვერ მოიძებნა — შესაძლოა წაშლილია.");
+      return;
+    }
     const l = data[0]; currentLead = l; currentId = id;
 
     document.getElementById("dName").value    = l.name||"";
