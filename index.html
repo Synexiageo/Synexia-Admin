@@ -2530,7 +2530,12 @@ async function loadWorkers() {
       clr.value = UNASSIGNED; clr.textContent = "— მიბმის მოხსნა —";
       bulkSel.appendChild(clr);
     }
-    if (SESSION.role !== "admin") { sel.value=SESSION.display_name; loadLeads(1); }
+    // ოპერატორს თავისი ლიდები უნდა დახვდეს. ვინც ლიდებს ანაწილებს, იმას კი
+    // სხვისი სიაც სჭირდება — თორემ ფილტრი ყოველ ჯერზე უკან, მის სახელზე ხტება.
+    if (SESSION.role !== "admin" && !canAssignLeads()) {
+      sel.value = SESSION.display_name;
+      loadLeads(1);
+    }
   } catch(e){}
 }
 
