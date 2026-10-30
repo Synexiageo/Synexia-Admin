@@ -602,6 +602,10 @@ async function submitForm() {
     }
     if (!res.ok) throw new Error(await res.text());
 
+    // ლიდი minute-ზე გაფორმდა — ცრმ-ში ეს ცალკე სტატუსით ჩანს.
+    // ანკეტა შენახულია; თუ სტატუსი ვერ დაჯდა, ადამიანს ეს არ უნდა შეეხოს.
+    if (leadId) await markOnboarded(leadId);
+
     $("doneText").textContent = leadId
       ? "მადლობა! თქვენი მონაცემები მიღებულია."
       : "მადლობა! მონაცემები მიღებულია — ოპერატორი დაგიკავშირდებათ დასაზუსტებლად.";
@@ -633,6 +637,25 @@ async function alreadyOnMinute(full) {
   const rows = await sbGet("registrations?select=id&program=eq.minute"
     + "&phone=eq." + encodeURIComponent(full) + "&limit=1");
   return rows.length > 0;
+}
+
+// ანკეტის შემოსვლა = minute-ზე გაფორმება. სტატუსი ცალკეა, რომ ცრმ-ში
+// shift-ის ონბორდინგს არ აერიოს, და პულშიც ვტოვებთ minute-ის ნიშნით.
+async function markOnboarded(leadId) {
+  try {
+    await fetch(SB_URL + "/rest/v1/leads?id=eq." + encodeURIComponent(leadId), {
+      method: "PATCH",
+      headers: {
+        "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json", "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        status: "Onboarded minute",
+        onboarded_date: new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10),
+        program: "minute",
+      })
+    });
+  } catch (e) { /* ანკეტა შენახულია — სტატუსი ოპერატორს ხელით შეუძლია */ }
 }
 
 // ლიდი რომ ვერ მოიძებნოს, ანკეტა მაინც უნდა გაიგზავნოს
