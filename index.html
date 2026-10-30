@@ -1979,6 +1979,14 @@ const STATUS_LABEL = {
   "Onboarded both":   "Onboarded S M",
 };
 const ONBOARDED = ["Onboarded", "Onboarded minute", "Onboarded both"];
+
+// დახურული საქმე — კალენდარსა და შეხსენებებში არ უნდა ჩანდეს.
+// შეხსენება დაპირებული ზარია; თუ ლიდი უკვე გაფორმდა, უარი თქვა ან
+// ვადა გაუვიდა, ძველი თარიღი კალენდარს ტყუილად ავსებს.
+const CLOSED = [...ONBOARDED, "Declined", "Retired", "Unqualified",
+                "Phone Model Issue", "დუპლიკატი"];
+const closedParam = () =>
+  "&status=not.in.(" + CLOSED.map(s => `"${encodeURIComponent(s)}"`).join(",") + ")";
 const stLabel = s => STATUS_LABEL[s] || s;
 
 function statusClass(s){
@@ -3026,7 +3034,7 @@ async function checkCalendarNotifications() {
     const tomorrow = new Date(Date.now() + 4*60*60*1000 + 86400000).toISOString().substring(0,10);
     const currentMin = nowGE.getUTCHours() * 60 + nowGE.getUTCMinutes();
 
-    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note,assigned_to&next_contact=lte.${tomorrow}&next_contact=neq.null&status=not.in.(Onboarded,"Onboarded minute","Onboarded both")&order=next_contact.asc&limit=200`);
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_time,next_contact_note,assigned_to&next_contact=lte.${tomorrow}&next_contact=neq.null${closedParam()}&order=next_contact.asc&limit=200`);
     const all = data || [];
 
     // non-admins only get reminders for leads assigned to them
@@ -3200,7 +3208,7 @@ async function bulkDelete() {
 async function loadReminders() {
   try {
     const today = new Date().toISOString().substring(0,10);
-    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_note,status&next_contact=lte.${today}&next_contact=neq.null&status=not.in.(Onboarded,"Onboarded minute","Onboarded both")&order=next_contact.asc&limit=50`);
+    const { data } = await sbGet("leads", `select=id,name,phone,next_contact,next_contact_note,status&next_contact=lte.${today}&next_contact=neq.null${closedParam()}&order=next_contact.asc&limit=50`);
     const box   = document.getElementById("remindersBox");
     const list  = document.getElementById("remindersList");
     const count = document.getElementById("remindersCount");
@@ -5138,7 +5146,7 @@ async function loadCalendar() {
   const lastDay = `${_ld.getFullYear()}-${String(_ld.getMonth()+1).padStart(2,"0")}-${String(_ld.getDate()).padStart(2,"0")}`;
   const agent = document.getElementById("calAgent")?.value || "";
   const prof  = document.getElementById("calProfession")?.value || "";
-  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to,profession,segment&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}&status=not.in.(Onboarded,"Onboarded minute","Onboarded both")&order=next_contact.asc&limit=500`;
+  let q = `select=id,name,phone,next_contact,next_contact_note,status,assigned_to,profession,segment&next_contact=gte.${firstDay}&next_contact=lte.${lastDay}${closedParam()}&order=next_contact.asc&limit=500`;
   if (agent) q += `&assigned_to=eq.${encodeURIComponent(agent)}`;
   if (prof === "__none__") q += `&profession=is.null`;
   else if (prof)           q += `&profession=eq.${encodeURIComponent(prof)}`;
