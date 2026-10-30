@@ -719,6 +719,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
             <option value="gone">გაქრა აპლიკაციიდან</option>
             <option value="retired">ვადა გავიდა</option>
             <option value="home">დიასახლისი</option>
+            <option value="phonefit">ტელეფონი ვარგა (shift-ზე არა)</option>
           </select>
         </div>
         <div class="tb-group">
@@ -1445,6 +1446,8 @@ const MINUTE_REASON = {
              d: "კონტრაქტი გაუვიდა — 30 დღე ამოიწურა" },
   home:    { t: "დიასახლისი", c: "#065f46", bg: "#d1fae5",
              d: "დიასახლისი — shift-ზე აღარ ვიღებთ, minute იღებს" },
+  phonefit:{ t: "ტელეფონი ვარგა", c: "#1e40af", bg: "#dbeafe",
+             d: "shift-ზე ტელეფონის გამო უარი უთხარით, minute-ის სტანდარტს კი აკმაყოფილებს" },
 };
 
 function minuteBadge(l, small = true) {
