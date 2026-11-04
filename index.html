@@ -1604,17 +1604,12 @@ async function showDashboard() {
   stBtn.lastChild.textContent = seesTeamStats() ? "გუნდის სტატისტიკა" : "ჩემი სტატისტიკა";
   const stTitle = document.getElementById("teamStatsTitle");
   if (stTitle) stTitle.textContent = seesTeamStats() ? "გუნდის სტატისტიკა" : "ჩემი სტატისტიკა";
-  // Onboarded-ს ოპერატორი ხელით ვერ ირჩევს — ეს სტატუსი მხოლოდ შევსებული
-  // ანკეტიდან უნდა მოდიოდეს, თორემ ონბორდინგის ციფრი ვერაფერს ზომავს.
-  // ვტოვებთ სიაში (უბრალოდ გამორთულს), რომ უკვე გაფორმებულ ლიდზე
-  // სტატუსი გაიხსნას და შენახვისას ჩუმად არ შეიცვალოს.
-  const onbOpt = [...document.getElementById("dStatus").options]
-    .find(o => o.value === "Onboarded");
-  if (onbOpt) onbOpt.disabled = SESSION.role !== "admin";
+  // სტატუსების ჩაკეტვა ლიდის გახსნაზე ხდება (applyStatusLocks): გრაფაზეც
+  // არის დამოკიდებული და აქ, სესიის აღდგენის დროს, სიები ჯერ არ არსებობს.
 
   document.getElementById("regsTabBtn").style.display = seesRegistrations() ? "" : "none";
   document.getElementById("mpTabBtn").style.display = uploadsMicrops() ? "" : "none";
-  loadMicropsPerm();
+  loadLatePerms();
   document.getElementById("rgImportToggle").style.display = (SESSION.role === "admin") ? "" : "none";
   if (SESSION.role === "influencer") {
     // hide everything except the leads tab
@@ -1663,25 +1658,37 @@ function sessionFromUser(u) {
     can_delete_leads:       !!u.can_delete_leads,
     can_edit_registrations: !!u.can_edit_registrations,
     can_assign_leads:       !!u.can_assign_leads,
-    can_upload_microps:     !!u.can_upload_microps
+    can_upload_microps:     !!u.can_upload_microps,
+    can_onboard:            !!u.can_onboard
   };
 }
 
-/** მიკროფსის უფლება ცალკე იკითხება: სვეტი მოგვიანებით დაემატა და
- *  ძველ ბაზაზე მთელ მოთხოვნას ჩააგდებდა. აქ უარესი შემთხვევა — ჩანართი არ ჩანს. */
-async function loadMicropsPerm() {
+/** ეს ორი უფლება ცალკე იკითხება: სვეტები მოგვიანებით დაემატა და ძველ
+ *  ბაზაზე მთელ მოთხოვნას ჩააგდებდა. აქ უარესი შემთხვევა — უფლება არ ჩანს.
+ *  ორივეს ერთად ვთხოვთ, ჩავარდნაზე კი მხოლოდ ძველ სვეტს — თორემ ახალი
+ *  სვეტის არქონა მიკროფსის ჩანართსაც დამალავდა. */
+async function loadLatePerms() {
   if (!SESSION || !SESSION.username) return;
-  try {
+  const read = async cols => {
     const { data } = await sbGet("users",
-      `username=eq.${encodeURIComponent(SESSION.username)}&select=can_upload_microps`);
-    if (!Array.isArray(data) || !data.length) return;
-    const can = !!data[0].can_upload_microps;
-    if (can === !!SESSION.can_upload_microps) return;
-    SESSION.can_upload_microps = can;
-    sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
-    const btn = document.getElementById("mpTabBtn");
-    if (btn) btn.style.display = uploadsMicrops() ? "" : "none";
-  } catch (e) { /* ძველი ბაზა — ჩანართი უბრალოდ არ გამოჩნდება */ }
+      `username=eq.${encodeURIComponent(SESSION.username)}&select=${cols}`);
+    return (Array.isArray(data) && data.length) ? data[0] : null;
+  };
+  let row = null;
+  try {
+    row = await read("can_upload_microps,can_onboard");
+    if (!row) row = await read("can_upload_microps");   // can_onboard ჯერ არ არსებობს
+  } catch (e) { return; }                               // ოფლაინი — ძველი სესიით ვაგრძელებთ
+  if (!row) return;
+  const microps = !!row.can_upload_microps, onboard = !!row.can_onboard;
+  if (microps === !!SESSION.can_upload_microps && onboard === !!SESSION.can_onboard) return;
+  SESSION.can_upload_microps = microps;
+  SESSION.can_onboard        = onboard;
+  sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
+  const btn = document.getElementById("mpTabBtn");
+  if (btn) btn.style.display = uploadsMicrops() ? "" : "none";
+  const st = document.getElementById("dStatus");
+  if (st) applyStatusLocks(st.value);
 }
 
 /** შენახული სესია ძველ უფლებებს ინახავს — ბაზიდან ვანახლებთ,
@@ -1981,6 +1988,10 @@ const STATUS_LABEL = {
   "Onboarded both":   "Onboarded S M",
 };
 const ONBOARDED = ["Onboarded", "Onboarded minute", "Onboarded both"];
+// minute-ის ონბორდინგი ხელით კეთდება: ანკეტა ლიდს ყოველთვის ვერ იცნობს
+// (ნომერი სხვაგვარად უწერია, ლიდი საერთოდ არ არსებობს), ამიტომ ქოლცენტრს
+// minute-ის გრაფაში ამის უფლება უნდა ჰქონდეს. shift-ს კი ისევ ანკეტა ამტკიცებს.
+const MINUTE_ONBOARDED = ["Onboarded minute", "Onboarded both"];
 
 // დახურული საქმე — კალენდარსა და შეხსენებებში არ უნდა ჩანდეს.
 // შეხსენება დაპირებული ზარია; თუ ლიდი უკვე გაფორმდა, უარი თქვა ან
@@ -2550,6 +2561,30 @@ function canDeleteLeads() {
   return !!SESSION && (SESSION.role === "admin" || SESSION.can_delete_leads);
 }
 
+// ონბორდინგზე სრული უფლება — ადმინი და ცალკე უფლებამოსილი (ხელმძღვანელი).
+function canOnboardAny() {
+  return !!SESSION && (SESSION.role === "admin" || SESSION.can_onboard);
+}
+// ქოლცენტრს minute-ის გრაფაში ონბორდინგი სჭირდება: Retired ხალხი ხელახლა
+// აქ ფორმდება და ანკეტა ყველას ვერ ცნობს. shift-ის „Onboarded" კი ხელით
+// არ იხსნება — თორემ ონბორდინგის ციფრი ვერაფერს გაზომავს.
+function canOnboardTo(status) {
+  if (!ONBOARDED.includes(status)) return true;
+  if (canOnboardAny()) return true;
+  return SEGMENT === MINUTE_VIEW && MINUTE_ONBOARDED.includes(status);
+}
+
+// სიაში ვტოვებთ, უბრალოდ გამორთულს: მიმდინარე სტატუსი ყოველთვის ღიაა,
+// თორემ ლიდის გახსნისას სხვა მნიშვნელობაზე გადახტებოდა და შენახვისას
+// სტატუსი ჩუმად შეიცვლებოდა.
+function applyStatusLocks(current) {
+  const sel = document.getElementById("dStatus");
+  if (!sel) return;
+  [...sel.options].forEach(o => {
+    if (ONBOARDED.includes(o.value)) o.disabled = o.value !== current && !canOnboardTo(o.value);
+  });
+}
+
 // ანკეტებში პირადი ნომერი, საბანკო ანგარიში და საიდენტიფიკაციო კოდია —
 // ჩანართი მხოლოდ ადმინსა და ცალკე უფლებამოსილს უჩანს (can_edit_registrations)
 // გუნდის სრული სტატისტიკა — ადმინი და ხელმძღვანელი
@@ -2773,6 +2808,8 @@ async function openModal(id) {
     document.getElementById("dRefCode").textContent = l.ref_code||"—";
     document.getElementById("dRegDate").textContent = fmtTime(l.reg_date);
     document.getElementById("dStatus").value      = l.status||"New Lead";
+    // გრაფის მიხედვით იცვლება — ამიტომ ყოველი გახსნაზე ხელახლა
+    applyStatusLocks(l.status || "New Lead");
     document.getElementById("dLegal").value       = l.legal||"";
     document.getElementById("dEmail").value       = l.email||"";
     document.getElementById("dOnboarded").value   = l.onboarded_date?String(l.onboarded_date).substring(0,10):"";
@@ -2881,6 +2918,15 @@ function recycleReason(lead, oldStatus, status) {
   return null;
 }
 
+// ვერ შევამოწმეთ — მიზეზს ჩვეულებრივ ვითხოვთ, ვიდრე უჩუმრად გავუშვებდეთ
+async function hasMinuteForm(leadId) {
+  try {
+    const { data } = await sbGet("registrations",
+      `lead_id=eq.${encodeURIComponent(leadId)}&program=eq.minute&select=id&limit=1`);
+    return Array.isArray(data) && data.length > 0;
+  } catch (e) { return false; }
+}
+
 async function saveAll() {
   if (!currentId) return;
   const savedId   = currentId;
@@ -2909,18 +2955,30 @@ async function saveAll() {
     mount_updated_at: new Date().toISOString(), mount_updated_by: SESSION.display_name || SESSION.username
   } : {};
 
-  // ონბორდინგს ანკეტა ადასტურებს, ოპერატორი არა
-  if (ONBOARDED.includes(status) && !ONBOARDED.includes(oldStatus) && SESSION.role !== "admin") {
-    alert("Onboarded-ზე გადაყვანა ხელით აღარ ხდება.\n\n"
-        + "ლიდი ავტომატურად გადადის, როცა ანკეტა შეივსება — "
+  // shift-ის ონბორდინგს ანკეტა ადასტურებს, ოპერატორი არა.
+  // minute-ს ქოლცენტრი ხელით აფორმებს, ოღონდ მხოლოდ minute-ის გრაფაში.
+  // მხოლოდ ნამდვილ ცვლილებაზე — თორემ უკვე გაფორმებულ ლიდზე
+  // ჩვეულებრივი შენახვაც (კომენტარი, შენიშვნა) აიკრძალებოდა
+  if (status !== oldStatus && !canOnboardTo(status)) {
+    alert(MINUTE_ONBOARDED.includes(status)
+      ? "minute-ზე გაფორმება მხოლოდ „⏱ minute“ გრაფაშია შესაძლებელი.\n\n"
+        + "ზემოთ გრაფა minute-ზე გადართეთ და ისე შეინახეთ."
+      : "Onboarded S-ზე გადაყვანა ხელით არ ხდება.\n\n"
+        + "ლიდი ავტომატურად გადადის, როცა shift-ის ანკეტა შეივსება — "
         + "ანკეტაში მითითებული ნომრით მოიძებნება და სტატუსი თავისით შეიცვლება.");
     document.getElementById("dStatus").value = oldStatus;
     return;
   }
 
   // უკან დაბრუნებას ახსნა სჭირდება — თორემ შენახვა არ გრძელდება
-  const recycle = recycleReason(savedLead, oldStatus, status);
+  let recycle = recycleReason(savedLead, oldStatus, status);
   let recycleNote = "";
+  // minute-ზე გაფორმებისას მიზეზი თვითონ ანკეტაა. ზედმეტად კითხვამ
+  // პირიქით იმუშავა — დროის დაზოგვას ოპერატორები შემთხვევით ტექსტს წერდნენ.
+  if (recycle && MINUTE_ONBOARDED.includes(status) && await hasMinuteForm(savedId)) {
+    recycle = null;
+    recycleNote = "minute-ის ანკეტა შევსებულია";
+  }
   if (recycle) {
     recycleNote = (prompt(recycle + "\n\nდაწერეთ, რატომ — ეს ჟურნალში შეინახება.", "") || "").trim();
     if (!recycleNote) {
