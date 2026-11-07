@@ -957,6 +957,33 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
     <div class="tab-panel" id="tabMount">
       <div id="mtNotice" class="mt-notice" style="display:none"></div>
       <div id="mtRetiredAlert" class="mt-retired-alert" style="display:none"></div>
+
+      <!-- საიტიდან შემოსული შეკვეთები — ცალკე ცხრილია, რადგან ამ ადამიანს
+           ჯერ ლიდის ბარათი არ აქვს: სულ სახელი, ნომერი და მისამართი ვიცით.
+           ზემოთ დგას, რომ ქვემოთა გრძელ სიაში არ დაიკარგოს. -->
+      <div id="moSection" class="table-wrap" style="margin-bottom:18px;display:none">
+        <div class="table-header">
+          <div class="table-count">🛒 შეკვეთა საიტიდან: <span id="moCount">0</span></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="tb-select" id="moFilter" onchange="loadMountOrders()" style="height:30px">
+              <option value="open">მიმდინარე</option>
+              <option value="">ყველა</option>
+              <option value="new">🆕 ახალი</option>
+              <option value="called">📞 დავურეკე</option>
+              <option value="sent">📦 გაიგზავნა</option>
+              <option value="delivered">✅ ჩაბარდა</option>
+              <option value="cancelled">✖ გაუქმდა</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadMountOrders()" style="height:30px;padding:0 10px">↻</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>როდის</th><th>სახელი</th><th>ტელეფონი</th><th>მისამართი</th><th>სტატუსი</th><th>კომენტარი</th><th>ბოლოს შეცვალა</th></tr></thead>
+            <tbody id="moBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
       <div class="stats-grid mt-stats">
         <div class="stat-card red mt-card"    data-mf="retired_new" onclick="mountCard(this)" id="mtRetNewCard" style="display:none"><div class="stat-label">🔔 ახლად Retired</div><div class="stat-value" id="mtRetNew">—</div></div>
         <div class="stat-card green mt-card"  data-mf="brought"     onclick="mountCard(this)"><div class="stat-label">✅ მოიტანა</div><div class="stat-value" id="mtBrought">—</div></div>
@@ -1632,7 +1659,9 @@ async function showDashboard() {
   loadStats();
   loadWorkers();
   populateProfessions();
-  probeMount().then(ok => { if (ok) mountBadge(); });
+  // mountBadge თვითონ არჩევს, რა დაითვალოს — საიტის შეკვეთები ლიდების
+  // ველებს არ ელოდება, ამიტომ probeMount-ის შედეგზე აღარ ვკიდებთ
+  probeMount().then(() => mountBadge());
   setTimeout(autoUnqualifySweep, 1200);
 }
 
@@ -1769,6 +1798,93 @@ async function probeMount() {
   return MOUNT_READY;
 }
 
+// ─── საიტიდან შემოსული შეკვეთები (mount_orders) ───────────────────────────
+// ეს ცხრილს synexia.ge-ის ფორმა ავსებს. ლიდებთან კავშირი არ აქვს — ადამიანი
+// შეიძლება ჩვენს ბაზაში საერთოდ არ იყოს, ამიტომ ცალკე სიად ჩანს.
+const MO_LABEL = { new: "🆕 ახალი", called: "📞 დავურეკე", sent: "📦 გაიგზავნა",
+                   delivered: "✅ ჩაბარდა", cancelled: "✖ გაუქმდა" };
+const MO_OPEN  = "(new,called,sent)";   // „მიმდინარე" — რაც ჯერ არ დასრულებულა
+const MO_ROWS  = new Map();
+let MO_READY = null, MO_NEW = 0;
+
+async function probeMountOrders() {
+  if (MO_READY !== null) return MO_READY;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/mount_orders?select=id&limit=1`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+    MO_READY = r.ok;
+  } catch (e) { MO_READY = false; }
+  return MO_READY;
+}
+
+// ბეჯისთვის — რამდენი შეკვეთაა ჯერ შეუხები
+async function moNewCount() {
+  if (!(await probeMountOrders())) { MO_NEW = 0; return 0; }
+  const { count } = await sbGet("mount_orders", "select=id&limit=1&status=eq.new");
+  MO_NEW = count || 0;
+  return MO_NEW;
+}
+
+async function loadMountOrders() {
+  const sec = document.getElementById("moSection");
+  if (!sec) return;
+  if (!(await probeMountOrders())) { sec.style.display = "none"; return; }
+  sec.style.display = "";
+
+  const f = document.getElementById("moFilter").value;
+  let p = "select=id,name,phone,address,status,note,handled_by,created_at&order=created_at.desc&limit=100";
+  if (f === "open")     p += `&status=in.${MO_OPEN}`;
+  else if (f)           p += `&status=eq.${encodeURIComponent(f)}`;
+
+  const { data, count } = await sbGet("mount_orders", p);
+  MO_ROWS.clear();
+  (data || []).forEach(o => MO_ROWS.set(String(o.id), o));
+  document.getElementById("moCount").textContent = count || 0;
+  document.getElementById("moBody").innerHTML = (data && data.length)
+    ? data.map(moRow).join("")
+    : `<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:22px">შეკვეთა არ მოსულა</td></tr>`;
+}
+
+function moRow(o, i) {
+  const id = esc(String(o.id));
+  const isNew = o.status === "new";
+  const opt = v => `<option value="${v}" ${o.status === v ? "selected" : ""}>${MO_LABEL[v]}</option>`;
+  return `<tr${isNew ? ' style="background:rgba(220,38,38,.05)"' : ""}>
+    <td class="td-date">${i + 1}</td>
+    <td class="td-date">${fmtTime(o.created_at)}</td>
+    <td><span class="td-name">${esc(o.name)}</span></td>
+    <td class="td-phone">${formatPhone(o.phone)}</td>
+    <td style="font-size:12.5px;color:var(--text-mid);max-width:260px">${esc(o.address)}</td>
+    <td><select class="mt-in" onchange="moSave('${id}','status',this.value,this)">
+      ${opt("new")}${opt("called")}${opt("sent")}${opt("delivered")}${opt("cancelled")}</select></td>
+    <td><input type="text" class="mt-in mt-note" value="${esc(o.note || "")}" placeholder="კომენტარი…"
+         onchange="moSave('${id}','note',this.value.trim(),this)"></td>
+    <td class="mt-by">${o.handled_by ? esc(o.handled_by) : ""}</td>
+  </tr>`;
+}
+
+async function moSave(id, field, value, el) {
+  const row = MO_ROWS.get(id) || {};
+  const body = { [field]: value || null, handled_by: SESSION.display_name || SESSION.username };
+  if (field === "status" && !value) body.status = "new";   // სტატუსი ცარიელი ვერ იქნება
+
+  const ok = await sbPatch("mount_orders", `id=eq.${encodeURIComponent(id)}`, body);
+  el.classList.remove("ok", "err"); void el.offsetWidth;
+  el.classList.add(ok ? "ok" : "err");
+  if (ok) setTimeout(() => el.classList.remove("ok"), 1200);
+  if (!ok) return;
+
+  Object.assign(row, body); MO_ROWS.set(id, row);
+  const tr = el.closest("tr");
+  if (tr) {
+    tr.style.background = row.status === "new" ? "rgba(220,38,38,.05)" : "";
+    const by = tr.querySelector(".mt-by");
+    if (by) by.textContent = body.handled_by || "";
+  }
+  await moNewCount();
+  mountBadge();
+}
+
 function mountParam(f) {
   const t = geToday();
   if (f === "brought")     return `&mount_status=eq.brought`;
@@ -1789,12 +1905,15 @@ const mountCount = f => sbGet("leads", "select=id&limit=1" + MOUNT_SCOPE + mount
 function mountSetBadge(retNew, overdue) {
   const b = document.getElementById("mountNavBadge");
   if (!b) return;
-  const n = retNew + overdue;
+  const n = retNew + overdue + MO_NEW;
   b.textContent = n; b.style.display = n ? "" : "none";
-  b.title = `${retNew} ახლად Retired · ${overdue} ვადაგადაცილებული`;
+  b.title = `${retNew} ახლად Retired · ${overdue} ვადაგადაცილებული · ${MO_NEW} ახალი შეკვეთა საიტიდან`;
 }
 async function mountBadge() {
-  if (!MOUNT_READY) return;
+  // შეკვეთები ლიდების ველებზე არ არის დამოკიდებული — ითვლება მაშინაც,
+  // როცა mount_status სვეტები ჯერ არ გაჩენილა
+  await moNewCount();
+  if (!MOUNT_READY) { mountSetBadge(0, 0); return; }
   const [r, o] = await Promise.all([mountCount("retired_new"), mountCount("overdue")]);
   mountSetBadge(r, o);
 }
@@ -1838,6 +1957,7 @@ async function loadMountTab(page) {
   mountPage = page || 1;
   const body = document.getElementById("mtBody");
   const notice = document.getElementById("mtNotice");
+  loadMountOrders();   // საიტის შეკვეთები ლიდების ველებზე არ არის დამოკიდებული
   if (!(await probeMount())) {
     notice.style.display = "";
     notice.innerHTML = "ბაზაში თავსამაგრის ველები ჯერ არ არის — Supabase-ში <b>mount.sql</b> უნდა გაეშვას.";
