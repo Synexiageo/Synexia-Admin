@@ -979,8 +979,8 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>როდის</th><th>სახელი</th><th>ტელეფონი</th><th>მისამართი</th><th>სტატუსი</th><th>კომენტარი</th><th>ბოლოს შეცვალა</th></tr></thead>
-            <tbody id="moBody"><tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
+            <thead><tr><th>#</th><th>როდის</th><th>სახელი</th><th>ტელეფონი</th><th>მისამართი</th><th>სამაგარი</th><th>სტატუსი</th><th>კომენტარი</th><th>ბოლოს შეცვალა</th></tr></thead>
+            <tbody id="moBody"><tr class="loading-row"><td colspan="9"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1832,7 +1832,7 @@ async function loadMountOrders() {
   sec.style.display = "";
 
   const f = document.getElementById("moFilter").value;
-  let p = "select=id,name,phone,address,status,note,handled_by,created_at&order=created_at.desc&limit=100";
+  let p = "select=id,name,phone,address,status,note,handled_by,created_at,model,price&order=created_at.desc&limit=100";
   if (f === "open")     p += `&status=in.${MO_OPEN}`;
   else if (f)           p += `&status=eq.${encodeURIComponent(f)}`;
 
@@ -1842,7 +1842,17 @@ async function loadMountOrders() {
   document.getElementById("moCount").textContent = count || 0;
   document.getElementById("moBody").innerHTML = (data && data.length)
     ? data.map(moRow).join("")
-    : `<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:22px">შეკვეთა არ მოსულა</td></tr>`;
+    : `<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:22px">შეკვეთა არ მოსულა</td></tr>`;
+}
+
+// ფასი ყოველთვის შეკვეთიდან იკითხება, არა აქაურ სიიდან — ტარიფის შეცვლის
+// შემდეგ ძველ შეკვეთას ის ფასი უნდა შერჩეს, რომლითაც მაშინ შეუკვეთეს.
+const MO_MODEL = { standard: "სტანდარტული", ulanzi: "Ulanzi" };
+function moModel(o) {
+  if (!o.model) return `<span style="color:var(--text-dim)">—</span>`;
+  const name = MO_MODEL[o.model] || esc(o.model);
+  const gf = o.price == null ? "" : ` <b style="color:#34d399">${esc(String(o.price))}₾</b>`;
+  return `<span style="font-size:12.5px">${name}${gf}</span>`;
 }
 
 function moRow(o, i) {
@@ -1855,6 +1865,7 @@ function moRow(o, i) {
     <td><span class="td-name">${esc(o.name)}</span></td>
     <td class="td-phone">${formatPhone(o.phone)}</td>
     <td style="font-size:12.5px;color:var(--text-mid);max-width:260px">${esc(o.address)}</td>
+    <td style="white-space:nowrap">${moModel(o)}</td>
     <td><select class="mt-in" onchange="moSave('${id}','status',this.value,this)">
       ${opt("new")}${opt("called")}${opt("sent")}${opt("delivered")}${opt("cancelled")}</select></td>
     <td><input type="text" class="mt-in mt-note" value="${esc(o.note || "")}" placeholder="კომენტარი…"
