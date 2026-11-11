@@ -623,7 +623,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <div class="tb-group" style="flex:1;min-width:220px">
           <span class="tb-label">ძიება</span>
           <div style="display:flex;gap:6px">
-            <input type="text" class="tb-input" id="filterSearch" placeholder="სახელი, ტელეფონი..." style="flex:1;height:34px" oninput="applyFilters()" onkeydown="if(event.key==='Enter')applyFilters()">
+            <input type="text" class="tb-input" id="filterSearch" placeholder="სახელი, ტელეფონი, კომენტარი..." style="flex:1;height:34px" oninput="searchTyped()" onkeydown="if(event.key==='Enter'){searchNow();}">
             <button onclick="applyFilters()" style="height:34px;padding:0 16px;background:var(--blue);color:white;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer">🔍 ძიება</button>
           </div>
         </div>
@@ -2264,7 +2264,7 @@ async function loadLeads(page) {
   if (statuses.length === 1) filters += `&status=eq.${encodeURIComponent(statuses[0])}`;
   else if (statuses.length > 1) filters += `&status=in.(${statuses.map(s=>encodeURIComponent(s)).join(",")})`;
   if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
-  if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
+  if (search)  filters += searchParam(search, await commentMatchIds(search));
 
   const environment = document.getElementById("filterEnvironment")?.value||"";
   const dateFrom = document.getElementById("filterDateFrom")?.value||"";
@@ -2736,6 +2736,39 @@ function editsRegistrations() {
 function hidesRejected() {
   if (!SESSION) return false;
   return SESSION.role === "agent" && !SESSION.handles_rejected;
+}
+
+// ── ძებნა კომენტარებშიც ──────────────────────────────────
+// კომენტარი ლიდის ბარათში არ ინახება — `activity_log.detail`-ში წერია,
+// ამიტომ `leads`-ზე გაშვებული ძებნა მას ვერ ხედავდა და ოპერატორი ვერ
+// პოულობდა იმას, რაც თავად ჩაწერა. ჯერ ჟურნალს ვეძებთ, მერე ნაპოვნ
+// ლიდებს id-ით ვურთავთ იმავე or()-ში.
+const CMT_SEARCH_MIN = 3;    // ორი ასო ათასობით კომენტარს დაემთხვევა
+const CMT_SEARCH_CAP = 400;  // მისამართის სიგრძეს ვიცავთ — 400 id-ზე მეტი არ ჩადის
+async function commentMatchIds(q) {
+  if (!q || q.length < CMT_SEARCH_MIN) return [];
+  try {
+    const { data } = await sbGet("activity_log",
+      `select=lead_id&lead_id=not.is.null&detail=ilike.*${encodeURIComponent(q)}*` +
+      `&order=timestamp.desc&limit=5000`);
+    return [...new Set((data || []).map(r => r.lead_id))].slice(0, CMT_SEARCH_CAP);
+  } catch (e) { return []; }   // ჟურნალი თუ ვერ წაიკითხა, ძებნა მაინც იმუშაოს
+}
+// ძებნა ახლა ორ ცხრილს ეკითხება — ყოველ ასოზე გაშვება ზედმეტია
+let searchTimer = null;
+function searchTyped() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => applyFilters(1), 350);
+}
+function searchNow() { clearTimeout(searchTimer); applyFilters(1); }
+function searchParam(search, cmtIds) {
+  if (!search) return "";
+  const q = encodeURIComponent(search);
+  const parts = [`name.ilike.*${q}*`, `phone.ilike.*${q}*`,
+                 `note.ilike.*${q}*`, `ref_code.ilike.*${q}*`];
+  if (cmtIds && cmtIds.length)
+    parts.push(`id.in.(${cmtIds.map(i => `"${encodeURIComponent(i)}"`).join(",")})`);
+  return `&or=(${parts.join(",")})`;
 }
 
 // ── პროფესიების ჩამონათვალი ფილტრისთვის ──────────────────
@@ -3833,7 +3866,7 @@ async function exportCSV(){
     else if (statuses.length > 1) filters += `&status=in.(${statuses.map(s=>encodeURIComponent(s)).join(",")})`;
     if (legal)   filters += `&legal=eq.${encodeURIComponent(legal)}`;
     if (refCode) filters += `&ref_code=ilike.*${encodeURIComponent(refCode)}*`;
-    if (search)  filters += `&or=(name.ilike.*${encodeURIComponent(search)}*,phone.ilike.*${encodeURIComponent(search)}*,note.ilike.*${encodeURIComponent(search)}*,ref_code.ilike.*${encodeURIComponent(search)}*)`;
+    if (search)  filters += searchParam(search, await commentMatchIds(search));
     if (environment) filters += `&environment=eq.${encodeURIComponent(environment)}`;
     filters += cityFilterParam();
     filters += regDateParam(dateFrom, dateTo);
