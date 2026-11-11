@@ -2632,7 +2632,7 @@ async function autoUnqualifySweep() {
 
 async function loadWorkers() {
   try {
-    const { data: users } = await sbGet("users", "select=username,display_name,role,segment,ref_code,receives_leads,sees_all_calendars,sees_team_stats,handles_rejected,can_delete_leads,can_edit_registrations,can_assign_leads,last_login,last_action&order=display_name");
+    const { data: users } = await sbGet("users", "select=username,display_name,role,segment,ref_code,receives_leads,sees_all_calendars,sees_team_stats,handles_rejected,can_delete_leads,can_edit_registrations,can_assign_leads,disabled,last_login,last_action&order=display_name");
     const sel = document.getElementById("filterAssigned");
     while(sel.options.length > 1) sel.remove(1);
     const taskSel = document.getElementById("taskAssignedTo");
@@ -2651,8 +2651,11 @@ async function loadWorkers() {
       if (!u.display_name) return;
       seen.add(u.display_name);
       const o = document.createElement("option");
-      o.value = u.display_name; o.textContent = u.display_name;
+      o.value = u.display_name; o.textContent = u.display_name + (u.disabled ? " (წასული)" : "");
+      // ფილტრში წასულიც რჩება — მისი ძველი ლიდები უნდა მოიძებნოს.
+      // ახალს კი აღარ ვაბამთ: გამორთულ ანგარიშზე მიბმული ლიდი დაიკარგება.
       sel.appendChild(o);
+      if (u.disabled) return;
       if (taskSel) taskSel.appendChild(o.cloneNode(true));
       // only agents (and admins) can own leads
       const inSegment = !SEGMENT || u.role === "admin" || u.segment === "all" || (u.segment || "general") === SEGMENT;
