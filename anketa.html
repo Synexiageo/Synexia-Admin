@@ -264,7 +264,7 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
         <label id="unameLabel">მომხმარებლის სახელი<span class="req">*</span></label>
         <div id="unameList"></div>
         <button type="button" id="unameAdd" class="add-more" onclick="addUsername()" style="display:none">+ კიდევ ერთი იუზერნეიმი</button>
-        <span class="hint" id="unameHint">ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით</span>
+        <span class="hint" id="unameHint">სახელი და გვარი ზუსტად ისე, როგორც აპლიკაციაში ჩაწერეთ — ლათინური ასოებით</span>
       </div>
 
       <div class="f">
@@ -329,8 +329,11 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div class="f">
         <label for="rUname">ახალი მომხმარებლის სახელი<span class="req">*</span></label>
-        <input type="text" id="rUname" placeholder="giorgi_m" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <span class="hint">ახალი იუზერნეიმი აპლიკაციაში — ლათინური ასოებით</span>
+        <div class="row">
+          <input type="text" id="rUname" placeholder="სახელი" autocomplete="off" autocapitalize="words" spellcheck="false">
+          <input type="text" id="rUnameL" placeholder="გვარი" autocomplete="off" autocapitalize="words" spellcheck="false">
+        </div>
+        <span class="hint">სახელი და გვარი ზუსტად ისე, როგორც ახალ ანგარიშზე აპლიკაციაში ჩაწერეთ — ლათინური ასოებით</span>
       </div>
 
       <div class="f">
@@ -396,24 +399,30 @@ function setEntity(kind) {
   $("unameLabel").innerHTML = (many ? "მომხმარებლის სახელები" : "მომხმარებლის სახელი") + '<span class="req">*</span>';
   if (typeof renderContract === "function") renderContract();
   $("unameHint").textContent = many
-    ? "ყველა ადამიანის იუზერნეიმი, ვინც ამ ანგარიშზე იმუშავებს — ლათინური ასოებით"
-    : "ის იუზერნეიმი, რომლითაც აპლიკაციაში დარეგისტრირდებით — ლათინური ასოებით";
+    ? "ყველა ადამიანი, ვინც ამ ანგარიშზე იმუშავებს — სახელი და გვარი ისე, როგორც აპლიკაციაშია, ლათინური ასოებით"
+    : "სახელი და გვარი ზუსტად ისე, როგორც აპლიკაციაში ჩაწერეთ — ლათინური ასოებით";
   if (!many) trimUsernames();
 }
 
 // ── იუზერნეიმების სია ───────────────────────────────────────
+// აპლიკაციაში იუზერნეიმი ორი ველია — სახელი და გვარი ცალ-ცალკე.
+// ერთ ველში ხალხი „giorgi_m"-ს წერდა და ანგარიშს ვეღარ ვპოულობდით.
 function usernameRow(value) {
   const row = document.createElement("div");
   row.className = "uname-row";
-  const inp = document.createElement("input");
-  inp.type = "text"; inp.className = "uname"; inp.placeholder = "giorgi_m";
-  inp.autocomplete = "off"; inp.autocapitalize = "off"; inp.spellcheck = false;
-  inp.value = value || "";
+  const [f0, ...l0] = String(value || "").trim().split(/\s+/);
+  const mk = (cls, ph, val) => {
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.className = "uname " + cls; inp.placeholder = ph;
+    inp.autocomplete = "off"; inp.autocapitalize = "words"; inp.spellcheck = false;
+    inp.value = val || "";
+    return inp;
+  };
   const del = document.createElement("button");
   del.type = "button"; del.className = "uname-del"; del.textContent = "✕";
   del.title = "წაშლა";
   del.onclick = () => { row.remove(); refreshUsernameRows(); };
-  row.append(inp, del);
+  row.append(mk("uname-f", "სახელი", f0), mk("uname-l", "გვარი", l0.join(" ")), del);
   return row;
 }
 function refreshUsernameRows() {
@@ -435,11 +444,19 @@ function trimUsernames() {
 }
 function readUsernames() {
   const seen = new Set(), out = [];
-  document.querySelectorAll(".uname").forEach(i => {
-    const v = i.value.trim();
+  document.querySelectorAll(".uname-row").forEach(r => {
+    const v = (r.querySelector(".uname-f").value.trim() + " " + r.querySelector(".uname-l").value.trim()).trim().replace(/\s+/g, " ");
     if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
   });
   return out;
+}
+// სტრიქონი, სადაც მხოლოდ ერთი ველია შევსებული — სახელი გვარის გარეშე ან პირიქით
+function halfUsername() {
+  for (const r of document.querySelectorAll(".uname-row")) {
+    const f = r.querySelector(".uname-f"), l = r.querySelector(".uname-l");
+    if (!!f.value.trim() !== !!l.value.trim()) return f.value.trim() ? l : f;
+  }
+  return null;
 }
 $("unameList").appendChild(usernameRow(""));
 refreshUsernameRows();
@@ -493,6 +510,13 @@ async function submitForm() {
   if (missing.length) {
     markBad(missing);
     show("err", "შეავსეთ ვარსკვლავით მონიშნული ველები");
+    return;
+  }
+  const half = halfUsername();
+  if (half) {
+    markBad([]);
+    half.classList.add("bad"); half.focus();
+    show("err", "იუზერნეიმში ჩაწერეთ სახელიც და გვარიც — ისე, როგორც აპლიკაციაშია");
     return;
   }
 
@@ -609,7 +633,7 @@ function resetForm() {
   clearMsg();
   $("btn").disabled = false;
   $("btn").textContent = "გაგზავნა";
-  ["rPid","rUname","rEmail"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  ["rPid","rUname","rUnameL","rEmail"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
   $("rMsg").className = "msg";
   $("rBtn").disabled = false;
   $("rBtn").textContent = "გაგზავნა";
@@ -639,15 +663,15 @@ function renewMsg(kind, html) {
 
 async function submitRenew() {
   $("rMsg").className = "msg";
-  ["rPid","rUname","rEmail"].forEach(id => $(id).classList.remove("bad"));
+  ["rPid","rUname","rUnameL","rEmail"].forEach(id => $(id).classList.remove("bad"));
   const pid   = $("rPid").value.replace(/\D/g, "");
-  const uname = $("rUname").value.trim();
+  const uname = ($("rUname").value.trim() + " " + $("rUnameL").value.trim()).trim().replace(/\s+/g, " ");
   const email = $("rEmail").value.trim().toLowerCase();
 
   const bad = (id, text) => { $(id).classList.add("bad"); $(id).focus(); renewMsg("err", htmlEsc(text)); };
-  if (!pid || !uname || !email) {
-    ["rPid","rUname","rEmail"].forEach(id => { if (!$(id).value.trim()) $(id).classList.add("bad"); });
-    return renewMsg("err", "შეავსეთ ვარსკვლავით მონიშნული ველები");
+  if (!pid || !$("rUname").value.trim() || !$("rUnameL").value.trim() || !email) {
+    ["rPid","rUname","rUnameL","rEmail"].forEach(id => { if (!$(id).value.trim()) $(id).classList.add("bad"); });
+    return renewMsg("err", "შეავსეთ ვარსკვლავით მონიშნული ველები — იუზერნეიმში სახელიც და გვარიც");
   }
   if (pid.length !== 11) return bad("rPid", `პირადი ნომერი უნდა იყოს 11 ციფრი — თქვენ ${pid.length} შეიყვანეთ`);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return bad("rEmail", "ელ-ფოსტა არასწორია — შეამოწმეთ მისამართი");
