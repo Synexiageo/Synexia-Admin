@@ -9,23 +9,35 @@
 // (call_id / uniqueid / linkedid, billsec / duration და ა.შ.) და ნედლ
 // შეტყობინებასაც ვინახავთ — თუ რამე ვერ ვიცანით, დაკარგული არ იქნება.
 
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, createHash } from "node:crypto";
 import { sbTable } from "../lib/bot.mjs";
 
 export const config = { path: "/api/calls" };
 
 const PROVIDER = "caller";
 
+// გასაღები რეპოში არ არის — მხოლოდ მისი SHA-256. თვითონ გასაღები
+// მფლობელის კომპიუტერზეა (Desktop/calls_webhook_token.txt) და მომწოდებელს
+// გადაეცემა. შესაცვლელად: ახალი გასაღების ჰეში აქ, ან Netlify-ში
+// CALLS_WEBHOOK_TOKEN — ის თუ არსებობს, უპირატესია.
+const TOKEN_SHA256 = "4aa853c1fcee4861b2153e8ce49ef0693eb5e4c2c7adb8c03303730605133495";
+
 function tokenOk(req) {
-  const want = process.env.CALLS_WEBHOOK_TOKEN || "";
-  if (!want) return null; // გასაღები ჯერ არ არის დაყენებული — ვკეტავთ
   const url = new URL(req.url);
   const auth = req.headers.get("authorization") || "";
   const got = req.headers.get("x-webhook-token")
     || (auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "")
     || url.searchParams.get("token") || "";
-  const a = Buffer.from(got), b = Buffer.from(want);
-  return a.length === b.length && timingSafeEqual(a, b);
+
+  const plain = process.env.CALLS_WEBHOOK_TOKEN || "";
+  if (plain) {
+    const a = Buffer.from(got), b = Buffer.from(plain);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+  if (!TOKEN_SHA256) return null; // გასაღები არსად არ არის დაყენებული — ვკეტავთ
+  const a = createHash("sha256").update(got).digest();
+  const b = Buffer.from(TOKEN_SHA256, "hex");
+  return timingSafeEqual(a, b);
 }
 
 // პირველი შევსებული ველი რამდენიმე შესაძლო სახელიდან
