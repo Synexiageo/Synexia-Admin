@@ -1557,12 +1557,55 @@ async function sbDelete(table, match) {
 }
 
 // ── AUTH ──────────────────────────────────
+// პაროლი ბაზაში დაშიფრულია და სერვერზე მოწმდება (crm_login, 37-ე SQL).
+// შესვლისას ვიღებთ სესიის ტოკენს — წევრების მართვა მხოლოდ მისით მუშაობს.
+// `missing` = ფუნქცია ბაზაში ჯერ არ არის; მაშინ ძველ გზაზე ვბრუნდებით,
+// რომ SQL-ის გაშვებამდე CRM არ გაჩერდეს.
+async function authRpc(fn, args) {
+  const res = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Cache-Control": "no-cache" },
+    body: JSON.stringify(args || {})
+  });
+  if (res.status === 404) return { missing: true };
+  if (!res.ok) throw new Error(await res.text());
+  const t = await res.text();
+  return { data: t ? JSON.parse(t) : null };
+}
+const crmToken = () => sessionStorage.getItem("sx_token") || "";
+const NEED_RELOGIN = "უსაფრთხოების განახლების გამო ერთხელ გამოდით და ხელახლა შედით.";
+
 async function doLogin() {
   const username = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value;
   const err = document.getElementById("loginErr");
   if (!username || !password) { err.style.display="block"; err.textContent="⚠ შეიყვანეთ სახელი და პაროლი"; return; }
   try {
+    const r = await authRpc("crm_login", { p_username: username, p_password: password });
+    if (!r.missing) {
+      const out = r.data || {};
+      if (!out.ok) {
+        err.style.display = "block";
+        err.textContent = out.reason === "disabled" ? "⚠ ანგარიში გამორთულია"
+          : out.reason === "locked" ? "⚠ ზედმეტად ბევრი ცდა — სცადეთ 15 წუთში"
+          : "⚠ სახელი ან პაროლი არასწორია";
+        if (out.reason === "bad") {
+          document.getElementById("loginPassword").classList.add("shake");
+          setTimeout(()=>document.getElementById("loginPassword").classList.remove("shake"),500);
+        }
+        return;
+      }
+      SESSION = sessionFromUser(out.user);
+      SEGMENT = (SESSION.role === "admin" || SESSION.segment === "all")
+        ? (localStorage.getItem("sx_segment") || "general")
+        : (SESSION.segment || "general");
+      sessionStorage.setItem("sx_session", JSON.stringify(SESSION));
+      sessionStorage.setItem("sx_token", out.token);
+      await chatInit(password);
+      showDashboard();
+      return;
+    }
+    // ── ძველი გზა: მხოლოდ სანამ 37-ე SQL გაეშვება ──
     const { data } = await sbGet("users", `username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&select=*`);
     if (data && data.length > 0 && data[0].disabled) {
       err.style.display="block"; err.textContent="⚠ ანგარიში გამორთულია";
@@ -1670,6 +1713,9 @@ async function showDashboard() {
 }
 
 function doLogout() {
+  const tok = crmToken();
+  if (tok) authRpc("crm_logout", { p_token: tok }).catch(() => {});
+  sessionStorage.removeItem("sx_token");
   SESSION = null; sessionStorage.removeItem("sx_session");
   sessionStorage.removeItem("sx_chat");
   CHAT_TOKEN = null; CHAT_OPEN = false; clearInterval(CHAT_TIMER);
@@ -3814,7 +3860,15 @@ async function createUser(){
     // minute ხედია და არა სეგმენტი — ახალ წევრს ჩვეულებრივი სეგმენტი უნდა მიეცეს
     if(SEGMENT_READY) body.segment=(SEGMENT===MINUTE_VIEW?"all":(SEGMENT||"general"));
     if(rl==="influencer"&&rc) body.ref_code=rc;
-    const ok=await sbPost("users",body);
+    let ok;
+    const r = await authRpc("crm_user_create", { p_token: crmToken(), p_username: un, p_password: pw,
+      p_display_name: dn, p_role: rl, p_segment: body.segment || null, p_ref_code: body.ref_code || null });
+    if (r.missing) ok = await sbPost("users", body);           // 37-ე SQL-მდე
+    else {
+      const out = r.data || {};
+      if (out.reason === "auth") { msg.style.display="block"; msg.style.color="var(--danger)"; msg.textContent="⚠ "+NEED_RELOGIN; return; }
+      ok = !!out.ok;
+    }
     if(ok){msg.style.display="block";msg.style.color="var(--success)";msg.textContent="✓ წევრი შეიქმნა!";["cuDisplayName","cuUsername","cuPassword","cuRefCode"].forEach(id=>document.getElementById(id).value="");document.getElementById("cuRefCodeRow").style.display="none";document.getElementById("cuRole").value="agent";setTimeout(()=>msg.style.display="none",2000);loadUsers();}
     else{msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="⚠ username უკვე არსებობს";}
   }catch(e){msg.style.display="block";msg.style.color="var(--danger)";msg.textContent="შეცდომა: "+e.message;}
@@ -3823,7 +3877,7 @@ async function changeUserRole(username, role, sel){
   const prev = sel ? sel.dataset.prev : null;
   sel.disabled = true;
   try{
-    const ok = await sbPatch("users", `username=eq.${encodeURIComponent(username)}`, { role });
+    const ok = await setUserField(username, "role", role);
     if(!ok) throw new Error("ვერ შეინახა");
     await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "როლი", detail: `@${username} → ${role}` });
     loadUsers();      // refresh badge + colour
@@ -3837,7 +3891,7 @@ async function changeUserSegment(username, segment, sel){
   const prev = sel ? sel.dataset.prev : null;
   sel.disabled = true;
   try{
-    const ok = await sbPatch("users", `username=eq.${encodeURIComponent(username)}`, { segment });
+    const ok = await setUserField(username, "segment", segment);
     if(!ok) throw new Error("ვერ შეინახა");
     await sbPost("activity_log", { timestamp: nowStr(), username: SESSION.username, display_name: SESSION.display_name, action: "სეგმენტი", detail: `@${username} → ${segment}` });
     loadUsers(); loadWorkers();
@@ -3848,7 +3902,20 @@ async function changeUserSegment(username, segment, sel){
 }
 async function deleteUser(username){
   if(!confirm(username+" წაიშალოს?")) return;
-  try{await sbDelete("users",`username=eq.${username}`);loadUsers();}catch(e){alert(e.message);}
+  try{
+    const r = await authRpc("crm_user_delete", { p_token: crmToken(), p_username: username });
+    if (r.missing) await sbDelete("users",`username=eq.${encodeURIComponent(username)}`);   // 37-ე SQL-მდე
+    else if (r.data && r.data.reason === "auth") return alert(NEED_RELOGIN);
+    else if (!r.data || !r.data.ok) return alert("ვერ წაიშალა");
+    loadUsers();
+  }catch(e){alert(e.message);}
+}
+// როლი/სეგმენტი — ადმინის ტოკენით (37-ე SQL), მანამდე პირდაპირ
+async function setUserField(username, field, value) {
+  const r = await authRpc("crm_user_set", { p_token: crmToken(), p_username: username, p_field: field, p_value: value });
+  if (r.missing) return sbPatch("users", `username=eq.${encodeURIComponent(username)}`, { [field]: value });
+  if (r.data && r.data.reason === "auth") throw new Error(NEED_RELOGIN);
+  return !!(r.data && r.data.ok);
 }
 
 // ── ACTIVITY LOG ──────────────────────────
