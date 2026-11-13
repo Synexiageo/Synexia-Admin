@@ -4129,7 +4129,12 @@ async function loadRegs() {
   if (!seesRegistrations()) return;
   document.getElementById("rgBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   try {
-    allRegs = await sbGetAll("registrations", "select=*&order=created_at.desc");
+    // პირადი ნომრები და ანგარიშები საჯარო გასაღებით აღარ იკითხება —
+    // სესიის ტოკენით (crm_registrations, 41-ე SQL). მანამდე — ძველი გზა.
+    const r = await authRpc("crm_registrations", { p_token: crmToken() });
+    if (r.missing) allRegs = await sbGetAll("registrations", "select=*&order=created_at.desc");
+    else if (r.data && r.data.ok) allRegs = r.data.rows || [];
+    else throw new Error(NEED_RELOGIN);
     await loadRenewals();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
     const matched = allRegs.filter(r => r.matched).length;
@@ -4725,7 +4730,12 @@ async function deleteReg() {
 
   const btn = document.getElementById("regEditDel");
   btn.disabled = true; btn.textContent = "იშლება...";
-  const ok = await sbDelete("registrations", `id=eq.${id}`);
+  let ok;
+  try {
+    const rr = await authRpc("crm_registration_delete", { p_token: crmToken(), p_id: id });
+    ok = rr.missing ? await sbDelete("registrations", `id=eq.${id}`) : !!(rr.data && rr.data.ok);
+    if (rr.data && rr.data.reason === "auth") { alert(NEED_RELOGIN); ok = false; }
+  } catch (e) { ok = false; }
   btn.disabled = false; btn.textContent = "🗑 წაშლა";
 
   if (!ok) {
@@ -4746,9 +4756,10 @@ async function saveRegEdit() {
   const body = { entity_type: document.getElementById("regEditType").value };
   document.querySelectorAll(".rg-edit").forEach(i => {
     if (i.dataset.key === "usernames") {
+      // მხოლოდ მძიმით — იუზერნეიმი თავად „სახელი გვარია" და ჰარს შეიცავს
       const seen = new Set(), list = [];
-      i.value.split(/[,\s]+/).forEach(n => {
-        const v = n.trim();
+      i.value.split(/[,;]+/).forEach(n => {
+        const v = n.trim().replace(/\s+/g, " ");
         if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); list.push(v); }
       });
       body.usernames = list.length ? list : null;
@@ -4770,7 +4781,12 @@ async function saveRegEdit() {
 
   const btn = document.getElementById("regEditSave");
   btn.disabled = true; btn.textContent = "ინახება...";
-  const ok = await sbPatch("registrations", `id=eq.${id}`, body);
+  let ok;
+  try {
+    const rr = await authRpc("crm_registration_update", { p_token: crmToken(), p_id: id, p_changes: body });
+    ok = rr.missing ? await sbPatch("registrations", `id=eq.${id}`, body) : !!(rr.data && rr.data.ok);
+    if (rr.data && rr.data.reason === "auth") { err.textContent = NEED_RELOGIN; err.style.display = "block"; btn.disabled = false; btn.textContent = "შენახვა"; return; }
+  } catch (e) { ok = false; }
   btn.disabled = false; btn.textContent = "შენახვა";
 
   if (!ok) { err.textContent = "შენახვა ვერ მოხერხდა"; err.style.display = "block"; return; }
