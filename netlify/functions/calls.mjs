@@ -153,7 +153,10 @@ async function save(ev) {
     headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
     body: JSON.stringify(out),
   });
-  return { ok: true, call_id: row.provider_call_id, lead: !!lead_id, agent: !!agent_name };
+  // მომწოდებელს ვუბრუნებთ მხოლოდ „მიღებულია" — არა ის, ვიპოვეთ თუ არა
+  // ლიდი. თორემ გასაღების მფლობელს შეეძლებოდა ნომრების გადამოწმება,
+  // ვინ არის ჩვენს ბაზაში.
+  return { ok: true, call_id: row.provider_call_id };
 }
 
 async function readBody(req) {
