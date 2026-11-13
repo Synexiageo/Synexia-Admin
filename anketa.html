@@ -297,6 +297,19 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
         <input type="text" id="occ" placeholder="მაგ: ავეჯის ხელოსანი" autocomplete="off">
       </div>
 
+      <div class="f">
+        <label for="heard">საიდან გაიგეთ ჩვენ შესახებ?<span class="req">*</span></label>
+        <select id="heard">
+          <option value="">— აირჩიეთ —</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>TikTok</option>
+          <option>მეგობარმა ან ნაცნობმა მითხრა</option>
+          <option>Google ან ჩვენი საიტი</option>
+          <option>სხვა</option>
+        </select>
+      </div>
+
       <div class="f" id="contractWrap" style="display:none">
         <label>ხელშეკრულება<span class="req">*</span></label>
         <button type="button" id="cOpen" class="ghost" onclick="openContract()">ხელშეკრულების გაცნობა</button>
@@ -469,7 +482,7 @@ function show(kind, text) {
 function clearMsg() { $("msg").className = "msg"; }
 
 function markBad(ids) {
-  ["fname","lname","phone","email","pid","acc","occ","cname","cid","regcity"].forEach(id => $(id).classList.remove("bad"));
+  ["fname","lname","phone","email","pid","acc","occ","cname","cid","regcity","heard"].forEach(id => $(id).classList.remove("bad"));
   document.querySelectorAll(".uname").forEach(i => i.classList.remove("bad"));
   ids.forEach(id => $(id).classList.add("bad"));
   if (ids.length) $(ids[0]).focus();
@@ -494,6 +507,7 @@ async function submitForm() {
   if (!pid)   missing.push("pid");
   if (!acc)   missing.push("acc");
   if (!occ)   missing.push("occ");
+  if (!v("heard")) missing.push("heard");
   if (ENTITY !== "individual") {
     if (!cname) missing.push("cname");
     if (!cid)   missing.push("cid");
@@ -566,25 +580,27 @@ async function submitForm() {
   btn.textContent = "იგზავნება...";
 
   try {
-    const res = await fetch(SB_URL + "/rest/v1/rpc/submit_registration", {
+    const args = {
+      p_first_name: first, p_last_name: last, p_phone: digits,
+      p_personal_id: pidDigits, p_account_number: accClean, p_occupation: occ,
+      p_usernames: usernames,
+      p_entity_type: ENTITY,
+      p_reg_city: regCity,
+      p_company_name: ENTITY !== "individual" ? cname : null,
+      p_company_id:   ENTITY !== "individual" ? cid   : null,
+      p_contract_id:  CONTRACT ? CONTRACT.id : null,
+      p_email:        email.toLowerCase()
+    };
+    const call = (fn, body) => fetch(SB_URL + "/rest/v1/rpc/" + fn, {
       method: "POST",
-      headers: {
-        "apikey": SB_KEY,
-        "Authorization": "Bearer " + SB_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        p_first_name: first, p_last_name: last, p_phone: digits,
-        p_personal_id: pidDigits, p_account_number: accClean, p_occupation: occ,
-        p_usernames: usernames,
-        p_entity_type: ENTITY,
-        p_reg_city: regCity,
-        p_company_name: ENTITY !== "individual" ? cname : null,
-        p_company_id:   ENTITY !== "individual" ? cid   : null,
-        p_contract_id:  CONTRACT ? CONTRACT.id : null,
-        p_email:        email.toLowerCase()
-      })
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(body)
     });
+    // „საიდან გაიგეთ" ახალი ფუნქციით იწერება (42-ე SQL). თუ ის ჯერ არ
+    // არსებობს ან ჩავარდა, ანკეტა ძველი გზით მაინც უნდა ჩაიწეროს — ჩავარდნისას
+    // ბაზა ყველაფერს აბრუნებს, ამიტომ ხელახლა გაგზავნა ორმაგს არ ქმნის.
+    let res = await call("submit_registration_v2", { ...args, p_heard_from: v("heard") });
+    if (!res.ok) res = await call("submit_registration", args);
 
     if (!res.ok) throw new Error(await res.text());
     const out = await res.json();
@@ -622,7 +638,8 @@ function rememberRegCity() {
 })();
 
 function resetForm() {
-  ["fname","lname","phone","pid","acc","occ","cname","cid"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  // email და heard აქამდე სიაში არ იყო — ტაბლეტზე შემდეგ ადამიანს წინას მეილი რჩებოდა
+  ["fname","lname","phone","email","pid","acc","occ","cname","cid","heard"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
   $("unameList").innerHTML = "";
   $("unameList").appendChild(usernameRow(""));
   refreshUsernameRows();

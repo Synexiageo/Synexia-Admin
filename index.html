@@ -4261,6 +4261,7 @@ function regColumns() {
           : "";
         return `<td>${tag}${sub}</td>`; } },
     { h:"ადგილი",           cell:r => `<td>${r.reg_city ? esc(r.reg_city) : DIM}</td>` },
+    { h:"საიდან გაიგო",     cell:r => `<td>${r.heard_from ? esc(r.heard_from) : DIM}</td>` },
     { h:"სახელი გვარი",     cell:r => `<td class="td-name">${esc(r.first_name)} ${esc(r.last_name)}</td>` },
     { h:"იუზერნეიმი",       cell:r => { const u = usernamesOf(r); return `<td>${u.length
         ? `<span style="display:flex;flex-wrap:wrap;gap:4px">` + u.map(n =>
@@ -4422,7 +4423,7 @@ function exportRegsXlsx() {
   const ren = q ? renewalsFiltered() : allRenewals;
   if (!list.length && !ren.length) { alert("ჩანაწერი არ არის"); return; }
   const header = ["ჩანაწერი","თარიღი","პროგრამა","კატეგორია","ტარიფი","ადგილი","ტიპი","სახელი გვარი","იუზერნეიმი","კომპანია","ს/კ",
-                  "ტელეფონი","ელ-ფოსტა","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"];
+                  "ტელეფონი","ელ-ფოსტა","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM","საიდან გაიგო"];
   const renRows = ren.map(n => [
     "ხელშეკრულების განახლება",
     String(n.created_at||"").substring(0,10),
@@ -4437,7 +4438,7 @@ function exportRegsXlsx() {
     "ახალი იუზერნეიმი და ელ-ფოსტა"
       + (n.old_email ? " · ძველი ელ-ფოსტა: " + n.old_email : "")
       + (n.registered_at ? " · პირველი რეგისტრაცია: " + String(n.registered_at).substring(0,10) : ""),
-    n.lead_id ? "დაემთხვა" : "ვერ მოიძებნა"
+    n.lead_id ? "დაემთხვა" : "ვერ მოიძებნა", ""
   ]);
   const rows = renRows.concat(list.map(r => [
     "ახალი ანკეტა",
@@ -4452,7 +4453,7 @@ function exportRegsXlsx() {
     isBusiness(r) ? r.company_name : "",
     isBusiness(r) ? r.company_id   : "",
     r.phone, r.email, r.personal_id, r.account_number, r.occupation, r.note,
-    r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
+    r.matched ? "დაემთხვა" : "ვერ მოიძებნა", r.heard_from || ""
   ]));
   const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
   downloadXlsx(`Synexia_ანკეტები_${day}.xlsx`, "ანკეტები", header, rows);
