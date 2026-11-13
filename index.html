@@ -1122,6 +1122,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <button id="rgSecBiz" onclick="setRegSection('business')" class="rg-sec">
           ბიზნესი <span class="rg-sec-n" id="rgSecBizN">0</span>
         </button>
+        <button id="rgSecRen" onclick="setRegSection('renewals')" class="rg-sec">
+          ხელშეკრულების განახლებები <span class="rg-sec-n" id="rgSecRenN">0</span>
+        </button>
       </div>
 
       <div class="toolbar" style="margin-bottom:14px">
@@ -3115,12 +3118,17 @@ function renderHistory(hist) {
   const hEl = document.getElementById("leadHistory");
   const entries = (hist||[]).filter(e => {
     if (e.action === "კომენტარი") return true;
+    if (e.action === "ხელშეკრულების განახლება") return true;
     if (e.action === "განახლება" && (e.detail||"").includes("კომენტარი: \"")) return true;
     if (e.action === "განახლება" && (e.detail||"").includes("სტატუსი:")) return true;
     return false;
   });
   if (!entries.length) { hEl.innerHTML='<div style="color:var(--text-dim);font-size:12.5px;padding:8px 0">კომენტარი ჯერ არ არის</div>'; return; }
   hEl.innerHTML = entries.map(e => {
+    // ანკეტიდან — ადამიანმა ხელშეკრულება განაახლა (38-ე SQL)
+    if (e.action === "ხელშეკრულების განახლება") {
+      return `<div class="comment-item" style="border-left:3px solid #34d399"><div class="comment-item-who" style="color:#34d399">📄 ხელშეკრულება განაახლა <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc((e.detail||"").replace(/^ხელშეკრულება განაახლა · /, ""))}</div></div>`;
+    }
     if (e.action === "კომენტარი") {
       return `<div class="comment-item"><div class="comment-item-who">${esc(e.display_name||e.username||"?")} <span style="font-size:11px;font-weight:400;color:var(--text-dim)">${esc(fmtTime(e.timestamp))}</span></div><div class="comment-item-text">${esc(e.detail||"")}</div></div>`;
     }
@@ -4122,6 +4130,7 @@ async function loadRegs() {
   document.getElementById("rgBody").innerHTML = '<tr class="loading-row"><td colspan="8"><div class="dot-spin"><span></span><span></span><span></span></div></td></tr>';
   try {
     allRegs = await sbGetAll("registrations", "select=*&order=created_at.desc");
+    await loadRenewals();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
     const matched = allRegs.filter(r => r.matched).length;
     document.getElementById("rgTotal").textContent     = allRegs.length;
@@ -4152,7 +4161,56 @@ function setRegSection(sec) {
   REG_SECTION = sec;
   document.getElementById("rgSecInd").classList.toggle("on", sec === "individual");
   document.getElementById("rgSecBiz").classList.toggle("on", sec === "business");
+  document.getElementById("rgSecRen").classList.toggle("on", sec === "renewals");
   filterRegs();
+}
+
+// ── ხელშეკრულების განახლებები (anketa.html → „განახლება") ──
+// პირადი ნომერი და მეილი საჯარო გასაღებით არ იკითხება — მხოლოდ სესიის
+// ტოკენით (crm_renewals, 38-ე SQL). ტოკენი შესვლისას გაიცემა.
+let allRenewals = [], RENEW_NOTE = "";
+async function loadRenewals() {
+  allRenewals = []; RENEW_NOTE = "";
+  try {
+    const r = await authRpc("crm_renewals", { p_token: crmToken() });
+    if (r.missing) RENEW_NOTE = "განახლებების სანახავად ბაზაში 38-ე SQL უნდა გაეშვას.";
+    else if (r.data && r.data.ok) allRenewals = r.data.rows || [];
+    else if (r.data && r.data.reason === "forbidden") RENEW_NOTE = "განახლებების ნახვის უფლება არ გაქვთ.";
+    else RENEW_NOTE = NEED_RELOGIN;
+  } catch (e) { RENEW_NOTE = "განახლებები ვერ ჩაიტვირთა: " + e.message; }
+}
+function renewalsFiltered() {
+  const q = (document.getElementById("rgSearch")?.value||"").trim().toLowerCase();
+  if (!q) return allRenewals;
+  return allRenewals.filter(n =>
+    ((n.first_name||"") + " " + (n.last_name||"")).toLowerCase().includes(q)
+    || (n.phone||"").includes(q) || (n.personal_id||"").includes(q)
+    || (n.username||"").toLowerCase().includes(q) || (n.email||"").toLowerCase().includes(q));
+}
+const RENEW_COLS = [
+  { h:"#",                   cell:(n,i) => `<td class="td-date">${i+1}</td>` },
+  { h:"განახლების თარიღი",   cell:n => `<td class="td-date">${esc(String(n.created_at||"").substring(0,10))}</td>` },
+  { h:"სახელი გვარი",        cell:n => `<td class="td-name">${n.first_name ? esc(n.first_name + " " + (n.last_name||"")) : DIM}</td>` },
+  { h:"ტელეფონი",            cell:n => `<td class="td-phone">${n.phone ? formatPhone(n.phone) : DIM}</td>` },
+  { h:"პირადი ნომერი",       cell:n => `<td>${esc(n.personal_id||"")}</td>` },
+  { h:"ახალი იუზერნეიმი",    cell:n => `<td><span style="font-family:ui-monospace,monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px">${esc(n.username||"")}</span></td>` },
+  { h:"ახალი ელ-ფოსტა",      cell:n => `<td>${esc(n.email||"")}</td>` },
+  { h:"ძველი ელ-ფოსტა",      cell:n => `<td>${n.old_email ? esc(n.old_email) : DIM}</td>` },
+  { h:"პირველი რეგისტრაცია", cell:n => `<td class="td-date">${n.registered_at ? esc(String(n.registered_at).substring(0,10)) : DIM}</td>` },
+  { h:"ადგილი",              cell:n => `<td>${n.reg_city ? esc(n.reg_city) : DIM}</td>` }
+];
+function renderRenewals() {
+  document.getElementById("rgHead").innerHTML = "<tr>" + RENEW_COLS.map(c => `<th>${c.h}</th>`).join("") + "</tr>";
+  const list = renewalsFiltered();
+  document.getElementById("rgCount").textContent = list.length;
+  if (!list.length) {
+    document.getElementById("rgBody").innerHTML = `<tr><td colspan="${RENEW_COLS.length}"><div class="empty-state"><p>${esc(RENEW_NOTE || "განახლება ჯერ არ არის")}</p></div></td></tr>`;
+    return;
+  }
+  document.getElementById("rgBody").innerHTML = list.map((n, i) => {
+    const click = n.lead_id ? ` onclick="openModal('${esc(n.lead_id)}')" style="cursor:pointer"` : "";
+    return `<tr${click}>` + RENEW_COLS.map(c => c.cell(n, i)).join("") + `</tr>`;
+  }).join("");
 }
 
 // withSection=false — განყოფილებას არ ვუყურებთ. ექსპორტს სჭირდება: ფიზიკურიც და ბიზნესიც.
@@ -4209,6 +4267,7 @@ function regColumns() {
   }
   cols.push(
     { h:"ტელეფონი",         cell:r => `<td class="td-phone">${formatPhone(r.phone)}</td>` },
+    { h:"ელ-ფოსტა",         cell:r => `<td>${r.email ? esc(r.email) : DIM}</td>` },
     { h:"პირადი ნომერი",    cell:r => `<td>${r.personal_id ? esc(r.personal_id) : DIM}</td>` },
     { h:"საბანკო ანგარიში", cell:r => `<td>${r.account_number ? esc(r.account_number) : DIM}</td>` },
     { h:"საქმიანობა",       cell:r => `<td>${r.occupation ? esc(r.occupation) : DIM}</td>` },
@@ -4228,6 +4287,8 @@ const DIM = '<span style="color:var(--text-dim)">—</span>';
 function filterRegs() {
   document.getElementById("rgSecIndN").textContent = allRegs.filter(r => !isBusiness(r)).length;
   document.getElementById("rgSecBizN").textContent = allRegs.filter(isBusiness).length;
+  document.getElementById("rgSecRenN").textContent = allRenewals.length;
+  if (REG_SECTION === "renewals") return renderRenewals();
 
   const cols = regColumns();
   document.getElementById("rgHead").innerHTML =
@@ -4348,10 +4409,29 @@ function exportRegsXlsx() {
                  + `„OK" — მხოლოდ ეს ${hit.length}\n„Cancel" — ყველა ${allRegs.length}`)
            ? hit : allRegs;
   }
-  if (!list.length) { alert("ჩანაწერი არ არის"); return; }
-  const header = ["თარიღი","პროგრამა","კატეგორია","ტარიფი","ადგილი","ტიპი","სახელი გვარი","იუზერნეიმი","კომპანია","ს/კ",
-                  "ტელეფონი","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"];
-  const rows = list.map(r => [
+  // განახლებები ზემოთ, „ჩანაწერი" სვეტით — რომ ახალ ანკეტაში არ აირიოს
+  const ren = q ? renewalsFiltered() : allRenewals;
+  if (!list.length && !ren.length) { alert("ჩანაწერი არ არის"); return; }
+  const header = ["ჩანაწერი","თარიღი","პროგრამა","კატეგორია","ტარიფი","ადგილი","ტიპი","სახელი გვარი","იუზერნეიმი","კომპანია","ს/კ",
+                  "ტელეფონი","ელ-ფოსტა","პირადი ნომერი","საბანკო ანგარიში","საქმიანობა","შენიშვნა","CRM"];
+  const renRows = ren.map(n => [
+    "ხელშეკრულების განახლება",
+    String(n.created_at||"").substring(0,10),
+    n.program ? (PROGRAM_LABEL[n.program] || n.program) : PROGRAM_LABEL.microps,
+    "", "",
+    n.reg_city || "",
+    ENTITY_LABEL[n.entity_type || "individual"] || "",
+    [n.first_name, n.last_name].filter(Boolean).join(" ").trim(),
+    n.username || "",
+    n.entity_type && n.entity_type !== "individual" ? (n.company_name || "") : "", "",
+    n.phone || "", n.email || "", n.personal_id || "", "", "",
+    "ახალი იუზერნეიმი და ელ-ფოსტა"
+      + (n.old_email ? " · ძველი ელ-ფოსტა: " + n.old_email : "")
+      + (n.registered_at ? " · პირველი რეგისტრაცია: " + String(n.registered_at).substring(0,10) : ""),
+    n.lead_id ? "დაემთხვა" : "ვერ მოიძებნა"
+  ]);
+  const rows = renRows.concat(list.map(r => [
+    "ახალი ანკეტა",
     String(r.created_at||"").substring(0,10),
     PROGRAM_LABEL[programOf(r)] || programOf(r),
     r.tier ? (TIER_LABEL[r.tier] || r.tier) : "",
@@ -4362,9 +4442,9 @@ function exportRegsXlsx() {
     usernamesOf(r).join(", "),
     isBusiness(r) ? r.company_name : "",
     isBusiness(r) ? r.company_id   : "",
-    r.phone, r.personal_id, r.account_number, r.occupation, r.note,
+    r.phone, r.email, r.personal_id, r.account_number, r.occupation, r.note,
     r.matched ? "დაემთხვა" : "ვერ მოიძებნა"
-  ]);
+  ]));
   const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tbilisi" });
   downloadXlsx(`Synexia_ანკეტები_${day}.xlsx`, "ანკეტები", header, rows);
 }
