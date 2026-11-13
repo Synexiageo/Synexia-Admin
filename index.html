@@ -1355,6 +1355,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         </div>
         <div class="d-grid full"><div class="d-field"><label class="d-label">კომენტარი</label><input type="text" class="d-input" id="dMountNote" placeholder="მაგ. ხვალ ოფისში მოიტანს"></div></div>
       </div>
+      <div class="history-section" id="leadCallsWrap" style="display:none">
+        <div class="d-section-title" style="margin-top:8px">ზარები</div>
+        <div id="leadCalls" style="margin-top:6px"></div>
+      </div>
       <div class="history-section">
         <div class="d-section-title" style="margin-top:8px">კომენტარები და ცვლილებები</div>
         <div class="comment-input-wrap">
@@ -3012,10 +3016,39 @@ async function openModal(id) {
       sbPatch("leads", `id=eq.${id}`, { viewed:true, viewed_by:SESSION.display_name, viewed_at:new Date().toISOString() });
     }
 
+    loadLeadCalls(id);
     // load history
     const { data: hist } = await sbGet("activity_log", `lead_id=eq.${id}&order=created_at.desc&limit=50&select=*`);
     renderHistory(hist);
   } catch(e) { alert("შეცდომა: "+e.message); }
+}
+
+// ── ზარები (ტელეფონიის webhook-იდან, netlify/functions/calls.mjs) ──
+// ჩანაწერის ბმული აქ არ ჩანს — საჯარო გასაღებით ის არ იკითხება.
+const CALL_STATUS = { answered:"უპასუხა", no_answer:"არ უპასუხა", busy:"დაკავებული", failed:"ვერ შედგა" };
+function fmtDur(s) {
+  if (!s) return "";
+  const m = Math.floor(s / 60), r = s % 60;
+  return m ? `${m} წთ ${r} წმ` : `${r} წმ`;
+}
+async function loadLeadCalls(id) {
+  const wrap = document.getElementById("leadCallsWrap"), box = document.getElementById("leadCalls");
+  wrap.style.display = "none"; box.innerHTML = "";
+  try {
+    const { data } = await sbGet("calls",
+      `lead_id=eq.${encodeURIComponent(id)}&select=direction,status,agent_ext,agent_name,started_at,duration_sec&order=started_at.desc.nullslast&limit=30`);
+    if (currentId !== id || !data || !data.length) return;
+    box.innerHTML = data.map(c => {
+      const arrow = c.direction === "inbound" ? "↙ შემომავალი" : c.direction === "outbound" ? "↗ გამავალი" : "ზარი";
+      const ok = c.status === "answered";
+      const st = CALL_STATUS[c.status] || esc(c.status || "—");
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg2);font-size:12.5px">`
+        + `<span style="width:7px;height:7px;border-radius:50%;background:${ok ? "#34d399" : "#f59e0b"};flex-shrink:0"></span>`
+        + `<span><b>${esc(c.agent_name || c.agent_ext || "?")}</b> — ${arrow} · ${st}${ok && c.duration_sec ? " · " + fmtDur(c.duration_sec) : ""}</span>`
+        + `<span style="margin-left:auto;font-size:11px;color:var(--text-dim);white-space:nowrap">${c.started_at ? esc(fmtTime(c.started_at)) : ""}</span></div>`;
+    }).join("");
+    wrap.style.display = "";
+  } catch (e) { /* ცხრილი ჯერ არ არსებობს ან ქსელი — ბარათი ზარების გარეშე იხსნება */ }
 }
 function closeModal(){ currentId=null; currentLead=null; document.getElementById("modalOverlay").classList.remove("open"); document.getElementById("commentInput").value=""; }
 function handleOverlayClick(e){ if(e.target===document.getElementById("modalOverlay"))closeModal(); }
