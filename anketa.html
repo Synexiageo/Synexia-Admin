@@ -167,6 +167,21 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
   padding:13px 26px; font-size:15px; margin-top:8px;}
 .again:hover{background:var(--field); color:var(--ink);}
 
+/* პირველი ეკრანი — ორი არჩევანი */
+.choice{display:flex; flex-direction:column; gap:14px; margin-top:22px;}
+.choice button{margin:0; display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  text-align:left; padding:22px 22px;}
+.choice button .t{font-size:19px; font-weight:700;}
+.choice button .s{font-size:14px; font-weight:500; opacity:.85;}
+.choice button.alt{background:var(--field); color:var(--ink); border:1.5px solid var(--line); box-shadow:none;}
+.choice button.alt:hover{background:var(--field-on); border-color:var(--line-on);}
+.back{margin:0 0 4px; align-self:flex-start; background:none; box-shadow:none; color:var(--ink-2);
+  padding:6px 2px; font-size:14.5px; font-weight:600;}
+.back:hover{background:none; color:var(--ink);}
+.note{background:rgba(245,165,36,.1); border:1px solid rgba(245,165,36,.32); color:#FCD34D;
+  border-radius:12px; padding:13px 15px; font-size:14px; line-height:1.5;}
+.note a{color:#FDE68A; font-weight:700; cursor:pointer; text-decoration:underline;}
+
 @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
 </style>
 </head>
@@ -178,9 +193,27 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
     <span class="brand-name">Synexia</span>
   </div>
 
-  <div id="formWrap">
+  <div id="choiceWrap">
     <div class="head">
       <h1>სარეგისტრაციო ანკეტა</h1>
+      <p>აირჩიეთ, რა გსურთ</p>
+    </div>
+    <div class="choice">
+      <button type="button" onclick="goTo('new')">
+        <span class="t">1. ხელშეკრულების დადება</span>
+        <span class="s">პირველად რეგისტრირდებით</span>
+      </button>
+      <button type="button" class="alt" onclick="goTo('renew')">
+        <span class="t">2. ხელშეკრულების განახლება</span>
+        <span class="s">უკვე რეგისტრირებული ხართ და გაქვთ ახალი იუზერნეიმი ან მეილი</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="formWrap" style="display:none">
+    <button type="button" class="back" onclick="goTo('choice')">← უკან</button>
+    <div class="head">
+      <h1>ხელშეკრულების დადება</h1>
       <p>შეავსეთ მონაცემები — ანაზღაურება ამ ანგარიშზე ჩაირიცხება</p>
     </div>
 
@@ -272,6 +305,41 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
 
       <div class="msg" id="msg"></div>
       <button id="btn" onclick="submitForm()">გაგზავნა</button>
+    </form>
+  </div>
+
+  <div id="renewWrap" style="display:none">
+    <button type="button" class="back" onclick="goTo('choice')">← უკან</button>
+    <div class="head">
+      <h1>ხელშეკრულების განახლება</h1>
+      <p>მხოლოდ მათთვის, ვინც უკვე დარეგისტრირებულია</p>
+    </div>
+
+    <form onsubmit="return false" autocomplete="off" style="margin-top:20px">
+      <div class="note">
+        ჯერ არ ხართ რეგისტრირებული? ეს გვერდი თქვენთვის არ არის —
+        <a onclick="goTo('new')">დაბრუნდით ხელშეკრულების დადებაზე</a>.
+      </div>
+
+      <div class="f">
+        <label for="rPid">პირადი ნომერი<span class="req">*</span></label>
+        <input type="text" id="rPid" inputmode="numeric" maxlength="11" placeholder="01001000000" autocomplete="off">
+        <span class="hint">11 ციფრი — იგივე, რომლითაც დარეგისტრირდით</span>
+      </div>
+
+      <div class="f">
+        <label for="rUname">ახალი მომხმარებლის სახელი<span class="req">*</span></label>
+        <input type="text" id="rUname" placeholder="giorgi_m" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <span class="hint">ახალი იუზერნეიმი აპლიკაციაში — ლათინური ასოებით</span>
+      </div>
+
+      <div class="f">
+        <label for="rEmail">ახალი ელ-ფოსტა<span class="req">*</span></label>
+        <input type="email" id="rEmail" placeholder="name@example.com" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <div class="msg" id="rMsg"></div>
+      <button id="rBtn" onclick="submitRenew()">გაგზავნა</button>
     </form>
   </div>
 
@@ -541,10 +609,86 @@ function resetForm() {
   clearMsg();
   $("btn").disabled = false;
   $("btn").textContent = "გაგზავნა";
-  $("done").classList.remove("show");
-  $("formWrap").style.display = "";
-  $("fname").focus();
+  ["rPid","rUname","rEmail"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  $("rMsg").className = "msg";
+  $("rBtn").disabled = false;
+  $("rBtn").textContent = "გაგზავნა";
+  // ტაბლეტზე შემდეგი ადამიანი ისევ არჩევანიდან იწყებს
+  goTo("choice");
 }
+
+// ── გვერდები: არჩევანი / დადება / განახლება ────────────────
+function goTo(page) {
+  $("choiceWrap").style.display = page === "choice" ? "" : "none";
+  $("formWrap").style.display   = page === "new"    ? "" : "none";
+  $("renewWrap").style.display  = page === "renew"  ? "" : "none";
+  $("done").classList.remove("show");
+  window.scrollTo(0, 0);
+  if (page === "new")   $("fname").focus();
+  if (page === "renew") $("rPid").focus();
+}
+
+// ── ხელშეკრულების განახლება ─────────────────────────────────
+// ძველ ანკეტას არ ვცვლით: ბაზა პირადი ნომრით პოულობს და განახლებას
+// ცალკე ინახავს, ახალ იუზერნეიმს კი ანკეტის სიას ამატებს.
+function renewMsg(kind, html) {
+  const m = $("rMsg");
+  m.className = "msg show " + kind;
+  m.innerHTML = html;
+}
+
+async function submitRenew() {
+  $("rMsg").className = "msg";
+  ["rPid","rUname","rEmail"].forEach(id => $(id).classList.remove("bad"));
+  const pid   = $("rPid").value.replace(/\D/g, "");
+  const uname = $("rUname").value.trim();
+  const email = $("rEmail").value.trim().toLowerCase();
+
+  const bad = (id, text) => { $(id).classList.add("bad"); $(id).focus(); renewMsg("err", htmlEsc(text)); };
+  if (!pid || !uname || !email) {
+    ["rPid","rUname","rEmail"].forEach(id => { if (!$(id).value.trim()) $(id).classList.add("bad"); });
+    return renewMsg("err", "შეავსეთ ვარსკვლავით მონიშნული ველები");
+  }
+  if (pid.length !== 11) return bad("rPid", `პირადი ნომერი უნდა იყოს 11 ციფრი — თქვენ ${pid.length} შეიყვანეთ`);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return bad("rEmail", "ელ-ფოსტა არასწორია — შეამოწმეთ მისამართი");
+  $("rPid").value = pid;
+
+  const btn = $("rBtn");
+  btn.disabled = true;
+  btn.textContent = "იგზავნება...";
+  try {
+    const res = await fetch(SB_URL + "/rest/v1/rpc/renew_registration", {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_personal_id: pid, p_username: uname, p_email: email })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const out = await res.json();
+
+    if (!out || out.ok === false) {
+      btn.disabled = false; btn.textContent = "გაგზავნა";
+      if (out && out.reason === "not_found") {
+        $("rPid").classList.add("bad");
+        return renewMsg("warn", "ამ პირადი ნომრით რეგისტრაცია ვერ მოიძებნა. თუ ჯერ არ ხართ რეგისტრირებული — " +
+          '<a onclick="goTo(\'new\')" style="color:#FDE68A;font-weight:700;text-decoration:underline;cursor:pointer">დაბრუნდით ხელშეკრულების დადებაზე</a>.');
+      }
+      return renewMsg("err", "მონაცემები არასწორია. შეამოწმეთ და სცადეთ ხელახლა.");
+    }
+
+    $("doneText").textContent = "მადლობა! ახალი იუზერნეიმი და ელ-ფოსტა მიღებულია.";
+    $("renewWrap").style.display = "none";
+    $("done").classList.add("show");
+    window.scrollTo(0, 0);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = "გაგზავნა";
+    renewMsg("err", "დაფიქსირდა შეცდომა. სცადეთ ხელახლა ან მიმართეთ ოპერატორს.");
+  }
+}
+
+$("rPid").addEventListener("input", e => {
+  const clean = e.target.value.replace(/\D/g, "");
+  if (clean !== e.target.value) e.target.value = clean;
+});
 
 // მხოლოდ ციფრები — ტელეფონსა და პირად ნომერში
 $("acc").addEventListener("input", e => {
