@@ -545,6 +545,9 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <button class="nav-tab" id="logTabBtn" onclick="switchTab('log',this)" style="display:none">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>აქტივობა
       </button>
+      <button class="nav-tab" id="callsTabBtn" onclick="switchTab('calls',this)" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg>ზარები <span id="callsNavBadge" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 6px;font-size:10px;margin-left:2px;font-weight:700"></span>
+      </button>
       <button class="nav-tab" onclick="switchTab('calendar',this)">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>კალენდარი
       </button>
@@ -1207,6 +1210,39 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <div class="log-wrap" id="logWrap"><div class="log-empty">იტვირთება...</div></div>
     </div>
 
+    <!-- ზარები (ტელეფონიის webhook-იდან) -->
+    <div class="tab-panel" id="tabCalls">
+      <div class="section-head">
+        <span class="section-title">ზარები</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select class="tb-select" id="callsPeriod" onchange="callsPeriodChange()" style="height:32px;font-size:12px">
+            <option value="0">დღეს</option>
+            <option value="1">გუშინ</option>
+            <option value="7">ბოლო 7 დღე</option>
+            <option value="30">ბოლო 30 დღე</option>
+            <option value="range">📅 თარიღით</option>
+          </select>
+          <input type="date" class="tb-input" id="callsFrom" onchange="loadCalls()" style="height:32px;font-size:12px;display:none" title="დან">
+          <input type="date" class="tb-input" id="callsTo" onchange="loadCalls()" style="height:32px;font-size:12px;display:none" title="მდე">
+          <select class="tb-select" id="callsAgent" onchange="renderCalls()" style="height:32px;font-size:12px"><option value="">ყველა ოპერატორი</option></select>
+          <select class="tb-select" id="callsKind" onchange="renderCalls()" style="height:32px;font-size:12px">
+            <option value="">ყველა ზარი</option>
+            <option value="callback">გადასარეკი</option>
+            <option value="inbound">შემომავალი</option>
+            <option value="outbound">გამავალი</option>
+            <option value="answered">ნაპასუხები</option>
+            <option value="missed">უპასუხო</option>
+          </select>
+          <button class="btn btn-outline" onclick="loadCalls()" style="height:32px;padding:0 12px;font-size:12px">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>განახლება
+          </button>
+        </div>
+      </div>
+      <div class="stats-grid mt-stats" id="callsStats"></div>
+      <div id="callsAgents" style="margin-bottom:16px"></div>
+      <div class="table-wrap" style="overflow-x:auto"><div id="callsList"><div class="log-empty">იტვირთება...</div></div></div>
+    </div>
+
     <div class="tab-panel" id="tabTasks">
       <div class="section-head">
         <span class="section-title">🚩 ამოცანები</span>
@@ -1671,6 +1707,8 @@ async function showDashboard() {
   // აქტივობის ჟურნალი — ვინც გუნდის სტატისტიკას ხედავს, ისიც.
   // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ჩანართი დარჩება.
   document.getElementById("logTabBtn").style.display = seesTeamStats() ? "" : "none";
+  // ზარების გვერდი — იგივე წრე, ვინც აქტივობის ჟურნალს ხედავს
+  document.getElementById("callsTabBtn").style.display = seesTeamStats() ? "" : "none";
   // ორივე მიმართულებით — თორემ სხვისი სესიის შემდეგ ჩექბოქსი დარჩება
   document.getElementById("thSelectAll").style.display = (canDeleteLeads() || canAssignLeads()) ? "" : "none";
   // გუნდის სტატისტიკა — ადმინს და ცალკე უფლებამოსილს (ხელმძღვანელს).
@@ -2128,6 +2166,7 @@ function switchTab(name, btn) {
   // დამალული ჩანართი პირდაპირაც არ უნდა გაიხსნას
   if (name === "teamStats" && !seesOwnStats()) return;
   if (name === "log" && !seesTeamStats()) return;
+  if (name === "calls" && !seesTeamStats()) return;
   if (name === "regs" && !seesRegistrations()) return;
   if (name === "microps" && !uploadsMicrops()) return;
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
@@ -2144,6 +2183,7 @@ function switchTab(name, btn) {
   if (name==="regs")       loadRegs();
   if (name==="mount")      loadMountTab(1);
   if (name==="microps")    loadMicrops();
+  if (name==="calls")      loadCalls();
 }
 function refreshCurrent() {
   if (currentTab==="leads")           loadLeads(currentPage);
@@ -2156,6 +2196,7 @@ function refreshCurrent() {
   else if (currentTab==="regs")       loadRegs();
   else if (currentTab==="mount")      loadMountTab(mountPage);
   else if (currentTab==="microps")    loadMicrops();
+  else if (currentTab==="calls")      loadCalls();
 }
 
 // ── HELPERS ──────────────────────────────
@@ -3103,6 +3144,151 @@ async function loadLeadCalls(id) {
     wrap.style.display = "";
   } catch (e) { /* ცხრილი ჯერ არ არსებობს ან ქსელი — ბარათი ზარების გარეშე იხსნება */ }
 }
+// ── ზარების გვერდი ──
+// ყველა ზარი პერიოდით: ჯამები, ოპერატორების ცხრილი და „გადასარეკი" —
+// შემომავალი ზარი, რომელსაც არ ვუპასუხეთ და მერე ამ ნომერთან ნაპასუხები
+// ზარი (არც შემომავალი, არც გამავალი) აღარ ყოფილა.
+let CALLS = [], CALL_LEADS = {};
+const CALL_MISSED = ["no_answer", "busy", "failed"];
+
+// თბილისის შუაღამე `back` დღის წინ → UTC ISO
+function geMidnightISO(back) {
+  const ge = new Date(Date.now() + 4 * 3600e3);
+  const d = Date.UTC(ge.getUTCFullYear(), ge.getUTCMonth(), ge.getUTCDate() - back) - 4 * 3600e3;
+  return new Date(d).toISOString();
+}
+function geDateISO(ymd, addDays = 0) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + addDays) - 4 * 3600e3).toISOString();
+}
+function callsPeriodChange() {
+  const range = document.getElementById("callsPeriod").value === "range";
+  document.getElementById("callsFrom").style.display = range ? "" : "none";
+  document.getElementById("callsTo").style.display = range ? "" : "none";
+  if (!range) loadCalls();
+}
+function callsRange() {
+  const v = document.getElementById("callsPeriod").value;
+  if (v === "range") {
+    const f = document.getElementById("callsFrom").value, t = document.getElementById("callsTo").value;
+    return { from: f ? geDateISO(f) : null, to: t ? geDateISO(t, 1) : null };
+  }
+  if (v === "1") return { from: geMidnightISO(1), to: geMidnightISO(0) };
+  const n = Number(v) || 0;
+  return { from: geMidnightISO(n ? n - 1 : 0), to: null };
+}
+const callAgent = c => c.agent_name || (c.agent_ext ? "შიდა " + c.agent_ext : "—");
+
+async function loadCalls() {
+  const list = document.getElementById("callsList");
+  list.innerHTML = '<div class="log-empty">იტვირთება...</div>';
+  try {
+    const { from, to } = callsRange();
+    let q = "select=id,direction,status,lead_phone,agent_ext,agent_name,started_at,duration_sec,lead_id&order=started_at.desc.nullslast";
+    if (from) q += `&started_at=gte.${encodeURIComponent(from)}`;
+    if (to)   q += `&started_at=lt.${encodeURIComponent(to)}`;
+    CALLS = await sbGetAll("calls", q, 20000);
+    // ლიდის სახელები — პირდაპირ, სეგმენტის ფილტრის გარეშე: ზარი ნებისმიერ ლიდზე უნდა ჩანდეს
+    const ids = [...new Set(CALLS.map(c => c.lead_id).filter(Boolean))].filter(id => !CALL_LEADS[id]);
+    for (let i = 0; i < ids.length; i += 150) {
+      const part = ids.slice(i, i + 150).map(id => `"${encodeURIComponent(id)}"`).join(",");
+      const res = await fetch(`${SB_URL}/rest/v1/leads?id=in.(${part})&select=id,name,status`, {
+        headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` } });
+      const rows = await res.json();
+      if (Array.isArray(rows)) rows.forEach(l => { CALL_LEADS[l.id] = l; });
+    }
+    // გადასარეკი: უპასუხო შემომავალი, რომლის შემდეგაც ამ ნომერთან ნაპასუხები ზარი არ ყოფილა
+    const lastOk = {};
+    CALLS.forEach(c => {
+      if (c.status === "answered" && c.lead_phone && c.started_at && !(lastOk[c.lead_phone] > c.started_at))
+        lastOk[c.lead_phone] = c.started_at;
+    });
+    const seen = new Set();
+    CALLS.forEach(c => {   // სია ახლიდან ძველისკენაა — ერთ ნომერზე მხოლოდ ბოლო ზარი ვნიშნავთ
+      c._callback = c.direction === "inbound" && CALL_MISSED.includes(c.status) && !!c.lead_phone
+        && !seen.has(c.lead_phone) && !(lastOk[c.lead_phone] > (c.started_at || ""));
+      if (c._callback) seen.add(c.lead_phone);
+    });
+    const sel = document.getElementById("callsAgent"), keep = sel.value;
+    const agents = [...new Set(CALLS.map(callAgent))].filter(a => a !== "—").sort();
+    sel.innerHTML = '<option value="">ყველა ოპერატორი</option>' + agents.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("");
+    if (agents.includes(keep)) sel.value = keep;
+    renderCalls();
+  } catch (e) {
+    list.innerHTML = '<div class="log-empty" style="color:var(--danger)">შეცდომა: ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderCalls() {
+  const agent = document.getElementById("callsAgent").value;
+  const kind = document.getElementById("callsKind").value;
+  const base = agent ? CALLS.filter(c => callAgent(c) === agent) : CALLS;
+  const rows = base.filter(c =>
+    !kind ? true
+    : kind === "callback" ? c._callback
+    : kind === "answered" ? c.status === "answered"
+    : kind === "missed" ? CALL_MISSED.includes(c.status)
+    : c.direction === kind);
+
+  // ჯამები
+  const ok = base.filter(c => c.status === "answered");
+  const talk = ok.reduce((t, c) => t + (c.duration_sec || 0), 0);
+  const cb = CALLS.filter(c => c._callback).length;
+  const card = (cls, label, val, click) =>
+    `<div class="stat-card ${cls}"${click ? ` style="cursor:pointer" onclick="${click}"` : ""}><div class="stat-label">${label}</div><div class="stat-value">${val}</div></div>`;
+  const hm = s => { if (s < 60) return s ? `${s} წმ` : "0"; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h ? `${h} სთ ${m} წთ` : `${m} წთ`; };
+  document.getElementById("callsStats").innerHTML =
+      card("blue", "სულ ზარი", base.length)
+    + card("", "↗ გამავალი", base.filter(c => c.direction === "outbound").length)
+    + card("", "↙ შემომავალი", base.filter(c => c.direction === "inbound").length)
+    + card("green", "ნაპასუხები", ok.length)
+    + card("yellow", "საუბრის დრო", hm(talk))
+    + card("red", "გადასარეკი", cb, "document.getElementById('callsKind').value='callback';renderCalls()");
+  const badge = document.getElementById("callsNavBadge");
+  badge.textContent = cb; badge.style.display = cb ? "" : "none";
+
+  // ოპერატორები
+  const by = {};
+  CALLS.forEach(c => {
+    const a = callAgent(c);
+    if (a === "—") return;   // უპასუხო შემომავალს ოპერატორი არ აქვს
+    const r = by[a] || (by[a] = { n: 0, out: 0, inn: 0, ok: 0, talk: 0 });
+    r.n++; if (c.direction === "outbound") r.out++; if (c.direction === "inbound") r.inn++;
+    if (c.status === "answered") { r.ok++; r.talk += c.duration_sec || 0; }
+  });
+  const ag = Object.entries(by).sort((a, b) => b[1].n - a[1].n);
+  document.getElementById("callsAgents").innerHTML = ag.length ? `<div class="table-wrap" style="overflow-x:auto"><table>
+    <thead><tr><th>ოპერატორი</th><th>სულ</th><th>გამავალი</th><th>შემომავალი</th><th>ნაპასუხები</th><th>საუბრის დრო</th><th>საშუალო საუბარი</th></tr></thead>
+    <tbody>${ag.map(([a, r]) => `<tr onclick="document.getElementById('callsAgent').value='${esc(a).replace(/'/g, "\\'")}';renderCalls()">
+      <td class="td-name">${esc(a)}</td><td>${r.n}</td><td>${r.out}</td><td>${r.inn}</td>
+      <td>${r.ok}${r.n ? ` <span style="color:var(--text-dim);font-size:11px">(${Math.round(r.ok / r.n * 100)}%)</span>` : ""}</td>
+      <td>${hm(r.talk)}</td><td>${r.ok ? fmtDur(Math.round(r.talk / r.ok)) : "—"}</td></tr>`).join("")}</tbody></table></div>` : "";
+
+  // სია
+  const list = document.getElementById("callsList");
+  if (!rows.length) {
+    list.innerHTML = `<div class="log-empty">${CALLS.length ? "ამ ფილტრით ზარი არ არის" : "ამ პერიოდში ზარი არ ყოფილა"}</div>`;
+    return;
+  }
+  const shown = rows.slice(0, 500);
+  list.innerHTML = `<table><thead><tr><th>დრო</th><th>მიმართულება</th><th>ნომერი</th><th>ლიდი</th><th>ოპერატორი</th><th>სტატუსი</th><th>საუბარი</th></tr></thead><tbody>`
+    + shown.map(c => {
+      const lead = c.lead_id ? CALL_LEADS[c.lead_id] : null;
+      const ok = c.status === "answered";
+      const arrow = c.direction === "inbound" ? "↙ შემომავალი" : c.direction === "outbound" ? "↗ გამავალი" : "—";
+      const st = CALL_STATUS[c.status] || esc(c.status || "—");
+      return `<tr${lead ? ` onclick="openLead('${esc(c.lead_id)}')"` : ' style="cursor:default"'}>
+        <td class="td-date">${c.started_at ? esc(fmtTime(c.started_at)) : "—"}</td>
+        <td>${arrow}</td>
+        <td class="td-phone">${esc(formatPhone(c.lead_phone) || "—")}</td>
+        <td>${lead ? `<span class="td-name">${esc(lead.name || c.lead_id)}</span>` : '<span style="color:var(--text-dim);font-size:12px">ლიდი არ არის</span>'}</td>
+        <td>${esc(callAgent(c))}</td>
+        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${ok ? "#34d399" : "#f59e0b"}"></span>${st}</span>${c._callback ? ' <span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px">გადასარეკი</span>' : ""}</td>
+        <td>${ok && c.duration_sec ? fmtDur(c.duration_sec) : ""}</td></tr>`;
+    }).join("")
+    + `</tbody></table>${rows.length > shown.length ? `<div class="log-empty">ნაჩვენებია ბოლო ${shown.length} — დანარჩენისთვის პერიოდი შეავიწროვე</div>` : ""}`;
+}
+
 function closeModal(){ currentId=null; currentLead=null; document.getElementById("modalOverlay").classList.remove("open"); document.getElementById("commentInput").value=""; }
 function handleOverlayClick(e){ if(e.target===document.getElementById("modalOverlay"))closeModal(); }
 
