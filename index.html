@@ -3125,6 +3125,33 @@ function fmtDur(s) {
   const m = Math.floor(s / 60), r = s % 60;
   return m ? `${m} წთ ${r} წმ` : `${r} წმ`;
 }
+// ── ჩანაწერის მოსმენა ──
+// ბმული ბაზაში დახურულია; crm_call_recording (44-ე SQL) მას მხოლოდ
+// ადმინს და გუნდის სტატისტიკის მნახველს აძლევს, შესვლის ტოკენით.
+function callPlayBtn(id, where) {
+  return `<button type="button" title="მოსმენა" onclick="event.stopPropagation();playCall(${Number(id)},'${where}',this)"
+    style="border:1px solid var(--border);background:var(--surface2);border-radius:7px;padding:2px 9px;font-size:12px;cursor:pointer;flex-shrink:0">▶ მოსმენა</button>`;
+}
+// where: "L" — ლიდის ბარათი, "P" — ზარების გვერდი (ორივე შეიძლება ერთად იყოს ღია)
+async function playCall(id, where, btn) {
+  const slot = document.getElementById("callAudio" + where + id);
+  if (!slot) return;
+  if (slot.innerHTML) { slot.innerHTML = ""; return; }   // მეორე დაჭერა ხურავს
+  const say = t => { slot.innerHTML = `<div style="font-size:12px;color:var(--danger);padding:6px 0">${esc(t)}</div>`; };
+  btn.disabled = true;
+  try {
+    const r = await authRpc("crm_call_recording", { p_token: crmToken(), p_id: id });
+    if (r.missing) return say("მოსმენა ჯერ არ არის ჩართული (44-ე SQL).");
+    const out = r.data || {};
+    if (!out.ok) return say(NEED_RELOGIN);
+    if (!out.url) return say("ამ ზარს ჩანაწერი არ აქვს.");
+    slot.innerHTML = `<audio controls autoplay preload="auto" style="width:100%;max-width:520px;height:36px;margin:6px 0" src="${esc(out.url)}"></audio>`;
+    slot.querySelector("audio").addEventListener("error", () => say("ჩანაწერი ვერ ჩაირთო — CityNet ბმულს არ ხსნის."));
+  } catch (e) {
+    say("შეცდომა: " + e.message);
+  } finally { btn.disabled = false; }
+}
+
 async function loadLeadCalls(id) {
   const wrap = document.getElementById("leadCallsWrap"), box = document.getElementById("leadCalls");
   wrap.style.display = "none"; box.innerHTML = "";
@@ -3132,16 +3159,17 @@ async function loadLeadCalls(id) {
   if (!seesTeamStats()) return;
   try {
     const { data } = await sbGet("calls",
-      `lead_id=eq.${encodeURIComponent(id)}&select=direction,status,agent_ext,agent_name,started_at,duration_sec&order=started_at.desc.nullslast&limit=30`);
+      `lead_id=eq.${encodeURIComponent(id)}&select=id,direction,status,agent_ext,agent_name,started_at,duration_sec&order=started_at.desc.nullslast&limit=30`);
     if (currentId !== id || !data || !data.length) return;
     box.innerHTML = data.map(c => {
       const arrow = c.direction === "inbound" ? "↙ შემომავალი" : c.direction === "outbound" ? "↗ გამავალი" : "ზარი";
       const ok = c.status === "answered";
       const st = CALL_STATUS[c.status] || esc(c.status || "—");
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg2);font-size:12.5px">`
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--bg2)"><div style="display:flex;align-items:center;gap:8px;font-size:12.5px">`
         + `<span style="width:7px;height:7px;border-radius:50%;background:${ok ? "#34d399" : "#f59e0b"};flex-shrink:0"></span>`
         + `<span><b>${esc(c.agent_name || c.agent_ext || "?")}</b> — ${arrow} · ${st}${ok && c.duration_sec ? " · " + fmtDur(c.duration_sec) : ""}</span>`
-        + `<span style="margin-left:auto;font-size:11px;color:var(--text-dim);white-space:nowrap">${c.started_at ? esc(fmtTime(c.started_at)) : ""}</span></div>`;
+        + `<span style="margin-left:auto;font-size:11px;color:var(--text-dim);white-space:nowrap">${c.started_at ? esc(fmtTime(c.started_at)) : ""}</span>`
+        + (ok ? callPlayBtn(c.id, "L") : "") + `</div><div id="callAudioL${c.id}"></div></div>`;
     }).join("");
     wrap.style.display = "";
   } catch (e) { /* ცხრილი ჯერ არ არსებობს ან ქსელი — ბარათი ზარების გარეშე იხსნება */ }
@@ -3273,7 +3301,7 @@ function renderCalls() {
     return;
   }
   const shown = rows.slice(0, 500);
-  list.innerHTML = `<table><thead><tr><th>დრო</th><th>მიმართულება</th><th>ნომერი</th><th>ლიდი</th><th>ოპერატორი</th><th>სტატუსი</th><th>საუბარი</th></tr></thead><tbody>`
+  list.innerHTML = `<table><thead><tr><th>დრო</th><th>მიმართულება</th><th>ნომერი</th><th>ლიდი</th><th>ოპერატორი</th><th>სტატუსი</th><th>საუბარი</th><th></th></tr></thead><tbody>`
     + shown.map(c => {
       const lead = c.lead_id ? CALL_LEADS[c.lead_id] : null;
       const ok = c.status === "answered";
@@ -3286,7 +3314,9 @@ function renderCalls() {
         <td>${lead ? `<span class="td-name">${esc(lead.name || c.lead_id)}</span>` : '<span style="color:var(--text-dim);font-size:12px">ლიდი არ არის</span>'}</td>
         <td>${esc(callAgent(c))}</td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${ok ? "#34d399" : "#f59e0b"}"></span>${st}</span>${c._callback ? ' <span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px">გადასარეკი</span>' : ""}</td>
-        <td>${ok && c.duration_sec ? fmtDur(c.duration_sec) : ""}</td></tr>`;
+        <td>${ok && c.duration_sec ? fmtDur(c.duration_sec) : ""}</td>
+        <td>${ok ? callPlayBtn(c.id, "P") : ""}</td></tr>
+        ${ok ? `<tr style="cursor:default;border-bottom:none"><td colspan="8" style="padding:0 14px"><div id="callAudioP${c.id}"></div></td></tr>` : ""}`;
     }).join("")
     + `</tbody></table>${rows.length > shown.length ? `<div class="log-empty">ნაჩვენებია ბოლო ${shown.length} — დანარჩენისთვის პერიოდი შეავიწროვე</div>` : ""}`;
 }
