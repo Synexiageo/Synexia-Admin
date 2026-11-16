@@ -3128,6 +3128,8 @@ function fmtDur(s) {
 async function loadLeadCalls(id) {
   const wrap = document.getElementById("leadCallsWrap"), box = document.getElementById("leadCalls");
   wrap.style.display = "none"; box.innerHTML = "";
+  // ზარები ოპერატორებს არ უჩანთ — მხოლოდ იმას, ვინც ზარების გვერდს ხედავს
+  if (!seesTeamStats()) return;
   try {
     const { data } = await sbGet("calls",
       `lead_id=eq.${encodeURIComponent(id)}&select=direction,status,agent_ext,agent_name,started_at,duration_sec&order=started_at.desc.nullslast&limit=30`);
