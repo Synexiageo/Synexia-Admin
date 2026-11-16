@@ -3131,8 +3131,8 @@ function fmtDur(s) {
 // ── დარეკვა ──
 // ბმული ოპერატორის კომპიუტერზე სარეკ პროგრამას (Zoiper) ხსნის და ნომერს კრეფს.
 // ზარი CityNet-ით მიდის და webhook-ით თავისით ჩაიწერება ამ ლიდზე.
-// თუ tel: Zoiper-ის ნაცვლად სხვა პროგრამას ხსნის, აქ შეიძლება "sip:"-ზე შეცვლა.
-const DIAL_SCHEME = "tel:";
+// zoiper: — tel:-ს Mac საკუთარ „Phone" აპს აძლევს, zoiper:-ს კი მხოლოდ Zoiper ხსნის.
+const DIAL_SCHEME = "zoiper:";
 function dialNumber(p) {
   let d = String(p || "").replace(/\D/g, "");
   if (d.length === 12 && d.startsWith("995")) d = d.slice(3);   // ქართული ნომერი — 9 ციფრი
