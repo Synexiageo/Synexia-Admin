@@ -5,9 +5,12 @@
 //            და გამოგზავნოს სათაურით `X-Webhook-Token`, `Authorization: Bearer`,
 //            ან, თუ სხვა გზა არ აქვს, მისამართში `?token=`.
 //
-// მომწოდებელი ჯერ არ ვიცით, ამიტომ ველების სახელებს ფართოდ ვკითხულობთ
-// (call_id / uniqueid / linkedid, billsec / duration და ა.შ.) და ნედლ
-// შეტყობინებასაც ვინახავთ — თუ რამე ვერ ვიცანით, დაკარგული არ იქნება.
+// მომწოდებელი CityNet-ია. მისი ფორმატი (ერთი JSON ზარზე):
+//   {"date_time":"2025-11-13 13:38:19","unique_id":"1763026699.138808","dir":"in",
+//    "src":"577208418","dst":"995322114411","opr":"102","mob":"","dur":"583",
+//    "rec":"https://audio.citynet.ge/listen/...wav","status":"ANSWERED","meta_data":""}
+// ველების სახელებს მაინც ფართოდ ვკითხულობთ და ნედლ შეტყობინებასაც ვინახავთ —
+// თუ რამე ვერ ვიცანით, დაკარგული არ იქნება.
 
 import { timingSafeEqual, createHash } from "node:crypto";
 import { sbTable } from "../lib/bot.mjs";
@@ -103,20 +106,23 @@ function normalize(ev) {
     || (dir === "outbound" ? phone(to) : dir === "inbound" ? phone(from) : null)
     || phone(to) || phone(from);
 
-  const talk = Number(pick(ev, "talk_duration", "billsec", "talk_time", "duration_talk", "conversation_duration", "duration")) || 0;
-  const agent = pick(ev, "agent", "operator", "agent_id", "operator_id", "extension", "ext", "user", "username", "agent_name");
+  const talk = Number(pick(ev, "talk_duration", "billsec", "talk_time", "duration_talk", "conversation_duration", "duration", "dur")) || 0;
+  const st = status(pick(ev, "status", "disposition", "result", "call_status", "event"), talk);
+  const agent = pick(ev, "agent", "operator", "agent_id", "operator_id", "extension", "ext", "user", "username", "agent_name", "opr");
 
   return {
     provider_call_id: id != null ? String(id) : null,
     direction: dir,
-    status: status(pick(ev, "status", "disposition", "result", "call_status", "event"), talk),
+    status: st,
     lead_phone: leadPhone,
     agent_ext: agent != null ? String(agent).trim() : null,
-    started_at: time(pick(ev, "started_at", "start", "start_time", "calldate", "created_at", "timestamp")),
+    started_at: time(pick(ev, "started_at", "start", "start_time", "calldate", "created_at", "timestamp", "date_time")),
     answered_at: time(pick(ev, "answered_at", "answer", "answer_time")),
     ended_at: time(pick(ev, "ended_at", "end", "end_time", "hangup_time")),
-    duration_sec: talk || null,
-    recording_url: pick(ev, "recording_url", "record_url", "recording", "record", "recordingUrl"),
+    // CityNet-ის dur უპასუხო ზარზეც შეიძლება ზარის რეკვის დრო იყოს — ხანგრძლივობას
+    // მხოლოდ ნაპასუხებ ზარზე ვინახავთ, თორემ „გამოტოვებული 9 წუთი" გამოჩნდება
+    duration_sec: (st === "answered" ? talk : 0) || null,
+    recording_url: pick(ev, "recording_url", "record_url", "recording", "record", "recordingUrl", "rec"),
   };
 }
 
@@ -163,8 +169,14 @@ async function readBody(req) {
   const type = req.headers.get("content-type") || "";
   const text = await req.text();
   if (!text) return null;
-  if (type.includes("application/x-www-form-urlencoded")) return Object.fromEntries(new URLSearchParams(text));
-  try { return JSON.parse(text); } catch { return Object.fromEntries(new URLSearchParams(text)); }
+  // curl -d '{...}' JSON-ს form-urlencoded სათაურით აგზავნის — ამიტომ ჯერ
+  // ტექსტს ვუყურებთ და არა სათაურს
+  const t = text.trim();
+  if (t.startsWith("{") || t.startsWith("[")) {
+    try { return JSON.parse(t); } catch { /* ქვემოთ ფორმად ვცდით */ }
+  }
+  if (type.includes("application/x-www-form-urlencoded") || text.includes("=")) return Object.fromEntries(new URLSearchParams(text));
+  return JSON.parse(text);
 }
 
 const json = (o, status = 200) =>
