@@ -75,6 +75,16 @@ function time(v) {
   return isNaN(d) ? null : d.toISOString();
 }
 
+// CityNet ჩანაწერის ბმულს კოდირებულად აგზავნის: https%3A%2F%2F...
+function url(v) {
+  if (v == null) return null;
+  let s = String(v).trim();
+  for (let i = 0; i < 2 && /^https?%3A/i.test(s); i++) {
+    try { s = decodeURIComponent(s); } catch { break; }
+  }
+  return s || null;
+}
+
 function direction(v) {
   // მხოლოდ ზუსტი მნიშვნელობები — „ringing"-იც „in"-ს შეიცავს
   const s = String(v || "").toLowerCase().trim();
@@ -122,7 +132,7 @@ function normalize(ev) {
     // CityNet-ის dur უპასუხო ზარზეც შეიძლება ზარის რეკვის დრო იყოს — ხანგრძლივობას
     // მხოლოდ ნაპასუხებ ზარზე ვინახავთ, თორემ „გამოტოვებული 9 წუთი" გამოჩნდება
     duration_sec: (st === "answered" ? talk : 0) || null,
-    recording_url: pick(ev, "recording_url", "record_url", "recording", "record", "recordingUrl", "rec"),
+    recording_url: url(pick(ev, "recording_url", "record_url", "recording", "record", "recordingUrl", "rec")),
   };
 }
 

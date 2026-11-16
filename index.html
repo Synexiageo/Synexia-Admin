@@ -3164,8 +3164,11 @@ async function playCall(id, where, btn) {
     const out = r.data || {};
     if (!out.ok) return say(NEED_RELOGIN);
     if (!out.url) return say("ამ ზარს ჩანაწერი არ აქვს.");
-    slot.innerHTML = `<audio controls autoplay preload="auto" style="width:100%;max-width:520px;height:36px;margin:6px 0" src="${esc(out.url)}"></audio>`;
-    slot.querySelector("audio").addEventListener("error", () => say("ჩანაწერი ვერ ჩაირთო — CityNet ბმულს არ ხსნის."));
+    // ძველ ზარებზე ბმული CityNet-ის კოდირებით ინახება (https%3A%2F%2F...)
+    let src = String(out.url);
+    if (/^https?%3A/i.test(src)) { try { src = decodeURIComponent(src); } catch (e) {} }
+    slot.innerHTML = `<audio controls autoplay preload="auto" style="width:100%;max-width:520px;height:36px;margin:6px 0" src="${esc(src)}"></audio>`;
+    slot.querySelector("audio").addEventListener("error", () => say("ჩანაწერი ვერ ჩაირთო. CityNet ჩანაწერებს მხოლოდ ნებადართული ინტერნეტ-მისამართიდან (IP) აძლევს."));
   } catch (e) {
     say("შეცდომა: " + e.message);
   } finally { btn.disabled = false; }
