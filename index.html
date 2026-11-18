@@ -121,6 +121,10 @@ tbody tr.active-row{background:var(--blue-dim2);border-left:3px solid var(--blue
 td{padding:11px 14px;vertical-align:middle;white-space:nowrap;}
 .td-name{font-weight:600;color:var(--text);}
 .td-phone{font-family:monospace;font-size:12.5px;color:var(--blue);}
+.copy-btn{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;width:22px;height:22px;padding:0;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text-dim);cursor:pointer;vertical-align:middle;font-size:12px;line-height:1;}
+.copy-btn:hover{border-color:var(--blue);color:var(--blue);}
+.copy-btn.done{border-color:var(--success);color:var(--success);}
+.copy-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;}
 .td-date{color:var(--text-dim);font-size:12px;}
 .td-ref{font-family:monospace;font-size:12px;color:var(--warning);font-weight:700;}
 .td-actions{display:flex;gap:5px;align-items:center;}
@@ -1319,7 +1323,7 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
         <input class="modal-name" id="dName" style="background:transparent;border:none;outline:none;border-bottom:1.5px dashed transparent;border-radius:0;width:100%;padding:0;cursor:text;transition:.15s;" onfocus="this.style.borderBottomColor='var(--primary)'" onblur="this.style.borderBottomColor='transparent'" placeholder="სახელი">
         <div class="modal-meta" id="dMeta">—</div>
         <div class="modal-info-row">
-          <div class="modal-info-item"><span class="modal-info-label">ტელეფონი</span><span class="modal-info-val phone" id="dPhone">—</span></div>
+          <div class="modal-info-item"><span class="modal-info-label">ტელეფონი</span><span class="modal-info-val phone" id="dPhone">—</span><span id="dPhoneCopy"></span></div>
           <div class="modal-info-item"><span class="modal-info-label">რეფ. კოდი</span><span class="modal-info-val ref" id="dRefCode">—</span></div>
           <div class="modal-info-item"><span class="modal-info-label">რეგ. თარიღი</span><span class="modal-info-val" id="dRegDate">—</span></div>
           <div class="modal-info-item" id="dViewedWrap" style="display:none"><span class="modal-info-label">პირველი ნახვა</span><span class="modal-info-val viewed-info" id="dViewedInfo">—</span></div>
@@ -1954,7 +1958,7 @@ function moRow(o, i) {
     <td class="td-date">${i + 1}</td>
     <td class="td-date">${fmtTime(o.created_at)}</td>
     <td><span class="td-name">${esc(o.name)}</span></td>
-    <td class="td-phone">${formatPhone(o.phone)}</td>
+    <td class="td-phone">${formatPhone(o.phone)}${copyBtn(o.phone)}</td>
     <td style="font-size:12.5px;color:var(--text-mid);max-width:260px">${esc(o.address)}</td>
     <td style="white-space:nowrap">${moModel(o)}</td>
     <td><select class="mt-in" onchange="moSave('${id}','status',this.value,this)">
@@ -2124,7 +2128,7 @@ function mountRow(l, i) {
   return `<tr class="${cls}">
     <td class="td-date">${(mountPage - 1) * MOUNT_PAGE + i + 1}</td>
     <td><span class="td-name" style="cursor:pointer" onclick="openModal('${id}')">${esc(l.name)}</span>${tag}</td>
-    <td class="td-phone">${formatPhone(l.phone)}</td>
+    <td class="td-phone">${formatPhone(l.phone)}${copyBtn(l.phone)}</td>
     <td><span class="status-badge ${statusClass(l.status)}">${esc(stLabel(l.status))}</span></td>
     <td style="font-size:12px;color:var(--text-mid);font-weight:500">${esc(l.assigned_to || "—")}</td>
     <td><select class="mt-in ${l.mount_status || ""}" onchange="mountSave('${id}','mount_status',this.value,this)">
@@ -2202,6 +2206,15 @@ function refreshCurrent() {
 // ── HELPERS ──────────────────────────────
 // +995 599 52 93 71 — "+" თან უნდა დარჩეს, თორემ ჰგონიათ ბაზაში ჭრელად წერია
 function formatPhone(r){const s=String(r||"").replace(/\D/g,"");if(s.length===12&&s.startsWith("995"))return "+"+s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");if(s.length===12)return s.replace(/(\d{3})(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4 $5");return r;}
+// ნომრის კოპირება — ქართულ ნომერს 9 ციფრად ვაკოპირებთ (577601740), ასე იკრიფება პირდაპირ
+function copyNum(p){let d=String(p||"").replace(/\D/g,"");if(d.length===12&&d.startsWith("995"))d=d.slice(3);return d;}
+function copyBtn(p){const n=copyNum(p);if(!n)return "";return `<button type="button" class="copy-btn" title="კოპირება: ${n}" onclick="event.stopPropagation();copyPhone('${n}',this)"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>`;}
+async function copyPhone(n,btn){
+  try{await navigator.clipboard.writeText(n);}
+  catch(e){const t=document.createElement("textarea");t.value=n;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();}
+  const old=btn.innerHTML;btn.classList.add("done");btn.textContent="✓";
+  setTimeout(()=>{btn.classList.remove("done");btn.innerHTML=old;},1200);
+}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 // ბაზაში shift-ის ონბორდინგი ისევ „Onboarded"-ია: ანკეტის ფუნქცია სწორედ
 // ამას წერს და მას არ ვეხებით. ეკრანზე კი გარკვევით უნდა ეწეროს, რომელია.
@@ -2976,7 +2989,7 @@ function renderLeads(leads, offset) {
           ? `<span class="prio-star" title="ცხელი — ${esc(l.phone_model||"")} · ${sph}">⭐</span>` + flg
           : `<span class="prio-phone" title="ტელეფონი ვარგისია — ${esc(l.phone_model||"")}"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></span>`;
       })()}<span class="td-name">${esc(l.name)}</span>${(l.submission_count>1)?`<span title="ანკეტა ${l.submission_count}-ჯერ შეავსო${l.last_submission_at?" · ბოლოს "+fmtTime(l.last_submission_at):""}" style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0;cursor:help">🔁 ${l.submission_count}×</span>`:""}${minuteBadge(l)}${isInfluencer?"":favBtn(l.id)}</span>${FAVS.get(l.id)?`<div class="fav-hint">🔖 ${esc(FAVS.get(l.id))}</div>`:""}</td>
-      <td class="td-phone">${formatPhone(l.phone)}</td>
+      <td class="td-phone">${formatPhone(l.phone)}${copyBtn(l.phone)}</td>
       <td class="td-ref">${l.ref_code?esc(l.ref_code):'<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td><span class="status-badge ${sc}">${l.status==="დუპლიკატი"?"🔁 ":""}${esc(stLabel(l.status))}</span>${
         l.previous_status ? `<div class="prev-status">იყო: ${esc(l.previous_status)}</div>` : ""}</td>
@@ -3067,6 +3080,7 @@ async function openModal(id) {
     const favHintEl = document.getElementById("dFavHint");
     if (favHintEl) favHintEl.value = FAVS.get(l.id) || "";
     document.getElementById("dPhone").textContent   = formatPhone(l.phone)||"—";
+    document.getElementById("dPhoneCopy").innerHTML = copyBtn(l.phone);
     document.getElementById("dRefCode").textContent = l.ref_code||"—";
     document.getElementById("dRegDate").textContent = fmtTime(l.reg_date);
     document.getElementById("dStatus").value      = l.status||"New Lead";
@@ -3313,7 +3327,7 @@ function renderCalls() {
       return `<tr${lead ? ` onclick="openLead('${esc(c.lead_id)}')"` : ' style="cursor:default"'}>
         <td class="td-date">${c.started_at ? esc(fmtTime(c.started_at)) : "—"}</td>
         <td>${arrow}</td>
-        <td class="td-phone">${esc(formatPhone(c.lead_phone) || "—")}</td>
+        <td class="td-phone">${esc(formatPhone(c.lead_phone) || "—")}${copyBtn(c.lead_phone)}</td>
         <td>${lead ? `<span class="td-name">${esc(lead.name || c.lead_id)}</span>` : '<span style="color:var(--text-dim);font-size:12px">ლიდი არ არის</span>'}</td>
         <td>${esc(callAgent(c))}</td>
         <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${ok ? "#34d399" : "#f59e0b"}"></span>${st}</span>${c._callback ? ' <span style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px">გადასარეკი</span>' : ""}</td>
@@ -3851,7 +3865,7 @@ async function loadOnboardedTab() {
         return `<tr onclick="openModal('${l.id}')">
           <td class="td-date">${i+1}</td>
           <td class="td-name">${esc(l.name)}</td>
-          <td class="td-phone">${formatPhone(l.phone)}</td>
+          <td class="td-phone">${formatPhone(l.phone)}${copyBtn(l.phone)}</td>
           <td style="color:var(--danger);font-size:12px">— თარიღი არ მითითებულა</td>
           <td>—</td><td>—</td>
           <td onclick="event.stopPropagation()"><button class="btn-edit" onclick="openModal('${l.id}')">✏️ მითითება</button></td>
@@ -3871,7 +3885,7 @@ async function loadOnboardedTab() {
       return `<tr onclick="openModal('${l.id}')">
         <td class="td-date">${i+1}</td>
         <td class="td-name">${esc(l.name)}</td>
-        <td class="td-phone">${formatPhone(l.phone)}</td>
+        <td class="td-phone">${formatPhone(l.phone)}${copyBtn(l.phone)}</td>
         <td class="td-date">${obStr}</td>
         <td class="td-date" style="font-weight:600">${endStr}</td>
         <td><span class="days-badge ${cls}">${label}</span></td>
@@ -3953,7 +3967,7 @@ function filterRetired() {
     return `<tr onclick="openModal('${l.id}')">
       <td class="td-date">${i+1}</td>
       <td class="td-name">${esc(l.name)}</td>
-      <td class="td-phone">${formatPhone(l.phone)}</td>
+      <td class="td-phone">${formatPhone(l.phone)}${copyBtn(l.phone)}</td>
       <td class="td-ref">${l.ref_code ? esc(l.ref_code) : '<span style="color:var(--text-dim);font-weight:400">—</span>'}</td>
       <td class="td-date">${obCell}</td>
       <td class="td-date">${retCell}</td>
@@ -3998,7 +4012,7 @@ function applyBizFilters() {
     return `<tr onclick="openBizModal('${b.id}')">
       <td class="td-date">${i+1}</td><td class="td-name">${esc(b.company)}</td>
       <td style="color:var(--text-mid)">${esc(b.contact)||"—"}</td>
-      <td class="td-phone">${esc(b.phone)||"—"}</td>
+      <td class="td-phone">${esc(b.phone)||"—"}${copyBtn(b.phone)}</td>
       <td style="color:var(--text-dim);font-size:12px">${esc(b.sector)||"—"}</td>
       <td style="color:var(--text-mid);font-size:12px">${esc(b.city)||"—"}</td>
       <td><span class="status-badge ${sc}">${esc(b.status)}</span></td>
@@ -4445,7 +4459,7 @@ const RENEW_COLS = [
   { h:"#",                   cell:(n,i) => `<td class="td-date">${i+1}</td>` },
   { h:"განახლების თარიღი",   cell:n => `<td class="td-date">${esc(String(n.created_at||"").substring(0,10))}</td>` },
   { h:"სახელი გვარი",        cell:n => `<td class="td-name">${n.first_name ? esc(n.first_name + " " + (n.last_name||"")) : DIM}</td>` },
-  { h:"ტელეფონი",            cell:n => `<td class="td-phone">${n.phone ? formatPhone(n.phone) : DIM}</td>` },
+  { h:"ტელეფონი",            cell:n => `<td class="td-phone">${n.phone ? formatPhone(n.phone) + copyBtn(n.phone) : DIM}</td>` },
   { h:"პირადი ნომერი",       cell:n => `<td>${esc(n.personal_id||"")}</td>` },
   { h:"ახალი იუზერნეიმი",    cell:n => `<td><span style="font-family:ui-monospace,monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 7px">${esc(n.username||"")}</span></td>` },
   { h:"ახალი ელ-ფოსტა",      cell:n => `<td>${esc(n.email||"")}</td>` },
@@ -4521,7 +4535,7 @@ function regColumns() {
     );
   }
   cols.push(
-    { h:"ტელეფონი",         cell:r => `<td class="td-phone">${formatPhone(r.phone)}</td>` },
+    { h:"ტელეფონი",         cell:r => `<td class="td-phone">${formatPhone(r.phone)}${copyBtn(r.phone)}</td>` },
     { h:"ელ-ფოსტა",         cell:r => `<td>${r.email ? esc(r.email) : DIM}</td>` },
     { h:"პირადი ნომერი",    cell:r => `<td>${r.personal_id ? esc(r.personal_id) : DIM}</td>` },
     { h:"საბანკო ანგარიში", cell:r => `<td>${r.account_number ? esc(r.account_number) : DIM}</td>` },
