@@ -212,13 +212,13 @@ button:disabled{opacity:.55; cursor:default; box-shadow:none;}
         <label>კატეგორია<span class="req">*</span></label>
         <div class="seg rates">
           <button type="button" id="tierHome" onclick="setTier('home')">
-            დიასახლისი<span class="amt">5 ₾</span>
+            დიასახლისი<span class="amt" id="amtHome">7 ₾</span>
           </button>
           <button type="button" id="tierGen" onclick="setTier('general')">
-            სხვა საქმიანობა<span class="amt">7 ₾</span>
+            სხვა საქმიანობა<span class="amt" id="amtGen">8 ₾</span>
           </button>
           <button type="button" id="tierBoth" onclick="setTier('both')">
-            ორივე<span class="amt">5 და 7 ₾</span>
+            ორივე<span class="amt" id="amtBoth">7 და 8 ₾</span>
           </button>
         </div>
         <span class="hint" id="tierHint">ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება</span>
@@ -340,17 +340,35 @@ const PROGRAM = "minute";
 const CT_PREFIX = "minute_";
 
 // ── ტარიფი ──────────────────────────────────────────────────
-// დიასახლისი 5 ₾, სხვა საქმიანობა 7 ₾ — ისე, როგორც ხელშეკრულების
-// პუნქტ 1.2 „გ"-ში წერია. ვინც ორივეს აკეთებს, „ორივეს" ირჩევს და
-// საათები თავისი ადგილის მიხედვით ანაზღაურდება — ერთი ციფრი მას ვერ
-// აღწერს, ამიტომ rate ცარიელი რჩება.
+// ფასი იმაზეა დამოკიდებული, ვის სახელზე ირიცხება ანაზღაურება — ისე,
+// როგორც ხელშეკრულების (ვერსია 2) პუნქტ 1.2 „გ"-ში წერია:
+//   ფიზიკური პირი — სახლი 7 ₾, პროფესიული გარემო 8 ₾
+//   მეწარმე / შპს — სახლი 9 ₾, პროფესიული გარემო 10 ₾
+// ვინც ორივეს აკეთებს, „ორივეს" ირჩევს და საათები თავისი ადგილის
+// მიხედვით ანაზღაურდება — ერთი ციფრი მას ვერ აღწერს, ამიტომ rate ცარიელი რჩება.
 // არჩევანი სავალდებულოა: წინასწარ არცერთი არ არის მონიშნული.
-const RATES = { home: 5, general: 7, both: null };
-const TIER_TEXT = {
-  home:    "ანაზღაურების ტარიფი: 5 ₾",
-  general: "ანაზღაურების ტარიფი: 7 ₾",
-  both:    "სახლში გადაღებული საათი 5 ₾, პროფესიულ გარემოში — 7 ₾",
+const PRICES = {
+  individual:   { home: 7, general: 8 },
+  entrepreneur: { home: 9, general: 10 },
+  legal:        { home: 9, general: 10 },
 };
+function prices() { return PRICES[ENTITY] || PRICES.individual; }
+function rateFor(tier) { return tier === "both" ? null : (prices()[tier] ?? null); }
+function tierText(kind) {
+  const p = prices();
+  if (kind === "home")    return `ანაზღაურების ტარიფი: ${p.home} ₾`;
+  if (kind === "general") return `ანაზღაურების ტარიფი: ${p.general} ₾`;
+  if (kind === "both")    return `სახლში გადაღებული საათი ${p.home} ₾, პროფესიულ გარემოში — ${p.general} ₾`;
+  return "ანაზღაურების ტარიფი კატეგორიის მიხედვით განისაზღვრება";
+}
+// ღილაკებზე ფასი ანაზღაურების მიმღების არჩევისას იცვლება
+function renderPrices() {
+  const p = prices();
+  $("amtHome").textContent = p.home + " ₾";
+  $("amtGen").textContent  = p.general + " ₾";
+  $("amtBoth").textContent = `${p.home} და ${p.general} ₾`;
+  $("tierHint").textContent = tierText(TIER);
+}
 let TIER = "";
 
 function setTier(kind) {
@@ -359,7 +377,7 @@ function setTier(kind) {
   $("tierGen").classList.toggle("on", kind === "general");
   $("tierBoth").classList.toggle("on", kind === "both");
   $("tierWrap").classList.remove("bad");
-  $("tierHint").textContent = TIER_TEXT[kind];
+  $("tierHint").textContent = tierText(kind);
 }
 
 // ── ფიზიკური / იურიდიული ────────────────────────────────────
@@ -369,6 +387,7 @@ function setEntity(kind) {
   $("segInd").classList.toggle("on", kind === "individual");
   $("segEnt").classList.toggle("on", kind === "entrepreneur");
   $("segLeg").classList.toggle("on", kind === "legal");
+  renderPrices();
   // დასახელება და ს/ნ ორივეს სჭირდება — ხელშეკრულებაში სწორედ ესენი წერია
   const biz = kind !== "individual";
   $("legalWrap").classList.toggle("show", biz);
@@ -589,7 +608,7 @@ async function submitForm() {
         contract_id:  CONTRACT.id,
         agreed_at:    new Date().toISOString(),
         email:        email.toLowerCase(),
-        program: PROGRAM, tier: TIER, rate: RATES[TIER],
+        program: PROGRAM, tier: TIER, rate: rateFor(TIER),
         lead_id: leadId, matched: !!leadId
       })
     });
