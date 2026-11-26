@@ -958,7 +958,10 @@ tr.selected-row td{background:var(--blue-dim2)!important;}
       <div id="moSection" class="table-wrap">
         <div class="table-header">
           <div class="table-count">🛒 შეკვეთა საიტიდან: <span id="moCount">0</span></div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="search" class="tb-input" id="moSearch" placeholder="🔍 სახელი, ტელეფონი, მისამართი…"
+                   oninput="moSearchTyped()" onkeydown="if(event.key==='Enter'){clearTimeout(MO_T);loadMountOrders();}"
+                   style="height:30px;width:240px">
             <select class="tb-select" id="moFilter" onchange="loadMountOrders()" style="height:30px">
               <option value="open">მიმდინარე</option>
               <option value="">ყველა</option>
@@ -1915,6 +1918,21 @@ async function moNewCount() {
   return MO_NEW;
 }
 
+// ძებნა: სახელი, მისამართი, კომენტარი — ტექსტით; ტელეფონი — მხოლოდ ციფრებით,
+// რომ „599 12 34 56" და „+995599123456" ერთმანეთს დაემთხვეს.
+let MO_T = null;
+function moSearchTyped() { clearTimeout(MO_T); MO_T = setTimeout(loadMountOrders, 350); }
+function moQuery() {
+  const raw = (document.getElementById("moSearch")?.value || "").trim();
+  const t = raw.replace(/[(),"*\\]/g, " ").replace(/\s+/g, " ").trim();   // PostgREST-ის or()-ს ამტვრევს
+  if (!t) return "";
+  const like = `"*${t}*"`;
+  const parts = [`name.ilike.${like}`, `address.ilike.${like}`, `note.ilike.${like}`];
+  const d = raw.replace(/\D/g, "");
+  if (d.length >= 3) parts.push(`phone.ilike."*${d.slice(-9)}*"`);
+  return `(${parts.join(",")})`;
+}
+
 async function loadMountOrders() {
   const sec = document.getElementById("moSection");
   if (!sec) return;
@@ -1926,8 +1944,10 @@ async function loadMountOrders() {
   }
 
   const f = document.getElementById("moFilter").value;
+  const q = moQuery();
   let p = "select=id,name,phone,address,status,note,handled_by,created_at,model,price&order=created_at.desc&limit=100";
-  if (f === "open")     p += `&status=in.${MO_OPEN}`;
+  if (q)                p += `&or=${encodeURIComponent(q)}`;   // ძებნა ყველა სტატუსში — დასრულებულიც რომ იპოვოს
+  else if (f === "open") p += `&status=in.${MO_OPEN}`;
   else if (f)           p += `&status=eq.${encodeURIComponent(f)}`;
 
   const { data, count } = await sbGet("mount_orders", p);
@@ -1936,7 +1956,7 @@ async function loadMountOrders() {
   document.getElementById("moCount").textContent = count || 0;
   document.getElementById("moBody").innerHTML = (data && data.length)
     ? data.map(moRow).join("")
-    : `<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:22px">შეკვეთა არ მოსულა</td></tr>`;
+    : `<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:22px">${q ? "ვერაფერი მოიძებნა" : "შეკვეთა არ მოსულა"}</td></tr>`;
   ordersBadge();
 }
 
